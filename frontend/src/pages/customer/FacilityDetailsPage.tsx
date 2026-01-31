@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { customerService } from '../../services/customer.service';
 import { getSocket, joinFacility, leaveFacility } from '../../services/socket';
 import { useSearchStore } from '../../store/searchStore';
+import { useBookingFlowStore } from '../../store/bookingFlowStore';
 import type { ParkingFacility, VehicleType, SlotStatus } from '../../types';
 
 // Components
@@ -74,17 +75,14 @@ export default function FacilityDetailsPage() {
         };
     }, [id, selectedSlotId]);
 
-    // Booking Mutation
-    const bookingMutation = useMutation({
-        mutationFn: (data: any) => customerService.confirmBooking({
-            reservation_id: '', // Backwards compatibility or future reservation flow
-            vehicle_number: 'TEST-123', // Should come from a prompt or user profile
-            ...data
-        }),
-        onSuccess: (data) => {
-            navigate(`/customer/tickets/${data.id}`);
-        }
-    });
+    const { setFacilityAndSlot } = useBookingFlowStore();
+
+    const handleStartBooking = (slotId: string) => {
+        // Set the facility and slot in the booking flow store
+        setFacilityAndSlot(id!, slotId);
+        // Navigate to vehicle details page (Step 1)
+        navigate(`/customer/booking/${id}/vehicle`);
+    };
 
     if (isLoading) return <div className="min-h-screen flex items-center justify-center">Loading Facility...</div>;
     if (error || !localFacility) return <div className="min-h-screen flex items-center justify-center text-red-500">Error loading facility</div>;
@@ -139,10 +137,11 @@ export default function FacilityDetailsPage() {
                             selectedSlot={selectedSlot}
                             currentVehicleType={vehicleType}
                             pricingRule={pricingRule}
-                            isLoading={bookingMutation.isPending}
-                            onConfirm={(data) => {
-                                // In a real flow, we might want to ask for vehicle number here if not in profile
-                                bookingMutation.mutate(data);
+                            isLoading={false}
+                            onConfirm={() => {
+                                if (selectedSlotId) {
+                                    handleStartBooking(selectedSlotId);
+                                }
                             }}
                         />
                     </div>

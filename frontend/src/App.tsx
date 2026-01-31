@@ -14,6 +14,10 @@ import MyPassesPage from './pages/customer/MyPassesPage';
 import ProfilePage from './pages/customer/ProfilePage';
 import ProviderDashboard from './pages/provider/DashboardPage';
 import ManageFacilities from './pages/provider/ManageFacilitiesPage';
+import VehicleDetailsPage from './pages/customer/booking/VehicleDetailsPage';
+import BookingReviewPage from './pages/customer/booking/BookingReviewPage';
+import PaymentPage from './pages/customer/booking/PaymentPage';
+import BookingSuccessPage from './pages/customer/booking/BookingSuccessPage';
 
 function App() {
   const { isAuthenticated, user } = useAuthStore();
@@ -47,6 +51,38 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['CUSTOMER', 'ADMIN']}>
                 <FacilityDetailsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/booking/:facilityId/vehicle"
+            element={
+              <ProtectedRoute allowedRoles={['CUSTOMER', 'ADMIN']}>
+                <VehicleDetailsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/booking/:facilityId/review"
+            element={
+              <ProtectedRoute allowedRoles={['CUSTOMER', 'ADMIN']}>
+                <BookingReviewPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/booking/:facilityId/payment"
+            element={
+              <ProtectedRoute allowedRoles={['CUSTOMER', 'ADMIN']}>
+                <PaymentPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/booking/:ticketId/success"
+            element={
+              <ProtectedRoute allowedRoles={['CUSTOMER', 'ADMIN']}>
+                <BookingSuccessPage />
               </ProtectedRoute>
             }
           />

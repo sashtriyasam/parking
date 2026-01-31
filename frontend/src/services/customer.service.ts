@@ -47,7 +47,7 @@ export const customerService = {
     },
 
     async confirmBooking(data: BookingRequest): Promise<Ticket> {
-        const response = await apiClient.post<ApiResponse<Ticket>>('/bookings', data);
+        const response = await apiClient.post<ApiResponse<Ticket>>('/customer/booking/confirm', data);
         return response.data.data;
     },
 
@@ -74,6 +74,11 @@ export const customerService = {
             additional_hours: additionalHours,
         });
         return response.data;
+    },
+
+    // Alias for booking success page
+    getTicketDetails(ticketId: string): Promise<Ticket> {
+        return this.getTicketById(ticketId);
     },
 
     // Profile

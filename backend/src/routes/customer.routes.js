@@ -35,6 +35,11 @@ router.get('/tickets/history', ticketController.getTicketHistory);
 router.get('/tickets/:ticketId', ticketController.getTicketById);
 router.post('/tickets/:ticketId/extend', ticketController.extendTicket);
 
+// --- BOOKING FLOW (NEW) ---
+const bookingController = require('../controllers/booking.controller');
+router.post('/booking/confirm', bookingController.createBookingWithPayment);
+router.get('/booking/:ticketId/pdf', bookingController.downloadTicketPDF);
+
 // --- MONTHLY PASSES ---
 router.get('/passes/available', passController.getAvailablePasses);
 router.post('/passes/purchase', passController.purchasePass);
