@@ -109,6 +109,15 @@ export interface Ticket {
     exit_time?: string;
     total_fee?: number;
     status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+    payment_status?: 'PENDING' | 'PAID' | 'REFUNDED';
+    payment_method?: string;
+    payment_id?: string;
+    parking_slot?: ParkingSlot & {
+        floor?: Floor & {
+            facility?: ParkingFacility;
+        };
+    };
+    parking_facility?: ParkingFacility;
     slot?: ParkingSlot & {
         floor?: Floor & {
             facility?: ParkingFacility;
