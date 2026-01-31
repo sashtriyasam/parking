@@ -1,0 +1,121 @@
+openapi: 3.0.0
+info:
+  title: Parking Management System API
+  description: API for managing parking lots, bookings, and payments.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000/api/v1
+    description: Development server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Booking:
+      type: object
+      properties:
+        slot_id:
+          type: string
+        vehicle_number:
+          type: string
+          example: "KA-01-HH-1234"
+        vehicle_type:
+          type: string
+          enum: [BIKE, SCOOTER, CAR, TRUCK]
+    ParkingLocation:
+      type: object
+      properties:
+        name:
+          type: string
+        city:
+          type: string
+paths:
+  /auth/register:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                full_name:
+                  type: string
+                role:
+                  type: string
+                  enum: [CUSTOMER, PROVIDER]
+      responses:
+        '201':
+          description: User registered
+  /auth/login:
+    post:
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+  /bookings/reserve:
+    post:
+      security:
+        - bearerAuth: []
+      summary: Reserve a parking slot
+      description: Holds a slot for 5 minutes.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                facility_id:
+                  type: string
+                vehicle_type:
+                  type: string
+      responses:
+        '200':
+          description: Slot reserved
+  /bookings:
+    post:
+      security:
+        - bearerAuth: []
+      summary: Confirm a booking (Create Ticket)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Booking'
+      responses:
+        '201':
+          description: Ticket created
+  /bookings/checkout:
+    post:
+      security:
+        - bearerAuth: []
+      summary: End booking and calculate fee
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ticket_id:
+                  type: string
+      responses:
+        '200':
+          description: Booking completed with fee breakdown

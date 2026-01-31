@@ -1,0 +1,181 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String        @id @default(uuid())
+  email         String        @unique
+  password_hash String
+  full_name     String?
+  phone_number  String?
+  role          Role          @default(CUSTOMER)
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+
+  // Relations
+  parking_facilities ParkingFacility[]
+  tickets            Ticket[]
+  monthly_passes     MonthlyPass[]
+  vehicles           Vehicle[]
+  favorites          Favorite[]
+
+  @@map("users")
+}
+
+model ParkingFacility {
+  id              String        @id @default(uuid())
+  provider_id     String
+  provider        User          @relation(fields: [provider_id], references: [id])
+  name            String
+  address         String
+  city            String
+  latitude        Decimal?
+  longitude       Decimal?
+  total_floors    Int           @default(1)
+  operating_hours String?
+  is_active       Boolean       @default(true)
+  image_url       String?
+  created_at      DateTime      @default(now())
+  updated_at      DateTime      @updatedAt
+
+  // Relations
+  floors          Floor[]
+  pricing_rules   PricingRule[]
+  monthly_passes  MonthlyPass[]
+  favorites       Favorite[]
+
+  @@map("parking_facilities")
+}
+
+model Floor {
+  id           String          @id @default(uuid())
+  facility_id  String
+  facility     ParkingFacility @relation(fields: [facility_id], references: [id], onDelete: Cascade)
+  floor_number Int
+  floor_name   String?
+
+  parking_slots ParkingSlot[]
+
+  @@map("floors")
+}
+
+model ParkingSlot {
+  id           String      @id @default(uuid())
+  floor_id     String
+  floor        Floor       @relation(fields: [floor_id], references: [id], onDelete: Cascade)
+  slot_number  String
+  vehicle_type VehicleType
+  status       SlotStatus  @default(FREE)
+  area_sqft    Decimal?
+  is_active    Boolean     @default(true)
+  reservation_expiry DateTime?
+
+  tickets Ticket[]
+
+  @@map("parking_slots")
+}
+
+model Ticket {
+  id             String       @id @default(uuid())
+  customer_id    String
+  customer       User         @relation(fields: [customer_id], references: [id])
+  slot_id        String
+  slot           ParkingSlot  @relation(fields: [slot_id], references: [id])
+  vehicle_number String
+  vehicle_type   VehicleType
+  entry_time     DateTime     @default(now())
+  exit_time      DateTime?
+  base_fee       Decimal?
+  extra_charges  Decimal?
+  total_fee      Decimal?
+  status         TicketStatus @default(ACTIVE)
+
+  @@map("tickets")
+}
+
+model MonthlyPass {
+  id           String          @id @default(uuid())
+  customer_id  String
+  customer     User            @relation(fields: [customer_id], references: [id])
+  facility_id  String
+  facility     ParkingFacility @relation(fields: [facility_id], references: [id])
+  vehicle_type VehicleType
+  start_date   DateTime
+  end_date     DateTime
+  price        Decimal
+  status       PassStatus      @default(ACTIVE)
+
+  @@map("monthly_passes")
+}
+
+model PricingRule {
+  id                 String          @id @default(uuid())
+  facility_id        String
+  facility           ParkingFacility @relation(fields: [facility_id], references: [id], onDelete: Cascade)
+  vehicle_type       VehicleType
+  hourly_rate        Decimal
+  daily_max          Decimal?
+  monthly_pass_price Decimal?
+
+  @@map("pricing_rules")
+}
+
+enum Role {
+  CUSTOMER
+  PROVIDER
+  ADMIN
+}
+
+enum VehicleType {
+  BIKE
+  SCOOTER
+  CAR
+  TRUCK
+}
+
+enum SlotStatus {
+  FREE
+  OCCUPIED
+  RESERVED
+  MAINTENANCE
+}
+
+enum TicketStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum PassStatus {
+  ACTIVE
+  EXPIRED
+}
+
+model Vehicle {
+  id             String      @id @default(uuid())
+  user_id        String
+  user           User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  vehicle_number String
+  vehicle_type   VehicleType
+  nickname       String?     // e.g., "My Car"
+  created_at     DateTime    @default(now())
+
+  @@map("vehicles")
+}
+
+model Favorite {
+  id          String          @id @default(uuid())
+  user_id     String
+  user        User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  facility_id String
+  facility    ParkingFacility @relation(fields: [facility_id], references: [id], onDelete: Cascade)
+  created_at  DateTime        @default(now())
+
+  @@unique([user_id, facility_id])
+  @@map("favorites")
+}

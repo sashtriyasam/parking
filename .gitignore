@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+.npm/
+.npm-cache/
+.prisma/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Databases (Local)
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+
+# Build Outputs
+dist/
+build/
+.next/
+out/
+
+# IDE & Logs
+.vscode/
+.idea/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
