@@ -30,7 +30,28 @@ export interface AuthResponse {
 
 // Parking Types
 export type VehicleType = 'BIKE' | 'SCOOTER' | 'CAR' | 'TRUCK';
-export type SlotStatus = 'FREE' | 'OCCUPIED' | 'RESERVED';
+export type SlotStatus = 'FREE' | 'OCCUPIED' | 'RESERVED' | 'MAINTENANCE';
+
+export interface PricingRule {
+    vehicle_type: VehicleType;
+    hourly_rate: number;
+    daily_max?: number;
+    monthly_pass_price?: number;
+}
+
+export interface Amenity {
+    id: string;
+    name: string;
+    icon: string;
+}
+
+export interface Review {
+    id: string;
+    customer_name: string;
+    rating: number;
+    comment: string;
+    created_at: string;
+}
 
 export interface ParkingFacility {
     id: string;
@@ -41,16 +62,21 @@ export interface ParkingFacility {
     longitude?: number;
     total_floors: number;
     operating_hours?: string;
+    contact_info?: string;
+    description?: string;
     image_url?: string;
+    images?: string[];
     distance?: number;
     distance_text?: string;
     duration_text?: string;
     available_slots?: Record<VehicleType, number>;
     total_available?: number;
-    pricing?: {
-        hourly_rate: number;
-        daily_max: number;
-    };
+    pricing_rules: PricingRule[];
+    amenities: string[]; // for now just strings
+    floors: (Floor & { parking_slots: ParkingSlot[] })[];
+    reviews?: Review[];
+    rating_avg?: number;
+    rating_count?: number;
 }
 
 export interface Floor {

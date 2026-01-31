@@ -4,7 +4,11 @@ const prisma = require('./src/config/db');
 const Logger = require('./src/utils/logger');
 require('./src/jobs/cleanupReservations'); // Initialize cron jobs
 
+const http = require('http');
+const { initSocket } = require('./src/services/socket.service');
+
 const PORT = process.env.PORT || 5000;
+const server = http.createServer(app);
 
 async function startServer() {
     try {
@@ -12,7 +16,11 @@ async function startServer() {
         await prisma.$connect();
         Logger.info('Database connected successfully');
 
-        app.listen(PORT, () => {
+        // Initialize Socket.io
+        initSocket(server);
+        Logger.info('Socket.io initialized');
+
+        server.listen(PORT, () => {
             Logger.info(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
         });
     } catch (error) {

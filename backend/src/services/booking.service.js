@@ -1,5 +1,6 @@
 const prisma = require('../config/db');
 const AppError = require('../utils/AppError');
+const { emitSlotUpdate } = require('./socket.service');
 
 /**
  * Reserve a slot for a specific duration (default 5 mins)
@@ -63,11 +64,20 @@ const reserveSlot = async (facilityId, vehicleType, floorId = null, userId) => {
 
         if (result.count > 0) {
             // Success!
-            return {
+            const response = {
                 slot_id: candidate.id,
                 reserved_until: expiryTime,
                 vehicle_type: vehicleType
             };
+
+            // Notify clients
+            emitSlotUpdate(facilityId, {
+                slotId: candidate.id,
+                status: 'RESERVED',
+                reservation_expiry: expiryTime
+            });
+
+            return response;
         }
     }
 
@@ -109,12 +119,21 @@ const confirmBooking = async (slotId, userId, vehicleNumber, vehicleType) => {
         });
 
         // Update Slot
-        await tx.parkingSlot.update({
+        const updatedSlot = await tx.parkingSlot.update({
             where: { id: slotId },
             data: {
                 status: 'OCCUPIED',
                 reservation_expiry: null
+            },
+            include: {
+                floor: true
             }
+        });
+
+        // Notify clients
+        emitSlotUpdate(updatedSlot.floor.facility_id, {
+            slotId: slotId,
+            status: 'OCCUPIED'
         });
 
         return ticket;
