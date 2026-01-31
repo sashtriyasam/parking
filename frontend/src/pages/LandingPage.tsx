@@ -23,25 +23,25 @@ export default function LandingPage() {
             icon: MapPin,
             title: 'Smart Location',
             description: 'Find parking spots near you with real-time availability',
-            color: 'from-blue-500 to-cyan-500'
+            gradient: 'linear-gradient(135deg, #3B82F6 0%, #06B6D4 100%)'
         },
         {
             icon: Clock,
             title: '24/7 Booking',
             description: 'Book parking anytime, anywhere with instant confirmation',
-            color: 'from-purple-500 to-pink-500'
+            gradient: 'linear-gradient(135deg, #A855F7 0%, #EC4899 100%)'
         },
         {
             icon: Shield,
             title: 'Secure Parking',
             description: 'CCTV monitored facilities for your vehicle safety',
-            color: 'from-green-500 to-emerald-500'
+            gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
         },
         {
             icon: IndianRupee,
             title: 'Best Prices',
             description: 'Transparent pricing with no hidden charges',
-            color: 'from-orange-500 to-red-500'
+            gradient: 'linear-gradient(135deg, #F97316 0%, #EF4444 100%)'
         },
     ];
 
@@ -180,7 +180,7 @@ export default function LandingPage() {
                                         width: '60px',
                                         height: '60px',
                                         borderRadius: '12px',
-                                        background: `linear-gradient(135deg, ${feature.color.split(' ')[0].replace('from-', '#')} 0%, ${feature.color.split(' ')[2].replace('to-', '#')} 100%)`,
+                                        background: feature.gradient,
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',

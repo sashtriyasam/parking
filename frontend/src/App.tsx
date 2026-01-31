@@ -40,11 +40,7 @@ function App() {
           {/* Customer Routes */}
           <Route
             path="/customer/search"
-            element={
-              <ProtectedRoute allowedRoles={['CUSTOMER', 'ADMIN']}>
-                <CustomerSearchPage />
-              </ProtectedRoute>
-            }
+            element={<CustomerSearchPage />}
           />
           <Route
             path="/customer/facility/:id"

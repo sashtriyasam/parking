@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -13,7 +13,7 @@ model User {
   password_hash String
   full_name     String?
   phone_number  String?
-  role          Role          @default(CUSTOMER)
+  role          String        @default("CUSTOMER")
   created_at    DateTime      @default(now())
   updated_at    DateTime      @updatedAt
 
@@ -69,8 +69,8 @@ model ParkingSlot {
   floor_id     String
   floor        Floor       @relation(fields: [floor_id], references: [id], onDelete: Cascade)
   slot_number  String
-  vehicle_type VehicleType
-  status       SlotStatus  @default(FREE)
+  vehicle_type String
+  status       String      @default("FREE")
   area_sqft    Decimal?
   is_active    Boolean     @default(true)
   reservation_expiry DateTime?
@@ -87,13 +87,13 @@ model Ticket {
   slot_id        String
   slot           ParkingSlot  @relation(fields: [slot_id], references: [id])
   vehicle_number String
-  vehicle_type   VehicleType
+  vehicle_type   String
   entry_time     DateTime     @default(now())
   exit_time      DateTime?
   base_fee       Decimal?
   extra_charges  Decimal?
   total_fee      Decimal?
-  status         TicketStatus @default(ACTIVE)
+  status         String       @default("ACTIVE")
 
   @@map("tickets")
 }
@@ -104,11 +104,11 @@ model MonthlyPass {
   customer     User            @relation(fields: [customer_id], references: [id])
   facility_id  String
   facility     ParkingFacility @relation(fields: [facility_id], references: [id])
-  vehicle_type VehicleType
+  vehicle_type String
   start_date   DateTime
   end_date     DateTime
   price        Decimal
-  status       PassStatus      @default(ACTIVE)
+  status       String          @default("ACTIVE")
 
   @@map("monthly_passes")
 }
@@ -117,7 +117,7 @@ model PricingRule {
   id                 String          @id @default(uuid())
   facility_id        String
   facility           ParkingFacility @relation(fields: [facility_id], references: [id], onDelete: Cascade)
-  vehicle_type       VehicleType
+  vehicle_type       String
   hourly_rate        Decimal
   daily_max          Decimal?
   monthly_pass_price Decimal?
@@ -125,43 +125,20 @@ model PricingRule {
   @@map("pricing_rules")
 }
 
-enum Role {
-  CUSTOMER
-  PROVIDER
-  ADMIN
-}
-
-enum VehicleType {
-  BIKE
-  SCOOTER
-  CAR
-  TRUCK
-}
-
-enum SlotStatus {
-  FREE
-  OCCUPIED
-  RESERVED
-  MAINTENANCE
-}
-
-enum TicketStatus {
-  ACTIVE
-  COMPLETED
-  CANCELLED
-}
-
-enum PassStatus {
-  ACTIVE
-  EXPIRED
-}
+// Enums converted to String for SQLite compatibility
+// Valid values:
+// - Role: CUSTOMER, PROVIDER, ADMIN
+// - VehicleType: BIKE, SCOOTER, CAR, TRUCK
+// - SlotStatus: FREE, OCCUPIED, RESERVED, MAINTENANCE
+// - TicketStatus: ACTIVE, COMPLETED, CANCELLED
+// - PassStatus: ACTIVE, EXPIRED
 
 model Vehicle {
   id             String      @id @default(uuid())
   user_id        String
   user           User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
   vehicle_number String
-  vehicle_type   VehicleType
+  vehicle_type   String
   nickname       String?     // e.g., "My Car"
   created_at     DateTime    @default(now())
 
