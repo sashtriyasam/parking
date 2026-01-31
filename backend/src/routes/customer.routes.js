@@ -6,14 +6,16 @@ const { protect, restrictTo } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Protect ALL customer routes
+// PUBLIC ROUTES (no auth required) - Must be BEFORE protect middleware
+router.get('/search', customerController.searchParking);
+router.get('/facility/:facilityId', customerController.getFacilityDetails);
+router.get('/facility/:facilityId/slots', customerController.getAvailableSlots);
+
+// Protect ALL routes below this point
 router.use(protect);
 router.use(restrictTo('CUSTOMER', 'ADMIN'));
 
-// --- DISCOVERY & SEARCH ---
-router.get('/parking/search', customerController.searchParking);
-router.get('/parking/:facilityId/details', customerController.getFacilityDetails);
-router.get('/parking/:facilityId/available-slots', customerController.getAvailableSlots);
+// --- AUTHENTICATED CUSTOMER ROUTES ---
 
 // --- PROFILE ---
 router.get('/profile', customerController.getProfile);
