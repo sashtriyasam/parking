@@ -1,6 +1,5 @@
 import { X, Download, MapPin, Calendar, Car, CreditCard, HelpCircle, Share2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import type { Ticket } from '../../../types';
 import { useTicketsStore } from '../../../store/ticketsStore';
 
 export default function TicketDetailModal() {

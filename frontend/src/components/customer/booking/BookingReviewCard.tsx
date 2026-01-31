@@ -1,5 +1,5 @@
 import { MapPin, Calendar, Clock, Car, CreditCard, Info } from 'lucide-react';
-import type { ParkingFacility, ParkingSlot, VehicleType, PricingRule } from '../../../types';
+import type { ParkingFacility, ParkingSlot, PricingRule } from '../../../types';
 import type { VehicleDetails } from '../../../store/bookingFlowStore';
 
 interface BookingReviewCardProps {

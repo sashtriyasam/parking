@@ -72,6 +72,7 @@ export interface ParkingFacility {
     available_slots?: Record<VehicleType, number>;
     total_available?: number;
     pricing_rules: PricingRule[];
+    pricing?: PricingRule; // Helper for first pricing rule
     amenities: string[]; // for now just strings
     floors: (Floor & { parking_slots: ParkingSlot[] })[];
     reviews?: Review[];
@@ -132,8 +133,14 @@ export interface Reservation {
 }
 
 export interface BookingRequest {
-    reservation_id: string;
+    reservation_id?: string;
+    slot_id: string;
     vehicle_number: string;
+    vehicle_type: VehicleType;
+    entry_time: string;
+    duration: number;
+    payment_method: string;
+    payment_details: any;
 }
 
 // Pass Types

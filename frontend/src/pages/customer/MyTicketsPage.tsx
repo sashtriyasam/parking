@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Ticket, Navigation } from 'lucide-react';
+import { Ticket } from 'lucide-react';
 import { useTicketsStore } from '../../store/ticketsStore';
 import { customerService } from '../../services/customer.service';
 import TicketCard from '../../components/customer/tickets/TicketCard';
@@ -22,7 +21,8 @@ export default function MyTicketsPage() {
                     // For now, return empty array - will implement upcoming logic
                     return [];
                 case 'past':
-                    return customerService.getTicketHistory();
+                    const historyResponse = await customerService.getTicketHistory();
+                    return historyResponse.data || [];
                 case 'cancelled':
                     // For now, return empty array - will implement cancelled logic
                     return [];

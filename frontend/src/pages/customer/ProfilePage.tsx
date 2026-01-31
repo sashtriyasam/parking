@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { User, Car, CreditCard, Settings, Heart, Save } from 'lucide-react';
 import { customerService } from '../../services/customer.service';
@@ -21,14 +21,18 @@ export default function ProfilePage() {
     const { data: profile, isLoading } = useQuery({
         queryKey: ['profile'],
         queryFn: () => customerService.getProfile(),
-        onSuccess: (data) => {
-            setFormData({
-                full_name: data.full_name || '',
-                email: data.email || '',
-                phone_number: data.phone_number || '',
-            });
-        },
     });
+
+    // Update form data when profile loads
+    useEffect(() => {
+        if (profile) {
+            setFormData({
+                full_name: profile.full_name || '',
+                email: profile.email || '',
+                phone_number: profile.phone_number || '',
+            });
+        }
+    }, [profile]);
 
     const updateProfileMutation = useMutation({
         mutationFn: (data: any) => customerService.updateProfile(data),
