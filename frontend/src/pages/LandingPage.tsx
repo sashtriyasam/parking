@@ -18,29 +18,81 @@ export default function LandingPage() {
         navigate('/customer/search');
     };
 
+    const features = [
+        {
+            icon: MapPin,
+            title: 'Smart Location',
+            description: 'Find parking spots near you with real-time availability',
+            color: 'from-blue-500 to-cyan-500'
+        },
+        {
+            icon: Clock,
+            title: '24/7 Booking',
+            description: 'Book parking anytime, anywhere with instant confirmation',
+            color: 'from-purple-500 to-pink-500'
+        },
+        {
+            icon: Shield,
+            title: 'Secure Parking',
+            description: 'CCTV monitored facilities for your vehicle safety',
+            color: 'from-green-500 to-emerald-500'
+        },
+        {
+            icon: IndianRupee,
+            title: 'Best Prices',
+            description: 'Transparent pricing with no hidden charges',
+            color: 'from-orange-500 to-red-500'
+        },
+    ];
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-            {/* Navigation */}
-            <nav className="bg-white shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex justify-between items-center">
-                        <h1 className="text-2xl font-bold text-primary">ParkEase</h1>
-                        <div className="space-x-4">
+        <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+            {/* Hero Section */}
+            <div style={{ background: 'rgba(255, 255, 255, 0.95)', padding: '20px 0' }}>
+                <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
+                    {/* Navigation */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+                        <h1 style={{ fontSize: '32px', fontWeight: 'bold', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                            ParkEasy
+                        </h1>
+                        <div style={{ display: 'flex', gap: '15px' }}>
                             {isAuthenticated ? (
                                 <Link
                                     to={user?.role === 'PROVIDER' ? '/provider/dashboard' : '/customer/search'}
-                                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                                    style={{
+                                        padding: '12px 24px',
+                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                        color: 'white',
+                                        borderRadius: '8px',
+                                        textDecoration: 'none',
+                                        fontWeight: '600'
+                                    }}
                                 >
                                     Dashboard
                                 </Link>
                             ) : (
                                 <>
-                                    <Link to="/login" className="px-4 py-2 text-gray-700 hover:text-primary">
+                                    <Link
+                                        to="/login"
+                                        style={{
+                                            padding: '12px 24px',
+                                            color: '#667eea',
+                                            textDecoration: 'none',
+                                            fontWeight: '600'
+                                        }}
+                                    >
                                         Login
                                     </Link>
                                     <Link
                                         to="/signup"
-                                        className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                                        style={{
+                                            padding: '12px 24px',
+                                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                            color: 'white',
+                                            borderRadius: '8px',
+                                            textDecoration: 'none',
+                                            fontWeight: '600'
+                                        }}
                                     >
                                         Sign Up
                                     </Link>
@@ -48,109 +100,178 @@ export default function LandingPage() {
                             )}
                         </div>
                     </div>
-                </div>
-            </nav>
 
-            {/* Hero Section */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
-                <div className="text-center mb-10">
-                    <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                        Find & Book Parking in Seconds
-                    </h2>
-                    <p className="text-xl text-gray-600 mb-8">
-                        Discover nearby parking spots, reserve instantly, and park hassle-free
+                    {/* Hero Content */}
+                    <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                        <h2 style={{ fontSize: '56px', fontWeight: '900', color: '#1a202c', marginBottom: '24px', lineHeight: '1.2' }}>
+                            Find Your Perfect<br />
+                            <span style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                                Parking Spot
+                            </span>
+                        </h2>
+                        <p style={{ fontSize: '20px', color: '#4a5568', maxWidth: '700px', margin: '0 auto 40px', lineHeight: '1.6' }}>
+                            Book parking in advance, save time, and park with confidence.
+                            Hassle-free parking solutions across your city.
+                        </p>
+
+                        {/* Search Bar */}
+                        <div style={{ background: 'white', borderRadius: '16px', padding: '30px', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', maxWidth: '900px', margin: '0 auto' }}>
+                            <SearchBar onSearch={handleSearch} />
+                        </div>
+
+                        {/* Stats */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginTop: '60px', maxWidth: '900px', margin: '60px auto 0' }}>
+                            {[
+                                { value: '500+', label: 'Parking Locations' },
+                                { value: '50K+', label: 'Happy Customers' },
+                                { value: '4.8★', label: 'Average Rating' },
+                                { value: '24/7', label: 'Support Available' },
+                            ].map((stat, index) => (
+                                <div key={index} style={{ background: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+                                    <div style={{ fontSize: '32px', fontWeight: '900', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                                        {stat.value}
+                                    </div>
+                                    <div style={{ fontSize: '14px', color: '#718096', marginTop: '8px', fontWeight: '600' }}>
+                                        {stat.label}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Features Section */}
+            <div style={{ padding: '80px 20px', background: 'white' }}>
+                <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '60px' }}>
+                        <h3 style={{ fontSize: '42px', fontWeight: '900', color: '#1a202c', marginBottom: '16px' }}>
+                            Why Choose ParkEasy?
+                        </h3>
+                        <p style={{ fontSize: '18px', color: '#718096', maxWidth: '600px', margin: '0 auto' }}>
+                            Experience the future of parking with our smart, secure, and convenient platform
+                        </p>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '30px' }}>
+                        {features.map((feature, index) => {
+                            const Icon = feature.icon;
+                            return (
+                                <div
+                                    key={index}
+                                    style={{
+                                        padding: '30px',
+                                        background: 'linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%)',
+                                        borderRadius: '16px',
+                                        border: '2px solid #e2e8f0',
+                                        transition: 'all 0.3s ease',
+                                        cursor: 'pointer'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(-8px)';
+                                        e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.12)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = 'none';
+                                    }}
+                                >
+                                    <div style={{
+                                        width: '60px',
+                                        height: '60px',
+                                        borderRadius: '12px',
+                                        background: `linear-gradient(135deg, ${feature.color.split(' ')[0].replace('from-', '#')} 0%, ${feature.color.split(' ')[2].replace('to-', '#')} 100%)`,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        marginBottom: '20px'
+                                    }}>
+                                        <Icon size={30} color="white" />
+                                    </div>
+                                    <h4 style={{ fontSize: '22px', fontWeight: 'bold', color: '#1a202c', marginBottom: '12px' }}>
+                                        {feature.title}
+                                    </h4>
+                                    <p style={{ color: '#718096', lineHeight: '1.6' }}>
+                                        {feature.description}
+                                    </p>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {/* CTA Section */}
+            <div style={{ padding: '80px 20px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+                <div style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
+                    <h3 style={{ fontSize: '42px', fontWeight: '900', color: 'white', marginBottom: '16px' }}>
+                        Ready to Park Smarter?
+                    </h3>
+                    <p style={{ fontSize: '20px', color: 'rgba(255, 255, 255, 0.9)', marginBottom: '40px' }}>
+                        Join thousands of satisfied customers who have made parking stress-free
+                    </p>
+                    {!isAuthenticated ? (
+                        <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                            <Link
+                                to="/signup"
+                                style={{
+                                    padding: '16px 40px',
+                                    background: 'white',
+                                    color: '#667eea',
+                                    borderRadius: '12px',
+                                    textDecoration: 'none',
+                                    fontWeight: 'bold',
+                                    fontSize: '18px',
+                                    boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+                                }}
+                            >
+                                Get Started Free
+                            </Link>
+                            <Link
+                                to="/login"
+                                style={{
+                                    padding: '16px 40px',
+                                    background: 'rgba(255, 255, 255, 0.2)',
+                                    color: 'white',
+                                    borderRadius: '12px',
+                                    textDecoration: 'none',
+                                    fontWeight: 'bold',
+                                    fontSize: '18px',
+                                    border: '2px solid white'
+                                }}
+                            >
+                                Login
+                            </Link>
+                        </div>
+                    ) : (
+                        <Link
+                            to={user?.role === 'PROVIDER' ? '/provider/dashboard' : '/customer/search'}
+                            style={{
+                                display: 'inline-block',
+                                padding: '16px 40px',
+                                background: 'white',
+                                color: '#667eea',
+                                borderRadius: '12px',
+                                textDecoration: 'none',
+                                fontWeight: 'bold',
+                                fontSize: '18px',
+                                boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+                            }}
+                        >
+                            Go to Dashboard
+                        </Link>
+                    )}
+                </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: '40px 20px', background: '#1a202c', color: 'white' }}>
+                <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
+                    <p style={{ fontSize: '16px', color: '#a0aec0' }}>
+                        © 2026 ParkEasy. All rights reserved. | Making parking simple, smart, and stress-free.
                     </p>
                 </div>
-
-                {/* Search Bar */}
-                <div className="flex justify-center mb-16">
-                    <SearchBar onSearch={handleSearch} />
-                </div>
-
-                {/* Features */}
-                <div className="grid md:grid-cols-4 gap-6 mb-16">
-                    <div className="bg-white p-6 rounded-lg shadow-md text-center">
-                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <MapPin className="w-6 h-6 text-primary" />
-                        </div>
-                        <h3 className="text-lg font-semibold mb-2">Search Nearby</h3>
-                        <p className="text-gray-600 text-sm">
-                            Find parking spots near your destination instantly
-                        </p>
-                    </div>
-                    <div className="bg-white p-6 rounded-lg shadow-md text-center">
-                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Clock className="w-6 h-6 text-green-600" />
-                        </div>
-                        <h3 className="text-lg font-semibold mb-2">Quick Booking</h3>
-                        <p className="text-gray-600 text-sm">
-                            Reserve your spot in just 30 seconds
-                        </p>
-                    </div>
-                    <div className="bg-white p-6 rounded-lg shadow-md text-center">
-                        <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Shield className="w-6 h-6 text-purple-600" />
-                        </div>
-                        <h3 className="text-lg font-semibold mb-2">Secure Parking</h3>
-                        <p className="text-gray-600 text-sm">
-                            All facilities verified with 24/7 security
-                        </p>
-                    </div>
-                    <div className="bg-white p-6 rounded-lg shadow-md text-center">
-                        <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <IndianRupee className="w-6 h-6 text-orange-600" />
-                        </div>
-                        <h3 className="text-lg font-semibold mb-2">Best Prices</h3>
-                        <p className="text-gray-600 text-sm">
-                            Transparent pricing with no hidden charges
-                        </p>
-                    </div>
-                </div>
-
-                {/* How It Works */}
-                <div className="bg-white rounded-lg shadow-md p-8 mb-16">
-                    <h2 className="text-3xl font-bold text-center mb-10">How It Works</h2>
-                    <div className="grid md:grid-cols-3 gap-8">
-                        <div className="text-center">
-                            <div className="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
-                                1
-                            </div>
-                            <h3 className="font-semibold text-lg mb-2">Search Location</h3>
-                            <p className="text-gray-600">
-                                Enter your destination and select your vehicle type
-                            </p>
-                        </div>
-                        <div className="text-center">
-                            <div className="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
-                                2
-                            </div>
-                            <h3 className="font-semibold text-lg mb-2">Choose Parking</h3>
-                            <p className="text-gray-600">
-                                Browse available spots and select the best one
-                            </p>
-                        </div>
-                        <div className="text-center">
-                            <div className="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
-                                3
-                            </div>
-                            <h3 className="font-semibold text-lg mb-2">Park & Go</h3>
-                            <p className="text-gray-600">
-                                Show your QR code and park hassle-free
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* CTA */}
-                <div className="text-center">
-                    <Link
-                        to="/customer/search"
-                        className="inline-block px-12 py-4 bg-primary text-white rounded-lg text-lg font-semibold hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all"
-                    >
-                        Start Finding Parking
-                    </Link>
-                </div>
-            </main>
+            </div>
         </div>
     );
 }
