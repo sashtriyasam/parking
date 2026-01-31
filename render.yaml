@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: parking-backend
+    env: node
+    plan: free # Use the free tier
+    buildCommand: npm install && npx prisma generate
+    startCommand: npm start
+    rootDir: backend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # User will provide this in the Render dashboard
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
