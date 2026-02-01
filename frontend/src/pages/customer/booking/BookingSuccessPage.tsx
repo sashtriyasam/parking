@@ -1,246 +1,171 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle, Download, Share2, MapPin, Calendar, Car, CreditCard, Home } from 'lucide-react';
+import {
+    Check,
+    Download,
+    Share2,
+    Navigation,
+    Clock,
+    MapPin,
+    Zap,
+    IndianRupee,
+    ArrowRight
+} from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { customerService } from '../../../services/customer.service';
-import BookingProgressBar from '../../../components/customer/booking/BookingProgressBar';
 import { useBookingFlowStore } from '../../../store/bookingFlowStore';
 
 export default function BookingSuccessPage() {
-    const navigate = useNavigate();
     const { ticketId } = useParams<{ ticketId: string }>();
+    const navigate = useNavigate();
     const { resetFlow } = useBookingFlowStore();
-    const [showSuccess, setShowSuccess] = useState(false);
 
-    // Fetch ticket details
-    const { data: ticket, isLoading } = useQuery({
+    // Fetch confirmed ticket details
+    const { data: ticket, isLoading, error } = useQuery({
         queryKey: ['ticket', ticketId],
-        queryFn: () => customerService.getTicketDetails(ticketId!),
+        queryFn: () => customerService.getTicketById(ticketId!),
         enabled: !!ticketId,
     });
 
+    // Reset booking store when arriving here (wait a bit or when component unmounts)
     useEffect(() => {
-        // Trigger success animation
-        setTimeout(() => setShowSuccess(true), 300);
-    }, []);
+        return () => resetFlow(); // Cleanup on exit
+    }, [resetFlow]);
 
-    const handleDownloadPDF = () => {
-        // TODO: Implement PDF download
-        alert('PDF download feature coming soon!');
-    };
+    if (isLoading) return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+            <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4 shadow-xl shadow-indigo-100" />
+            <p className="text-gray-400 font-black uppercase tracking-[0.2em] text-xs">Generating Your Ticket...</p>
+        </div>
+    );
 
-    const handleShare = async () => {
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: 'Parking Ticket',
-                    text: `My parking ticket for ${ticket?.parking_facility?.name}`,
-                    url: window.location.href,
-                });
-            } catch (error) {
-                console.error('Error sharing:', error);
-            }
-        } else {
-            // Fallback: copy link
-            navigator.clipboard.writeText(window.location.href);
-            alert('Link copied to clipboard!');
-        }
-    };
+    if (error || !ticket) return (
+        <div className="min-h-screen flex items-center justify-center bg-red-50 p-6">
+            <div className="bg-white p-12 rounded-[40px] text-center shadow-xl border border-red-100 max-w-lg">
+                <h3 className="text-2xl font-black text-red-900 mb-2">Ticket Error</h3>
+                <p className="text-red-600/70 font-bold mb-8 leading-relaxed">Booking was successful but we couldn't load the visual ticket. Please check "My Tickets" section.</p>
+                <button onClick={() => navigate('/customer/tickets')} className="bg-red-600 text-white px-10 py-4 rounded-2xl font-black shadow-xl shadow-red-100 uppercase tracking-widest text-xs">Go to My Tickets</button>
+            </div>
+        </div>
+    );
 
-    const handleGetDirections = () => {
-        if (ticket?.parking_facility) {
-            const { latitude, longitude } = ticket.parking_facility;
-            window.open(
-                `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`,
-                '_blank'
-            );
-        }
-    };
-
-    const handleDone = () => {
-        resetFlow();
-        navigate('/customer/tickets');
-    };
-
-    if (isLoading || !ticket) {
-        return <div className="min-h-screen flex items-center justify-center">Loading ticket...</div>;
-    }
-
-    const formatDateTime = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleString('en-IN', {
-            dateStyle: 'medium',
-            timeStyle: 'short',
-        });
-    };
+    const facility = ticket.parking_facility || ticket.slot?.floor?.facility;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50">
-            <BookingProgressBar currentStep={4} />
+        <div className="min-h-screen bg-indigo-600 pb-20 overflow-hidden relative">
+            {/* Background Decorations */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-900/50 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
 
-            <div className="max-w-3xl mx-auto px-4 py-8">
-                {/* Success Animation */}
-                <div
-                    className={`text-center mb-8 transition-all duration-700 ${showSuccess ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
-                        }`}
-                >
-                    <div className="inline-flex items-center justify-center w-24 h-24 bg-green-500 rounded-full mb-4 animate-bounce">
-                        <CheckCircle size={48} className="text-white" />
+            <main className="max-w-xl mx-auto px-6 relative z-10 pt-12">
+                {/* Success Icon Animation */}
+                <div className="flex flex-col items-center text-center mb-10">
+                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-2xl mb-6 relative">
+                        <div className="absolute inset-0 bg-white rounded-full animate-ping opacity-20" />
+                        <Check size={48} className="text-green-500 stroke-[4]" />
                     </div>
-                    <h1 className="text-4xl font-black text-gray-900 mb-2">
-                        Booking Confirmed!
-                    </h1>
-                    <p className="text-lg text-gray-600">
-                        Your parking slot has been successfully reserved
-                    </p>
+                    <h1 className="text-3xl font-black text-white mb-2">Booking Confirmed!</h1>
+                    <p className="text-indigo-100 font-bold uppercase tracking-widest text-xs">Reservation ID: {ticket.id.slice(-8).toUpperCase()}</p>
                 </div>
 
-                {/* Ticket Card */}
-                <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden mb-6">
-                    {/* QR Code Section */}
-                    <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-8 text-center">
-                        <div className="bg-white rounded-2xl p-6 inline-block mb-4">
+                {/* The Ticket (Physical look) */}
+                <div className="bg-white rounded-[40px] overflow-hidden shadow-2xl shadow-indigo-900/40 relative">
+                    {/* Top Section: QR */}
+                    <div className="p-10 text-center border-b-4 border-dashed border-gray-100 relative">
+                        {/* Cutouts */}
+                        <div className="absolute -bottom-4 -left-4 w-8 h-8 bg-indigo-600 rounded-full" />
+                        <div className="absolute -bottom-4 -right-4 w-8 h-8 bg-indigo-600 rounded-full" />
+
+                        <div className="bg-gray-50 p-6 rounded-[32px] inline-block shadow-inner mb-6 border-2 border-white">
                             <QRCodeSVG
-                                value={JSON.stringify({
-                                    ticketId: ticket.id,
-                                    slotId: ticket.slot_id,
-                                    vehicleNumber: ticket.vehicle_number,
-                                })}
-                                size={200}
+                                value={`PARK-${ticket.id}`}
+                                size={180}
                                 level="H"
-                                includeMargin
+                                includeMargin={true}
                             />
                         </div>
-                        <p className="text-white text-sm font-medium">
-                            Show this QR code at the entry gate
-                        </p>
+                        <p className="text-xs font-black text-gray-400 font-mono tracking-widest">{ticket.id.toUpperCase()}</p>
                     </div>
 
-                    {/* Ticket Details */}
-                    <div className="p-8 space-y-6">
-                        <div className="text-center pb-6 border-b border-gray-200">
-                            <p className="text-sm text-gray-500 mb-1">Ticket ID</p>
-                            <p className="text-2xl font-black text-gray-900 font-mono">
-                                {ticket.id.slice(0, 8).toUpperCase()}
-                            </p>
+                    {/* Middle Section: Details */}
+                    <div className="p-10 space-y-8">
+                        <div>
+                            <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-2 leading-none">Parking Zone</p>
+                            <h2 className="text-2xl font-black text-gray-900 leading-tight">{facility?.name}</h2>
+                            <div className="flex items-center gap-2 text-gray-400 text-sm font-bold mt-2">
+                                <MapPin size={14} />
+                                <span className="truncate">{facility?.address}</span>
+                            </div>
                         </div>
 
-                        {/* Facility Info */}
-                        <div className="space-y-4">
-                            <div className="flex items-start gap-4">
-                                <div className="p-3 bg-indigo-100 rounded-lg">
-                                    <MapPin size={24} className="text-indigo-600" />
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm text-gray-500">Parking Facility</p>
-                                    <p className="font-bold text-gray-900">{ticket.parking_facility?.name}</p>
-                                    <p className="text-sm text-gray-600">{ticket.parking_facility?.address}</p>
-                                </div>
+                        <div className="grid grid-cols-2 gap-8 pt-8 border-t border-gray-50">
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 leading-none">Assigned Slot</p>
+                                <p className="text-xl font-black text-gray-900 flex items-center gap-2">
+                                    <Zap size={18} className="text-indigo-600 fill-indigo-600" />
+                                    {ticket.parking_slot?.slot_number}
+                                </p>
+                                <p className="text-[10px] font-bold text-indigo-500 uppercase">Floor {ticket.parking_slot?.floor?.floor_number}</p>
                             </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="flex items-start gap-3">
-                                    <div className="p-2 bg-blue-100 rounded-lg">
-                                        <Home size={20} className="text-blue-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-gray-500">Slot Number</p>
-                                        <p className="font-bold text-gray-900">{ticket.parking_slot?.slot_number}</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-start gap-3">
-                                    <div className="p-2 bg-purple-100 rounded-lg">
-                                        <Car size={20} className="text-purple-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-gray-500">Vehicle</p>
-                                        <p className="font-bold text-gray-900">{ticket.vehicle_number}</p>
-                                    </div>
-                                </div>
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 leading-none">Vehicle</p>
+                                <p className="text-xl font-black text-gray-900 tracking-widest">{ticket.vehicle_number}</p>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase">{ticket.vehicle_type}</p>
                             </div>
+                        </div>
 
-                            <div className="flex items-start gap-4">
-                                <div className="p-3 bg-green-100 rounded-lg">
-                                    <Calendar size={24} className="text-green-600" />
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm text-gray-500">Entry Time</p>
-                                    <p className="font-bold text-gray-900">{formatDateTime(ticket.entry_time)}</p>
-                                </div>
+                        <div className="grid grid-cols-2 gap-8">
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 leading-none">Entry Time</p>
+                                <p className="text-sm font-black text-gray-800 flex items-center gap-2">
+                                    <Clock size={14} className="text-gray-400" />
+                                    {new Date(ticket.entry_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </p>
                             </div>
-
-                            <div className="flex items-start gap-4">
-                                <div className="p-3 bg-yellow-100 rounded-lg">
-                                    <CreditCard size={24} className="text-yellow-600" />
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm text-gray-500">Amount Paid</p>
-                                    <p className="font-bold text-2xl text-gray-900">₹{ticket.total_fee?.toFixed(2)}</p>
-                                </div>
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 leading-none">Amount Paid</p>
+                                <p className="text-sm font-black text-indigo-600 flex items-center gap-1">
+                                    <IndianRupee size={14} className="stroke-[3]" />
+                                    {ticket.total_fee || '0'}.00
+                                </p>
                             </div>
                         </div>
                     </div>
+
+                    {/* Bottom Actions of Ticket */}
+                    <div className="bg-gray-50 p-6 flex items-center justify-between border-t border-gray-100">
+                        <button className="flex items-center gap-2 text-xs font-black text-gray-500 uppercase tracking-widest hover:text-indigo-600 transition-colors">
+                            <Download size={16} /> Save PDF
+                        </button>
+                        <div className="w-px h-6 bg-gray-200" />
+                        <button className="flex items-center gap-2 text-xs font-black text-gray-500 uppercase tracking-widest hover:text-indigo-600 transition-colors">
+                            <Share2 size={16} /> Share
+                        </button>
+                    </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
+                {/* Primary Actions */}
+                <div className="mt-12 space-y-4">
                     <button
-                        onClick={handleGetDirections}
-                        className="flex items-center justify-center gap-2 px-6 py-4 bg-white border-2 border-indigo-600 text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition-all"
+                        onClick={() => {
+                            if (facility?.latitude && facility?.longitude) {
+                                window.open(`https://www.google.com/maps/dir/?api=1&destination=${facility.latitude},${facility.longitude}`, '_blank');
+                            }
+                        }}
+                        className="w-full py-6 bg-white text-indigo-600 rounded-[28px] font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:scale-102 flex items-center justify-center gap-3 transition-all"
                     >
-                        <MapPin size={20} />
-                        Get Directions
+                        <Navigation size={20} /> Get Directions
                     </button>
-                    <button
-                        onClick={handleDownloadPDF}
-                        className="flex items-center justify-center gap-2 px-6 py-4 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all"
-                    >
-                        <Download size={20} />
-                        Download PDF
-                    </button>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-8">
                     <button
-                        onClick={handleShare}
-                        className="flex items-center justify-center gap-2 px-6 py-4 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all"
+                        onClick={() => navigate('/customer/tickets')}
+                        className="w-full py-6 bg-indigo-900/50 backdrop-blur-md text-white rounded-[28px] font-black text-sm uppercase tracking-[0.2em] hover:bg-indigo-900 transition-all flex items-center justify-center gap-3"
                     >
-                        <Share2 size={20} />
-                        Share Ticket
-                    </button>
-                    <button
-                        onClick={handleDone}
-                        className="flex items-center justify-center gap-2 px-6 py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg"
-                    >
-                        View My Tickets
+                        Done <ArrowRight size={20} />
                     </button>
                 </div>
-
-                {/* Important Info */}
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-                    <h4 className="font-bold text-blue-900 mb-3">Important Information</h4>
-                    <ul className="space-y-2 text-sm text-blue-800">
-                        <li className="flex gap-2">
-                            <span>•</span>
-                            <span>Please arrive within your entry time window</span>
-                        </li>
-                        <li className="flex gap-2">
-                            <span>•</span>
-                            <span>Show the QR code at the entry gate for verification</span>
-                        </li>
-                        <li className="flex gap-2">
-                            <span>•</span>
-                            <span>Overstay charges will apply if you exceed the booked duration</span>
-                        </li>
-                        <li className="flex gap-2">
-                            <span>•</span>
-                            <span>Keep your vehicle documents handy for verification</span>
-                        </li>
-                    </ul>
-                </div>
-            </div>
+            </main>
         </div>
     );
 }

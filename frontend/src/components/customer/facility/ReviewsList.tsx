@@ -1,4 +1,4 @@
-import { Star, ThumbsUp, MessageSquare } from 'lucide-react';
+import { Star, MessageSquare, ThumbsUp, MoreVertical, ChevronDown } from 'lucide-react';
 import type { Review } from '../../../types';
 
 interface ReviewsListProps {
@@ -8,91 +8,109 @@ interface ReviewsListProps {
 }
 
 export default function ReviewsList({ reviews, ratingAvg, ratingCount }: ReviewsListProps) {
-    // Generate dummy distribution for visual appeal
-    const distribution = [70, 15, 8, 4, 3]; // 5, 4, 3, 2, 1 stars percentages
+    const distributions = [
+        { rating: 5, percentage: 70 },
+        { rating: 4, percentage: 20 },
+        { rating: 3, percentage: 5 },
+        { rating: 2, percentage: 3 },
+        { rating: 1, percentage: 2 },
+    ];
 
     return (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-8">
-            <h3 className="text-xl font-bold text-gray-900">Ratings & Reviews</h3>
+        <div className="py-12 border-t border-gray-100">
+            <div className="flex items-center gap-3 mb-10">
+                <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600">
+                    <MessageSquare size={24} />
+                </div>
+                <div>
+                    <h3 className="text-2xl font-black text-gray-900 tracking-tight">Community Reviews</h3>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Verified experiences from real users</p>
+                </div>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {/* Overall Rating */}
-                <div className="flex flex-col items-center justify-center p-6 bg-indigo-50 rounded-2xl">
-                    <span className="text-5xl font-black text-indigo-600 mb-2">{ratingAvg.toFixed(1)}</span>
-                    <div className="flex gap-1 mb-2">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 mb-12">
+                {/* Highlight Card */}
+                <div className="bg-gray-900 rounded-[32px] p-10 text-white flex flex-col items-center justify-center text-center shadow-2xl shadow-gray-200">
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-4">Overall Score</p>
+                    <div className="text-7xl font-black mb-4">{ratingAvg.toFixed(1)}</div>
+                    <div className="flex gap-1 mb-4">
                         {[1, 2, 3, 4, 5].map((s) => (
-                            <Star
-                                key={s}
-                                size={20}
-                                className={s <= Math.round(ratingAvg) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
-                            />
+                            <Star key={s} size={24} className={s <= Math.round(ratingAvg) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-700'} />
                         ))}
                     </div>
-                    <p className="text-gray-500 text-sm">{ratingCount} Verified Reviews</p>
+                    <p className="text-sm font-bold text-white/60 italic">Based on {ratingCount} reservations</p>
                 </div>
 
-                {/* Distribution */}
-                <div className="md:col-span-2 space-y-3">
-                    {distribution.map((percent, i) => (
-                        <div key={i} className="flex items-center gap-4">
-                            <span className="text-sm font-bold text-gray-500 w-4">{5 - i}</span>
-                            <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                {/* Distribution Chart */}
+                <div className="lg:col-span-2 flex flex-col justify-center space-y-4">
+                    {distributions.map((dist) => (
+                        <div key={dist.rating} className="flex items-center gap-4">
+                            <span className="text-xs font-black text-gray-400 uppercase tracking-widest w-6">{dist.rating}</span>
+                            <div className="flex-1 h-3 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
                                 <div
-                                    className="h-full bg-indigo-500 rounded-full"
-                                    style={{ width: `${percent}%` }}
+                                    className="h-full bg-indigo-600 rounded-full transition-all duration-1000"
+                                    style={{ width: `${dist.percentage}%` }}
                                 />
                             </div>
-                            <span className="text-sm text-gray-400 w-8">{percent}%</span>
+                            <span className="text-xs font-bold text-gray-900 w-10">{dist.percentage}%</span>
                         </div>
                     ))}
                 </div>
             </div>
 
-            <div className="divide-y divide-gray-50">
-                {reviews.map((review) => (
-                    <div key={review.id} className="py-6 space-y-3 group">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold">
-                                    {review.customer_name.charAt(0)}
-                                </div>
-                                <div>
-                                    <p className="font-bold text-gray-900">{review.customer_name}</p>
-                                    <div className="flex gap-0.5">
-                                        {[1, 2, 3, 4, 5].map((s) => (
-                                            <Star
-                                                key={s}
-                                                size={12}
-                                                className={s <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}
-                                            />
-                                        ))}
+            {/* Review Cards */}
+            <div className="space-y-6">
+                {reviews.length === 0 ? (
+                    <div className="p-12 text-center bg-gray-50 rounded-[32px] border-2 border-dashed border-gray-100">
+                        <p className="text-gray-400 font-bold">No reviews yet. Be the first to share your experience!</p>
+                    </div>
+                ) : (
+                    <>
+                        {reviews.map((review) => (
+                            <div key={review.id} className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-xl">
+                                            {review.customer_name?.[0] || 'U'}
+                                        </div>
+                                        <div>
+                                            <h4 className="font-black text-gray-900">{review.customer_name}</h4>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex gap-0.5">
+                                                    {[1, 2, 3, 4, 5].map((s) => (
+                                                        <Star key={s} size={10} className={s <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'} />
+                                                    ))}
+                                                </div>
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">• {new Date(review.created_at).toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
                                     </div>
+                                    <button className="p-2 hover:bg-gray-50 rounded-xl transition-colors">
+                                        <MoreVertical size={20} className="text-gray-300" />
+                                    </button>
+                                </div>
+                                <p className="text-gray-600 font-medium leading-relaxed mb-6">
+                                    {review.comment}
+                                </p>
+                                <div className="flex items-center gap-6">
+                                    <button className="flex items-center gap-2 text-xs font-black text-indigo-600 uppercase tracking-widest hover:scale-105 transition-transform">
+                                        <ThumbsUp size={16} /> Helpful (12)
+                                    </button>
+                                    <button className="text-xs font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors">
+                                        Report
+                                    </button>
                                 </div>
                             </div>
-                            <span className="text-xs text-gray-400">
-                                {new Date(review.created_at).toLocaleDateString()}
-                            </span>
-                        </div>
-                        <p className="text-gray-600 text-sm leading-relaxed">
-                            {review.comment}
-                        </p>
-                        <div className="flex items-center gap-4 text-gray-400">
-                            <button className="flex items-center gap-1.5 hover:text-indigo-600 text-xs transition-colors">
-                                <ThumbsUp size={14} />
-                                Helpful
-                            </button>
-                            <button className="flex items-center gap-1.5 hover:text-indigo-600 text-xs transition-colors">
-                                <MessageSquare size={14} />
-                                Reply
-                            </button>
-                        </div>
-                    </div>
-                ))}
-            </div>
+                        ))}
 
-            <button className="w-full py-3 text-indigo-600 font-bold border-2 border-indigo-50 rounded-xl hover:bg-indigo-50 transition-all">
-                View All Reviews
-            </button>
+                        <div className="pt-8 flex justify-center">
+                            <button className="flex items-center gap-2 px-8 py-3 bg-white border-2 border-gray-100 rounded-2xl text-gray-900 font-black hover:bg-gray-50 transition-all shadow-sm">
+                                View More Reviews <ChevronDown size={18} />
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
         </div>
     );
 }

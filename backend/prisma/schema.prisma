@@ -40,6 +40,8 @@ model ParkingFacility {
   operating_hours String?
   is_active       Boolean       @default(true)
   image_url       String?
+  contact_number  String?
+  description     String?
   created_at      DateTime      @default(now())
   updated_at      DateTime      @updatedAt
 

@@ -1,168 +1,160 @@
 import { useState } from 'react';
-import { X, Calendar, CreditCard, TrendingDown } from 'lucide-react';
-import type { ParkingFacility } from '../../../types';
+import { X, CreditCard, ShieldCheck, Zap, IndianRupee, ArrowRight, Check, Car, Bike, Truck, Ruler as Scooter } from 'lucide-react';
+import type { VehicleType } from '../../../types';
 
 interface PurchasePassModalProps {
     isOpen: boolean;
     onClose: () => void;
-    facility?: ParkingFacility;
-    onPurchase?: (duration: number, vehicleType: string) => void;
+    onPurchase: (duration: number, vehicleType: VehicleType) => void;
 }
 
-export default function PurchasePassModal({ isOpen, onClose, facility, onPurchase }: PurchasePassModalProps) {
-    const [selectedDuration, setSelectedDuration] = useState(1); // months
-    const [selectedVehicleType, setSelectedVehicleType] = useState('CAR');
+export default function PurchasePassModal({ isOpen, onClose, onPurchase }: PurchasePassModalProps) {
+    const [duration, setDuration] = useState(1);
+    const [vehicleType, setVehicleType] = useState<VehicleType>('CAR');
 
     if (!isOpen) return null;
 
-    const durations = [
-        { months: 1, label: '1 Month', discount: 0 },
-        { months: 3, label: '3 Months', discount: 10 },
-        { months: 6, label: '6 Months', discount: 15 },
-        { months: 12, label: '1 Year', discount: 20 },
+    const vehicleTypes: { type: VehicleType, icon: any, label: string }[] = [
+        { type: 'CAR', icon: Car, label: 'Car' },
+        { type: 'BIKE', icon: Bike, label: 'Bike' },
+        { type: 'SCOOTER', icon: Scooter, label: 'Scooter' },
+        { type: 'TRUCK', icon: Truck, label: 'Truck' },
     ];
 
-    const vehicleTypes = ['BIKE', 'SCOOTER', 'CAR', 'TRUCK'];
+    const durations = [
+        { months: 1, discount: 0 },
+        { months: 3, discount: 10 },
+        { months: 6, discount: 15 },
+        { months: 12, discount: 25 },
+    ];
 
-    // Pricing calculation (simplified)
-    const dailyRate = 100;
-    const monthlyBase = dailyRate * 30;
-    const totalMonths = selectedDuration;
-    const basePrice = monthlyBase * totalMonths;
-    const discount = durations.find((d) => d.months === selectedDuration)?.discount || 0;
-    const discountAmount = (basePrice * discount) / 100;
-    const finalPrice = basePrice - discountAmount;
-    const savings = dailyRate * 30 * totalMonths - finalPrice;
+    const basePrice = vehicleType === 'CAR' ? 2000 : 800;
+    const totalPrice = basePrice * duration;
+    const discountAmount = durations.find(d => d.months === duration)?.discount || 0;
+    const finalPrice = totalPrice * (1 - discountAmount / 100);
 
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm" onClick={onClose} />
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <div
+                className="absolute inset-0 bg-black/80 backdrop-blur-xl animate-in fade-in duration-500"
+                onClick={onClose}
+            />
 
-            <div className="relative min-h-screen flex items-center justify-center p-4">
-                <div className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+            {/* Modal Container */}
+            <div className="relative bg-[#fafafa] w-full max-w-2xl rounded-[48px] overflow-hidden shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 max-h-[95vh] flex flex-col">
+                {/* Header */}
+                <div className="p-8 flex items-center justify-between bg-white border-b border-gray-100">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm">
+                            <Zap size={24} />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-black text-gray-900 leading-none mb-1">Pass Membership</h2>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Select your plan</p>
+                        </div>
+                    </div>
                     <button
                         onClick={onClose}
-                        className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors z-10"
+                        className="p-4 bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
                     >
                         <X size={24} />
                     </button>
+                </div>
 
-                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 rounded-t-2xl">
-                        <h2 className="text-2xl font-black text-white flex items-center gap-2">
-                            <Calendar size={28} />
-                            Purchase Monthly Pass
-                        </h2>
-                        <p className="text-indigo-100 text-sm mt-1">
-                            Save money with unlimited parking access
-                        </p>
+                {/* Content */}
+                <div className="p-8 space-y-10 overflow-y-auto">
+                    {/* Step 1: Vehicle */}
+                    <div className="space-y-6">
+                        <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest px-1">1. Choose Vehicle Type</h4>
+                        <div className="grid grid-cols-4 gap-3">
+                            {vehicleTypes.map((t) => (
+                                <button
+                                    key={t.type}
+                                    onClick={() => setVehicleType(t.type)}
+                                    className={`
+                                        p-6 rounded-[28px] border-2 flex flex-col items-center gap-3 transition-all
+                                        ${vehicleType === t.type ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-100' : 'bg-white border-gray-100 text-gray-400 hover:border-indigo-200'}
+                                    `}
+                                >
+                                    <t.icon size={24} />
+                                    <span className="text-[10px] font-black uppercase tracking-widest">{t.label}</span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
-                    <div className="p-6 space-y-6">
-                        {/* Facility Info */}
-                        {facility && (
-                            <div className="bg-gray-50 rounded-xl p-4">
-                                <p className="text-sm text-gray-600 mb-1">Selected Facility</p>
-                                <p className="font-bold text-gray-900">{facility.name}</p>
-                                <p className="text-sm text-gray-600">{facility.address}</p>
+                    {/* Step 2: Duration */}
+                    <div className="space-y-6">
+                        <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest px-1">2. Select Period</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            {durations.map((d) => (
+                                <button
+                                    key={d.months}
+                                    onClick={() => setDuration(d.months)}
+                                    className={`
+                                        p-6 rounded-[28px] border-2 flex flex-col items-center gap-1 transition-all relative overflow-hidden
+                                        ${duration === d.months ? 'bg-[#111827] border-[#111827] text-white shadow-xl' : 'bg-white border-gray-100 text-gray-400 hover:border-indigo-200'}
+                                    `}
+                                >
+                                    <span className="text-lg font-black">{d.months}</span>
+                                    <span className="text-[9px] font-black uppercase tracking-widest leading-none">Months</span>
+                                    {d.discount > 0 && (
+                                        <div className="absolute top-0 right-0 px-2 py-1 bg-teal-500 text-[8px] font-black text-white rounded-bl-xl uppercase">-{d.discount}%</div>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Pricing Breakdown */}
+                    <div className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm space-y-6">
+                        <div className="flex justify-between items-center text-lg font-bold text-gray-600">
+                            <span>Base Membership</span>
+                            <div className="flex items-center gap-1">
+                                <IndianRupee size={16} />
+                                <span>{totalPrice}.00</span>
+                            </div>
+                        </div>
+                        {discountAmount > 0 && (
+                            <div className="flex justify-between items-center text-lg font-bold text-teal-600">
+                                <span>Multi-month Discount</span>
+                                <div className="flex items-center gap-1">
+                                    <span>- </span>
+                                    <IndianRupee size={16} />
+                                    <span>{totalPrice - finalPrice}.00</span>
+                                </div>
                             </div>
                         )}
-
-                        {/* Vehicle Type */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-3">
-                                Vehicle Type
-                            </label>
-                            <div className="grid grid-cols-4 gap-2">
-                                {vehicleTypes.map((type) => (
-                                    <button
-                                        key={type}
-                                        onClick={() => setSelectedVehicleType(type)}
-                                        className={`py-3 px-4 rounded-xl font-semibold transition-all capitalize ${selectedVehicleType === type
-                                                ? 'bg-indigo-600 text-white shadow-lg scale-105'
-                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                            }`}
-                                    >
-                                        {type.toLowerCase()}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Duration */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-3">
-                                Pass Duration
-                            </label>
-                            <div className="grid grid-cols-2 gap-3">
-                                {durations.map((duration) => (
-                                    <button
-                                        key={duration.months}
-                                        onClick={() => setSelectedDuration(duration.months)}
-                                        className={`p-4 rounded-xl border-2 transition-all text-left ${selectedDuration === duration.months
-                                                ? 'border-indigo-600 bg-indigo-50'
-                                                : 'border-gray-200 hover:border-gray-300'
-                                            }`}
-                                    >
-                                        <p className="font-bold text-gray-900">{duration.label}</p>
-                                        {duration.discount > 0 && (
-                                            <p className="text-sm text-green-600 font-semibold flex items-center gap-1">
-                                                <TrendingDown size={14} />
-                                                Save {duration.discount}%
-                                            </p>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Pricing */}
-                        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 p-4 space-y-2">
-                            <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                                <CreditCard size={18} />
-                                Pricing Breakdown
-                            </h4>
-
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-700">Base Price ({totalMonths} month{totalMonths > 1 ? 's' : ''})</span>
-                                <span className="font-medium text-gray-900">₹{basePrice.toFixed(2)}</span>
-                            </div>
-
-                            {discount > 0 && (
-                                <div className="flex justify-between text-sm text-green-600">
-                                    <span>Discount ({discount}%)</span>
-                                    <span className="font-medium">-₹{discountAmount.toFixed(2)}</span>
+                        <div className="pt-6 border-t border-dashed border-gray-200 flex justify-between items-center">
+                            <div>
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Payable</span>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <div className="px-2 py-0.5 bg-green-100 text-green-600 text-[9px] font-black rounded-full uppercase tracking-widest">Instant Activation</div>
                                 </div>
-                            )}
-
-                            <div className="pt-2 border-t-2 border-indigo-300 flex justify-between">
-                                <span className="font-bold text-gray-900">Total Amount</span>
-                                <span className="font-black text-xl text-indigo-600">₹{finalPrice.toFixed(2)}</span>
                             </div>
-
-                            <div className="bg-green-100 border border-green-300 rounded-lg p-3 mt-3">
-                                <p className="text-sm text-green-800 font-semibold">
-                                    💰 You save ₹{savings.toFixed(2)} compared to daily parking!
-                                </p>
+                            <div className="flex items-center gap-1 text-4xl font-black text-indigo-600">
+                                <IndianRupee size={28} className="stroke-[3]" />
+                                <span>{finalPrice.toFixed(0)}.00</span>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        {/* Action Buttons */}
-                        <div className="flex gap-3">
-                            <button
-                                onClick={onClose}
-                                className="flex-1 py-3 border-2 border-gray-300 hover:border-gray-400 text-gray-700 rounded-xl font-semibold transition-all"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => {
-                                    onPurchase?.(selectedDuration, selectedVehicleType);
-                                    onClose();
-                                }}
-                                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-all shadow-lg"
-                            >
-                                Purchase Pass
-                            </button>
+                {/* Sticky Action Footer */}
+                <div className="p-8 bg-white border-t border-gray-100">
+                    <button
+                        onClick={() => onPurchase(duration, vehicleType)}
+                        className="w-full py-6 bg-indigo-600 text-white rounded-[28px] font-black text-sm uppercase tracking-[0.2em] shadow-2xl shadow-indigo-100 hover:bg-indigo-700 hover:scale-102 transition-all flex items-center justify-center gap-3"
+                    >
+                        Initialize Checkout <ArrowRight size={20} />
+                    </button>
+                    <div className="mt-6 flex items-center justify-center gap-8 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                        <div className="flex items-center gap-2">
+                            <ShieldCheck size={12} className="text-green-500" /> Secure
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Check size={12} className="text-green-500" /> Instant
                         </div>
                     </div>
                 </div>

@@ -3,124 +3,15 @@ const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const pricingService = require('../services/pricing.service');
 
-const getActiveTickets = asyncHandler(async (req, res) => {
-    const tickets = await prisma.ticket.findMany({
+// Get all active tickets for the logged-in customer
+const getActiveTickets = asyncHandler(async (req, res, next) => {
+    const activeTickets = await prisma.ticket.findMany({
         where: {
             customer_id: req.user.id,
             status: 'ACTIVE'
         },
         include: {
-            slot: {
-                include: {
-                    floor: {
-                        include: {
-                            facility: {
-                                select: { name: true, address: true, city: true }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        orderBy: { entry_time: 'desc' }
-    });
-
-    res.status(200).json({ status: 'success', results: tickets.length, data: tickets });
-});
-
-const getTicketHistory = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 20 } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    const [tickets, total] = await Promise.all([
-        prisma.ticket.findMany({
-            where: {
-                customer_id: req.user.id,
-                status: { in: ['COMPLETED', 'CANCELLED'] }
-            },
-            include: {
-                slot: {
-                    include: {
-                        floor: {
-                            include: {
-                                facility: {
-                                    select: { name: true, address: true }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            orderBy: { exit_time: 'desc' },
-            skip,
-            take: parseInt(limit)
-        }),
-        prisma.ticket.count({
-            where: {
-                customer_id: req.user.id,
-                status: { in: ['COMPLETED', 'CANCELLED'] }
-            }
-        })
-    ]);
-
-    res.status(200).json({
-        status: 'success',
-        results: tickets.length,
-        total,
-        page: parseInt(page),
-        pages: Math.ceil(total / parseInt(limit)),
-        data: tickets
-    });
-});
-
-const getTicketById = asyncHandler(async (req, res) => {
-    const { ticketId } = req.params;
-
-    const ticket = await prisma.ticket.findUnique({
-        where: { id: ticketId },
-        include: {
-            slot: {
-                include: {
-                    floor: {
-                        include: {
-                            facility: {
-                                select: { name: true, address: true, city: true, operating_hours: true }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    if (!ticket || ticket.customer_id !== req.user.id) {
-        throw new AppError('Ticket not found', 404);
-    }
-
-    // Generate QR code data (you can use a library like 'qrcode' for actual QR generation)
-    const qrData = `TICKET:${ticket.id}`;
-
-    res.status(200).json({
-        status: 'success',
-        data: {
-            ...ticket,
-            qr_code_data: qrData
-        }
-    });
-});
-
-const extendTicket = asyncHandler(async (req, res) => {
-    const { ticketId } = req.params;
-    const { additional_hours } = req.body;
-
-    if (!additional_hours || additional_hours < 1) {
-        throw new AppError('Additional hours must be at least 1', 400);
-    }
-
-    const ticket = await prisma.ticket.findUnique({
-        where: { id: ticketId },
-        include: {
-            slot: {
+            parking_slot: {
                 include: {
                     floor: {
                         include: {
@@ -128,51 +19,161 @@ const extendTicket = asyncHandler(async (req, res) => {
                         }
                     }
                 }
+            },
+            parking_facility: true // Direct relation if exists, or via slot
+        },
+        orderBy: {
+            entry_time: 'desc'
+        }
+    });
+
+    // Calculate current fee for each active ticket
+    const stickersWithFees = await Promise.all(activeTickets.map(async (ticket) => {
+        const exitTime = new Date(); // Current time
+        const entryTime = new Date(ticket.entry_time);
+
+        let currentFee = 0;
+        try {
+            // Re-calculate fee based on current duration
+            // Note: This relies on pricing service to handle partial hours
+            const facilityId = ticket.parking_facility?.id || ticket.parking_slot?.floor?.facility?.id;
+
+            if (facilityId) {
+                const pricing = await pricingService.calculateParkingFee(
+                    entryTime,
+                    exitTime,
+                    ticket.vehicle_type,
+                    facilityId
+                );
+                currentFee = pricing.total_fee;
             }
+        } catch (err) {
+            console.error(`Error calculating fee for ticket ${ticket.id}:`, err);
         }
+
+        return {
+            ...ticket,
+            current_fee: currentFee
+        };
+    }));
+
+    res.status(200).json({
+        status: 'success',
+        results: stickersWithFees.length,
+        data: stickersWithFees
     });
+});
 
-    if (!ticket || ticket.customer_id !== req.user.id) {
-        throw new AppError('Ticket not found', 404);
-    }
+// Get ticket history (Completed, Cancelled)
+const getTicketHistory = asyncHandler(async (req, res, next) => {
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (page - 1) * limit;
 
-    if (ticket.status !== 'ACTIVE') {
-        throw new AppError('Only active tickets can be extended', 400);
-    }
-
-    // Calculate additional fee
-    const facilityId = ticket.slot.floor.facility.id;
-    const pricingRule = await prisma.pricingRule.findFirst({
+    const tickets = await prisma.ticket.findMany({
         where: {
-            facility_id: facilityId,
-            vehicle_type: ticket.vehicle_type
-        }
+            customer_id: req.user.id,
+            status: {
+                in: ['COMPLETED', 'CANCELLED']
+            }
+        },
+        include: {
+            parking_facility: true,
+            parking_slot: {
+                include: {
+                    floor: true
+                }
+            }
+        },
+        orderBy: {
+            entry_time: 'desc'
+        },
+        take: parseInt(limit),
+        skip: parseInt(skip)
     });
 
-    if (!pricingRule) {
-        throw new AppError('Pricing not found', 404);
-    }
-
-    const additionalFee = parseFloat(pricingRule.hourly_rate) * additional_hours;
-    const newTotalFee = parseFloat(ticket.total_fee || 0) + additionalFee;
-
-    // Update ticket (in real app, process payment first)
-    const updatedTicket = await prisma.ticket.update({
-        where: { id: ticketId },
-        data: {
-            total_fee: newTotalFee
+    const total = await prisma.ticket.count({
+        where: {
+            customer_id: req.user.id,
+            status: {
+                in: ['COMPLETED', 'CANCELLED']
+            }
         }
     });
 
     res.status(200).json({
         status: 'success',
-        message: `Ticket extended by ${additional_hours} hour(s)`,
-        data: {
-            additional_fee: additionalFee,
-            new_total_fee: newTotalFee,
-            ticket: updatedTicket
+        results: tickets.length,
+        total,
+        page: parseInt(page),
+        data: tickets
+    });
+});
+
+// Get single ticket details
+const getTicketById = asyncHandler(async (req, res, next) => {
+    const { ticketId } = req.params;
+
+    const ticket = await prisma.ticket.findUnique({
+        where: { id: ticketId },
+        include: {
+            parking_facility: true,
+            parking_slot: {
+                include: {
+                    floor: true
+                }
+            },
+            customer: {
+                select: {
+                    id: true,
+                    full_name: true,
+                    email: true
+                }
+            }
         }
     });
+
+    if (!ticket) {
+        return next(new AppError('Ticket not found', 404));
+    }
+
+    // Authorization check
+    if (req.user.role === 'CUSTOMER' && ticket.customer_id !== req.user.id) {
+        return next(new AppError('Not authorized to view this ticket', 403));
+    }
+
+    // Calculate live fee if active
+    let currentFee = ticket.total_fee;
+    if (ticket.status === 'ACTIVE') {
+        const exitTime = new Date();
+        const entryTime = new Date(ticket.entry_time);
+        const facilityId = ticket.parking_facility?.id || ticket.parking_slot?.floor?.facility?.id;
+
+        if (facilityId) {
+            const pricing = await pricingService.calculateParkingFee(
+                entryTime,
+                exitTime,
+                ticket.vehicle_type,
+                facilityId
+            );
+            currentFee = pricing.total_fee;
+        }
+    }
+
+    res.status(200).json({
+        status: 'success',
+        data: {
+            ...ticket,
+            current_fee: currentFee
+        }
+    });
+});
+
+// Extend parking duration (Stub for now)
+const extendTicket = asyncHandler(async (req, res, next) => {
+    const { ticketId } = req.params;
+    const { additional_hours } = req.body;
+
+    return next(new AppError('Extend parking functionality coming soon', 501));
 });
 
 module.exports = {

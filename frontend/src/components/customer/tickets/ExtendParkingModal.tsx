@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Clock, CreditCard } from 'lucide-react';
+import { X, Clock, IndianRupee, CreditCard, ChevronRight, Zap, ShieldCheck } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTicketsStore } from '../../../store/ticketsStore';
 import { customerService } from '../../../services/customer.service';
@@ -17,152 +17,139 @@ export default function ExtendParkingModal() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['tickets'] });
             closeExtendModal();
-            alert('Parking extended successfully!');
+            // Show custom success toast or alert
         },
         onError: (error) => {
             console.error('Error extending parking:', error);
-            alert('Failed to extend parking. Please try again.');
         },
     });
 
     if (!isExtendModalOpen || !selectedTicket) return null;
 
-    // Calculate additional cost (simplified - should match backend logic)
-    const hourlyRate = 50; // This should come from pricing rule
+    const hourlyRate = 50;
     const baseCost = additionalHours * hourlyRate;
     const gst = baseCost * 0.18;
     const totalCost = baseCost + gst;
 
-    const handleExtend = () => {
-        if (confirm(`Extend parking by ${additionalHours} hour(s) for ₹${totalCost.toFixed(2)}?`)) {
-            extendMutation.mutate();
-        }
-    };
-
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             {/* Backdrop */}
             <div
-                className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
+                className="absolute inset-0 bg-black/80 backdrop-blur-xl animate-in fade-in duration-500"
                 onClick={closeExtendModal}
             />
 
-            {/* Modal */}
-            <div className="relative min-h-screen flex items-center justify-center p-4">
-                <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full">
-                    {/* Close Button */}
+            {/* Modal Container */}
+            <div className="relative bg-[#fafafa] w-full max-w-lg rounded-[48px] overflow-hidden shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 max-h-[95vh] flex flex-col">
+                {/* Header */}
+                <div className="p-8 flex items-center justify-between bg-white border-b border-gray-100">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm transition-transform hover:scale-110">
+                            <Clock size={24} />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-black text-gray-900 leading-none mb-1">Extend Session</h2>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Adding time to your spot</p>
+                        </div>
+                    </div>
                     <button
                         onClick={closeExtendModal}
-                        className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
+                        className="p-4 bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
                     >
                         <X size={24} />
                     </button>
+                </div>
 
-                    {/* Header */}
-                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 rounded-t-2xl">
-                        <h2 className="text-2xl font-black text-white flex items-center gap-2">
-                            <Clock size={28} />
-                            Extend Parking
-                        </h2>
-                        <p className="text-indigo-100 text-sm mt-1">
-                            Add more time to your parking session
-                        </p>
+                {/* Content */}
+                <div className="p-8 space-y-10 overflow-y-auto">
+                    {/* Hour Selector */}
+                    <div className="space-y-6">
+                        <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest px-1">How many more hours?</h4>
+                        <div className="grid grid-cols-4 gap-3">
+                            {[1, 2, 4, 8].map((h) => (
+                                <button
+                                    key={h}
+                                    onClick={() => setAdditionalHours(h)}
+                                    className={`
+                                        h-20 rounded-[28px] border-2 flex flex-col items-center justify-center transition-all
+                                        ${additionalHours === h ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-100' : 'bg-white border-gray-100 text-gray-400 hover:border-indigo-200'}
+                                    `}
+                                >
+                                    <span className="text-lg font-black">{h}</span>
+                                    <span className="text-[9px] font-black uppercase tracking-widest">Hours</span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
-                    {/* Content */}
-                    <div className="p-6 space-y-6">
-                        {/* Current Booking Info */}
-                        <div className="bg-gray-50 rounded-xl p-4">
-                            <p className="text-sm text-gray-600 mb-2">Current Booking</p>
-                            <p className="font-bold text-gray-900">{selectedTicket.parking_facility?.name}</p>
-                            <p className="text-sm text-gray-600">
-                                Slot: {selectedTicket.parking_slot?.slot_number} | Vehicle: {selectedTicket.vehicle_number}
-                            </p>
-                        </div>
-
-                        {/* Hours Selector */}
+                    {/* Cost Breakdown */}
+                    <div className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm space-y-8">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-3">
-                                Additional Hours
-                            </label>
-                            <div className="grid grid-cols-4 gap-2">
-                                {[1, 2, 3, 4, 6, 8, 12, 24].map((hours) => (
-                                    <button
-                                        key={hours}
-                                        onClick={() => setAdditionalHours(hours)}
-                                        className={`py-3 px-4 rounded-xl font-semibold transition-all ${additionalHours === hours
-                                                ? 'bg-indigo-600 text-white shadow-lg scale-105'
-                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                            }`}
-                                    >
-                                        {hours}h
-                                    </button>
-                                ))}
-                            </div>
+                            <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest px-1">Price Summary</h4>
                         </div>
 
-                        {/* Cost Breakdown */}
-                        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 p-4 space-y-2">
-                            <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                                <CreditCard size={18} />
-                                Cost Breakdown
-                            </h4>
-
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-700">
-                                    Base Fee ({additionalHours}h × ₹{hourlyRate})
-                                </span>
-                                <span className="font-medium text-gray-900">₹{baseCost.toFixed(2)}</span>
-                            </div>
-
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-700">GST (18%)</span>
-                                <span className="font-medium text-gray-900">₹{gst.toFixed(2)}</span>
-                            </div>
-
-                            <div className="pt-2 border-t-2 border-indigo-300 flex justify-between">
-                                <span className="font-bold text-gray-900">Total Amount</span>
-                                <span className="font-black text-xl text-indigo-600">₹{totalCost.toFixed(2)}</span>
-                            </div>
-                        </div>
-
-                        {/* Payment Method */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Payment Method
-                            </label>
-                            <div className="bg-gray-100 rounded-xl p-4 flex items-center justify-between">
-                                <div>
-                                    <p className="font-semibold text-gray-900">Saved Card</p>
-                                    <p className="text-sm text-gray-600">•••• •••• •••• 1234</p>
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center text-lg font-bold text-gray-600">
+                                <span>Extension ({additionalHours}h)</span>
+                                <div className="flex items-center gap-1">
+                                    <IndianRupee size={16} />
+                                    <span>{baseCost}.00</span>
                                 </div>
-                                <button className="text-indigo-600 hover:text-indigo-700 text-sm font-semibold">
-                                    Change
-                                </button>
+                            </div>
+                            <div className="flex justify-between items-center text-lg font-bold text-gray-600">
+                                <span>GST (18%)</span>
+                                <div className="flex items-center gap-1">
+                                    <IndianRupee size={16} />
+                                    <span>{gst.toFixed(0)}.00</span>
+                                </div>
+                            </div>
+                            <div className="pt-6 border-t border-dashed border-gray-200 flex justify-between items-center">
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Add-on</span>
+                                <div className="flex items-center gap-1 text-3xl font-black text-indigo-600">
+                                    <IndianRupee size={24} className="stroke-[3]" />
+                                    <span>{totalCost.toFixed(0)}.00</span>
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Action Buttons */}
-                        <div className="flex gap-3">
-                            <button
-                                onClick={closeExtendModal}
-                                className="flex-1 py-3 border-2 border-gray-300 hover:border-gray-400 text-gray-700 rounded-xl font-semibold transition-all"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleExtend}
-                                disabled={extendMutation.isPending}
-                                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white rounded-xl font-semibold transition-all shadow-lg"
-                            >
-                                {extendMutation.isPending ? 'Processing...' : `Pay ₹${totalCost.toFixed(2)}`}
-                            </button>
+                    {/* Payment Link */}
+                    <div className="space-y-6">
+                        <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest px-1">Payment Method</h4>
+                        <div className="p-6 bg-white border border-gray-100 rounded-[32px] flex items-center justify-between group hover:border-indigo-200 transition-all cursor-pointer">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400">
+                                    <CreditCard size={24} />
+                                </div>
+                                <div className="text-left">
+                                    <p className="text-sm font-black text-gray-900 leading-none mb-1">Saved Visa Card</p>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ending in 4242</p>
+                                </div>
+                            </div>
+                            <ChevronRight size={20} className="text-gray-300 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
                         </div>
+                    </div>
+                </div>
 
-                        {/* Info */}
-                        <p className="text-xs text-center text-gray-500">
-                            Your parking will be extended immediately after payment
-                        </p>
+                {/* Sticky Action Footer */}
+                <div className="p-8 bg-white border-t border-gray-100">
+                    <button
+                        onClick={() => extendMutation.mutate()}
+                        disabled={extendMutation.isPending}
+                        className={`
+                            w-full py-6 rounded-[28px] font-black text-sm uppercase tracking-[0.2em] shadow-2xl transition-all flex items-center justify-center gap-3
+                            ${extendMutation.isPending ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-700 hover:scale-102'}
+                        `}
+                    >
+                        {extendMutation.isPending ? (
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <>Authorize Extension <Zap size={20} /></>
+                        )}
+                    </button>
+                    <div className="mt-6 flex items-center justify-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                        <ShieldCheck size={12} className="text-green-500" />
+                        Secure One-Click Payment
                     </div>
                 </div>
             </div>

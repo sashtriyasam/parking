@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Car, Bike, Truck, Ruler as Scooter, Zap, X, Check } from 'lucide-react';
 import { customerService } from '../../../services/customer.service';
+import type { VehicleType } from '../../../types';
 
 export default function VehiclesList() {
     const [isAdding, setIsAdding] = useState(false);
     const [newVehicle, setNewVehicle] = useState({
-        vehicle_type: 'CAR',
+        vehicle_type: 'CAR' as VehicleType,
         vehicle_number: '',
         is_default: false,
     });
@@ -24,7 +25,6 @@ export default function VehiclesList() {
             queryClient.invalidateQueries({ queryKey: ['vehicles'] });
             setIsAdding(false);
             setNewVehicle({ vehicle_type: 'CAR', vehicle_number: '', is_default: false });
-            alert('Vehicle added successfully!');
         },
     });
 
@@ -32,89 +32,93 @@ export default function VehiclesList() {
         mutationFn: (vehicleId: string) => customerService.deleteVehicle(vehicleId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['vehicles'] });
-            alert('Vehicle deleted successfully!');
         },
     });
 
-    const vehicleTypes = ['BIKE', 'SCOOTER', 'CAR', 'TRUCK'];
+    const vehicleTypes: { type: VehicleType, icon: any, label: string }[] = [
+        { type: 'CAR', icon: Car, label: 'Car' },
+        { type: 'BIKE', icon: Bike, label: 'Bike' },
+        { type: 'SCOOTER', icon: Scooter, label: 'Scooter' },
+        { type: 'TRUCK', icon: Truck, label: 'Truck' },
+    ];
 
     return (
-        <div>
-            <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Saved Vehicles</h2>
+        <div className="space-y-10">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-2xl font-black text-gray-900">Saved Vehicles</h3>
+                    <p className="text-sm font-bold text-gray-400">Quickly select your primary ride for bookings.</p>
+                </div>
                 <button
                     onClick={() => setIsAdding(true)}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+                    className="flex items-center gap-2 px-6 py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 hover:scale-105 transition-all"
                 >
-                    <Plus size={16} />
-                    Add Vehicle
+                    <Plus size={16} /> New Vehicle
                 </button>
             </div>
 
-            {/* Add Vehicle Form */}
+            {/* Add Vehicle Form Card */}
             {isAdding && (
-                <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-4">
-                    <h3 className="font-bold text-gray-900 mb-3">Add New Vehicle</h3>
-                    <div className="space-y-3">
+                <div className="bg-indigo-50 border-2 border-indigo-100 rounded-[40px] p-8 space-y-8 animate-in zoom-in-95 duration-300">
+                    <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-black text-indigo-900 uppercase tracking-widest">Register New Vehicle</h4>
+                        <button onClick={() => setIsAdding(false)} className="text-indigo-400 hover:text-indigo-600"><X size={20} /></button>
+                    </div>
+
+                    <div className="space-y-8">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Vehicle Type
-                            </label>
-                            <div className="grid grid-cols-4 gap-2">
-                                {vehicleTypes.map((type) => (
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1 mb-3 block">Category</label>
+                            <div className="grid grid-cols-4 gap-3">
+                                {vehicleTypes.map((t) => (
                                     <button
-                                        key={type}
-                                        onClick={() => setNewVehicle({ ...newVehicle, vehicle_type: type })}
-                                        className={`py-2 px-3 rounded-lg font-semibold text-sm transition-all capitalize ${newVehicle.vehicle_type === type
-                                            ? 'bg-indigo-600 text-white'
-                                            : 'bg-white text-gray-700 hover:bg-gray-100'
-                                            }`}
+                                        key={t.type}
+                                        onClick={() => setNewVehicle({ ...newVehicle, vehicle_type: t.type })}
+                                        className={`
+                                            p-5 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all
+                                            ${newVehicle.vehicle_type === t.type ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-white border-white text-gray-400 hover:border-indigo-200'}
+                                        `}
                                     >
-                                        {type.toLowerCase()}
+                                        <t.icon size={20} />
+                                        <span className="text-[8px] font-black uppercase tracking-widest">{t.label}</span>
                                     </button>
                                 ))}
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Vehicle Number
-                            </label>
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Plate Number</label>
                             <input
                                 type="text"
                                 value={newVehicle.vehicle_number}
-                                onChange={(e) => setNewVehicle({ ...newVehicle, vehicle_number: e.target.value })}
-                                placeholder="MH-01-AB-1234"
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                onChange={(e) => setNewVehicle({ ...newVehicle, vehicle_number: e.target.value.toUpperCase() })}
+                                placeholder="MH 01 AB 1234"
+                                className="w-full h-16 px-6 bg-white border-2 border-white rounded-2xl text-lg font-black tracking-widest focus:border-indigo-600 outline-none transition-all placeholder:text-gray-200"
                             />
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="default"
-                                checked={newVehicle.is_default}
-                                onChange={(e) => setNewVehicle({ ...newVehicle, is_default: e.target.checked })}
-                                className="w-4 h-4 text-indigo-600 rounded"
-                            />
-                            <label htmlFor="default" className="text-sm text-gray-700">
-                                Set as default vehicle
-                            </label>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setNewVehicle({ ...newVehicle, is_default: !newVehicle.is_default })}
+                                className={`w-12 h-6 rounded-full transition-all relative ${newVehicle.is_default ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                            >
+                                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${newVehicle.is_default ? 'left-7' : 'left-1'}`} />
+                            </button>
+                            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Set as Primary Vehicle</span>
                         </div>
 
-                        <div className="flex gap-2">
+                        <div className="flex gap-4 pt-4">
                             <button
                                 onClick={() => setIsAdding(false)}
-                                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50"
+                                className="flex-1 py-4 bg-transparent text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-gray-600"
                             >
-                                Cancel
+                                Discard
                             </button>
                             <button
                                 onClick={() => addVehicleMutation.mutate(newVehicle)}
                                 disabled={!newVehicle.vehicle_number || addVehicleMutation.isPending}
-                                className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold disabled:bg-gray-400"
+                                className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 disabled:bg-gray-200 transition-all"
                             >
-                                {addVehicleMutation.isPending ? 'Adding...' : 'Add Vehicle'}
+                                {addVehicleMutation.isPending ? 'Verifying...' : 'Save Vehicle'}
                             </button>
                         </div>
                     </div>
@@ -123,51 +127,61 @@ export default function VehiclesList() {
 
             {/* Vehicles List */}
             {isLoading ? (
-                <div className="text-center py-8">
-                    <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
+                <div className="space-y-4">
+                    {[1, 2].map(i => <div key={i} className="h-24 bg-gray-50 rounded-[32px] animate-pulse" />)}
                 </div>
             ) : vehicles && vehicles.length > 0 ? (
-                <div className="space-y-3">
-                    {vehicles.map((vehicle: any) => (
-                        <div
-                            key={vehicle.id}
-                            className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-gray-300 transition-colors"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
-                                    <span className="text-2xl">
-                                        {vehicle.vehicle_type === 'CAR' ? '🚗' : vehicle.vehicle_type === 'BIKE' ? '🏍️' : vehicle.vehicle_type === 'SCOOTER' ? '🛵' : '🚚'}
-                                    </span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {vehicles.map((vehicle: any) => {
+                        const VIcon = vehicleTypes.find(t => t.type === vehicle.vehicle_type)?.icon || Car;
+                        return (
+                            <div
+                                key={vehicle.id}
+                                className="group relative p-8 bg-white border border-gray-100 rounded-[40px] hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-50/50 transition-all overflow-hidden"
+                            >
+                                <div className="flex items-center justify-between relative z-10">
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">
+                                            <VIcon size={32} />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-lg font-black text-gray-900 tracking-widest uppercase">{vehicle.vehicle_number}</p>
+                                                {vehicle.is_default && (
+                                                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white ring-4 ring-green-50">
+                                                        <Check size={12} strokeWidth={4} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{vehicle.vehicle_type}</p>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => {
+                                            if (confirm('Remove this vehicle?')) {
+                                                deleteVehicleMutation.mutate(vehicle.id);
+                                            }
+                                        }}
+                                        className="p-4 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
+                                    >
+                                        <Trash2 size={20} />
+                                    </button>
                                 </div>
-                                <div>
-                                    <p className="font-bold text-gray-900">{vehicle.vehicle_number}</p>
-                                    <p className="text-sm text-gray-600 capitalize">
-                                        {vehicle.vehicle_type.toLowerCase()}
-                                        {vehicle.is_default && (
-                                            <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">
-                                                Default
-                                            </span>
-                                        )}
-                                    </p>
+                                {/* Decorative zap */}
+                                <div className="absolute -bottom-8 -right-8 text-indigo-50 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Zap size={120} strokeWidth={1} />
                                 </div>
                             </div>
-
-                            <button
-                                onClick={() => {
-                                    if (confirm('Delete this vehicle?')) {
-                                        deleteVehicleMutation.mutate(vehicle.id);
-                                    }
-                                }}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                                <Trash2 size={18} />
-                            </button>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             ) : (
-                <div className="text-center py-8 text-gray-500">
-                    <p>No vehicles saved yet</p>
+                <div className="text-center py-20 bg-gray-50 rounded-[40px] border-2 border-dashed border-gray-200">
+                    <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-gray-200 mx-auto mb-6 shadow-sm">
+                        <Car size={40} />
+                    </div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Garage is currently empty</p>
                 </div>
             )}
         </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MapPin, Clock, Car, CreditCard, Navigation, StopCircle, Plus, QrCode } from 'lucide-react';
+import { MapPin, Clock, Car, Navigation, StopCircle, Plus, QrCode, IndianRupee, ChevronRight, Zap } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import type { Ticket } from '../../../types';
 import { useTicketsStore } from '../../../store/ticketsStore';
@@ -15,9 +15,8 @@ interface TicketCardProps {
 export default function TicketCard({ ticket, type, onExtend, onEnd, onGetDirections }: TicketCardProps) {
     const { openDetailModal } = useTicketsStore();
     const [currentCharges, setCurrentCharges] = useState(ticket.total_fee || 0);
-    const [elapsedTime, setElapsedTime] = useState('');
+    const [elapsedTime, setElapsedTime] = useState({ h: 0, m: 0 });
 
-    // Calculate elapsed time and current charges for active tickets
     useEffect(() => {
         if (type !== 'active' || !ticket.entry_time) return;
 
@@ -27,247 +26,139 @@ export default function TicketCard({ ticket, type, onExtend, onEnd, onGetDirecti
             const elapsedMs = now.getTime() - entryTime.getTime();
             const elapsedHours = elapsedMs / (1000 * 60 * 60);
 
-            // Format elapsed time
-            const hours = Math.floor(elapsedHours);
-            const minutes = Math.floor((elapsedHours - hours) * 60);
-            setElapsedTime(`${hours}h ${minutes}m`);
+            const h = Math.floor(elapsedHours);
+            const m = Math.floor((elapsedHours - h) * 60);
+            setElapsedTime({ h, m });
 
-            // Calculate current charges (simplified - should match backend logic)
-            // Assuming hourly rate from pricing rule
-            const hourlyRate = 50; // This should come from pricing rule
-            const baseCharge = Math.ceil(elapsedHours) * hourlyRate;
+            const hourlyRate = 50; // Use actual rate if available
+            const baseCharge = Math.max(1, Math.ceil(elapsedHours)) * hourlyRate;
             const gst = baseCharge * 0.18;
             setCurrentCharges(baseCharge + gst);
         };
 
         updateCharges();
-        const interval = setInterval(updateCharges, 60000); // Update every minute
-
+        const interval = setInterval(updateCharges, 60000);
         return () => clearInterval(interval);
     }, [ticket, type]);
 
-    const formatDateTime = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleString('en-IN', {
-            dateStyle: 'medium',
-            timeStyle: 'short',
-        });
-    };
+    const formatTime = (date: string) => new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    const getStatusColor = () => {
+    const getStatusStyles = () => {
         switch (type) {
-            case 'active':
-                return 'border-green-500 bg-green-50';
-            case 'upcoming':
-                return 'border-blue-500 bg-blue-50';
-            case 'past':
-                return 'border-gray-300 bg-gray-50';
-            case 'cancelled':
-                return 'border-red-500 bg-red-50';
-            default:
-                return 'border-gray-300 bg-white';
+            case 'active': return { bg: 'bg-indigo-600', text: 'text-white', badge: 'bg-green-500' };
+            case 'upcoming': return { bg: 'bg-indigo-50', text: 'text-gray-900', badge: 'bg-blue-500' };
+            case 'past': return { bg: 'bg-white', text: 'text-gray-900', badge: 'bg-gray-400' };
+            case 'cancelled': return { bg: 'bg-red-50', text: 'text-gray-900', badge: 'bg-red-400' };
+            default: return { bg: 'bg-white', text: 'text-gray-900', badge: 'bg-gray-400' };
         }
     };
 
-    const getStatusBadge = () => {
-        const badges = {
-            active: { text: 'Active', color: 'bg-green-500' },
-            upcoming: { text: 'Upcoming', color: 'bg-blue-500' },
-            past: { text: 'Completed', color: 'bg-gray-500' },
-            cancelled: { text: 'Cancelled', color: 'bg-red-500' },
-        };
-        const badge = badges[type];
-        return (
-            <span className={`${badge.color} text-white text-xs font-bold px-3 py-1 rounded-full`}>
-                {badge.text}
-            </span>
-        );
-    };
+    const styles = getStatusStyles();
 
     return (
         <div
-            className={`border-2 rounded-xl p-6 transition-all hover:shadow-lg cursor-pointer ${getStatusColor()}`}
             onClick={() => openDetailModal(ticket)}
+            className={`
+                group relative rounded-[40px] overflow-hidden transition-all duration-500 cursor-pointer
+                ${type === 'active' ? 'shadow-2xl shadow-indigo-200 ring-4 ring-indigo-50 hover:-translate-y-2' : 'border border-gray-100 bg-white hover:border-indigo-200'}
+            `}
         >
-            {/* Header */}
-            <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                        {getStatusBadge()}
-                        {type === 'active' && (
-                            <span className="text-xs text-gray-600">
-                                <Clock size={14} className="inline mr-1" />
-                                {elapsedTime} ago
+            <div className={`p-8 ${type === 'active' ? 'bg-[#111827] text-white' : 'bg-white'}`}>
+                {/* Header */}
+                <div className="flex justify-between items-start mb-10">
+                    <div className="space-y-4">
+                        <div className="flex gap-2">
+                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${styles.badge} text-white`}>
+                                {type === 'active' ? 'LIVE SESSION' : type === 'upcoming' ? 'UPCOMING' : type.toUpperCase()}
                             </span>
-                        )}
+                            {type === 'active' && (
+                                <span className="bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black text-indigo-300 uppercase tracking-widest flex items-center gap-1.5">
+                                    <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse" />
+                                    {elapsedTime.h}h {elapsedTime.m}m ago
+                                </span>
+                            )}
+                        </div>
+                        <div>
+                            <h3 className={`text-2xl font-black tracking-tight leading-tight ${type === 'active' ? 'text-white' : 'text-gray-900'}`}>
+                                {ticket.parking_facility?.name || ticket.slot?.floor?.facility?.name || 'Facility Name'}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-2 text-gray-400 text-sm font-bold">
+                                <MapPin size={16} className="shrink-0" />
+                                <span className="truncate">{ticket.parking_facility?.address || ticket.slot?.floor?.facility?.address}</span>
+                            </div>
+                        </div>
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900">
-                        {ticket.parking_facility?.name || 'Parking Facility'}
-                    </h3>
-                    <p className="text-sm text-gray-600 flex items-start gap-1 mt-1">
-                        <MapPin size={14} className="mt-0.5 flex-shrink-0" />
-                        {ticket.parking_facility?.address || 'Address not available'}
-                    </p>
-                </div>
 
-                {/* QR Code Preview */}
-                <div className="ml-4">
-                    <div className="bg-white p-2 rounded-lg border border-gray-300">
-                        <QRCodeSVG
-                            value={JSON.stringify({
-                                ticketId: ticket.id,
-                                slotId: ticket.slot_id,
-                                vehicleNumber: ticket.vehicle_number,
-                            })}
-                            size={60}
-                            level="M"
-                        />
+                    <div className={`p-3 rounded-2xl ${type === 'active' ? 'bg-white/10' : 'bg-gray-50 text-gray-400'}`}>
+                        <div className="bg-white p-1 rounded-lg">
+                            <QRCodeSVG value={`PARK-${ticket.id}`} size={48} level="L" />
+                        </div>
                     </div>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            openDetailModal(ticket);
-                        }}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 mt-1 flex items-center gap-1 justify-center w-full"
-                    >
-                        <QrCode size={12} />
-                        View
-                    </button>
+                </div>
+
+                {/* Info Grid */}
+                <div className="grid grid-cols-2 gap-8 mb-10">
+                    <div className="space-y-4">
+                        <div>
+                            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1 leading-none">Vehicle & Spot</p>
+                            <p className="text-sm font-black flex items-center gap-2">
+                                <Car size={16} /> {ticket.vehicle_number}
+                            </p>
+                            <p className="text-[10px] font-bold text-gray-500 uppercase mt-1">
+                                {ticket.parking_slot?.slot_number} • FL {ticket.parking_slot?.floor?.floor_number}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="space-y-4">
+                        <div>
+                            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1 leading-none">
+                                {type === 'active' ? 'Current Bill' : 'Total Amount'}
+                            </p>
+                            <p className="text-2xl font-black text-indigo-500 flex items-center gap-1">
+                                <IndianRupee size={20} className="stroke-[3]" />
+                                {type === 'active' ? currentCharges.toFixed(0) : (ticket.total_fee || 0).toFixed(0)}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-4 pt-8 border-t border-white/10">
+                    {type === 'active' && (
+                        <>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onExtend?.(ticket); }}
+                                className="flex-1 bg-white text-indigo-600 h-14 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                            >
+                                <Plus size={16} /> Extend
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onEnd?.(ticket); }}
+                                className="w-14 h-14 bg-red-500/10 text-red-500 rounded-2xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"
+                            >
+                                <StopCircle size={24} />
+                            </button>
+                        </>
+                    )}
+                    {type === 'upcoming' && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onGetDirections?.(ticket); }}
+                            className="w-full bg-indigo-600 text-white h-14 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                        >
+                            <Navigation size={16} /> Get Directions
+                        </button>
+                    )}
+                    {(type === 'past' || type === 'cancelled') && (
+                        <button className="w-full h-14 bg-gray-50 text-gray-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-50 hover:text-indigo-600 transition-all flex items-center justify-center gap-2">
+                            View Receipt <ChevronRight size={16} />
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {/* Details Grid */}
-            <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-gray-200">
-                <div>
-                    <p className="text-xs text-gray-500">Slot Number</p>
-                    <p className="font-semibold text-gray-900">
-                        {ticket.parking_slot?.slot_number || 'N/A'} - Floor {ticket.parking_slot?.floor?.floor_number || 'N/A'}
-                    </p>
-                </div>
-                <div>
-                    <p className="text-xs text-gray-500">Vehicle</p>
-                    <p className="font-semibold text-gray-900 flex items-center gap-1">
-                        <Car size={14} />
-                        {ticket.vehicle_number}
-                    </p>
-                </div>
-                <div>
-                    <p className="text-xs text-gray-500">Entry Time</p>
-                    <p className="font-semibold text-gray-900 text-sm">
-                        {formatDateTime(ticket.entry_time)}
-                    </p>
-                </div>
-                <div>
-                    <p className="text-xs text-gray-500">
-                        {type === 'active' ? 'Current Charges' : 'Total Amount'}
-                    </p>
-                    <p className="font-bold text-lg text-indigo-600 flex items-center gap-1">
-                        <CreditCard size={16} />
-                        ₹{type === 'active' ? currentCharges.toFixed(2) : (ticket.total_fee?.toFixed(2) || '0.00')}
-                    </p>
-                </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-                {type === 'active' && (
-                    <>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onExtend?.(ticket);
-                            }}
-                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                        >
-                            <Plus size={16} />
-                            Extend
-                        </button>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onGetDirections?.(ticket);
-                            }}
-                            className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                        >
-                            <Navigation size={16} />
-                            Directions
-                        </button>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (confirm('Are you sure you want to end this parking session?')) {
-                                    onEnd?.(ticket);
-                                }
-                            }}
-                            className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                        >
-                            <StopCircle size={16} />
-                            End
-                        </button>
-                    </>
-                )}
-
-                {type === 'upcoming' && (
-                    <>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onGetDirections?.(ticket);
-                            }}
-                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                        >
-                            <Navigation size={16} />
-                            Get Directions
-                        </button>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (confirm('Are you sure you want to cancel this booking?')) {
-                                    // Handle cancel
-                                }
-                            }}
-                            className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-                        >
-                            Cancel Booking
-                        </button>
-                    </>
-                )}
-
-                {type === 'past' && (
-                    <>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                // Handle download invoice
-                            }}
-                            className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-lg transition-colors"
-                        >
-                            Download Invoice
-                        </button>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                // Handle book again
-                            }}
-                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-                        >
-                            Book Again
-                        </button>
-                    </>
-                )}
-
-                {type === 'cancelled' && (
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            // Handle rebook
-                        }}
-                        className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-                    >
-                        Book Again
-                    </button>
-                )}
-            </div>
+            {/* Decorative Ticket Notch */}
+            <div className="absolute top-1/2 -left-4 w-8 h-8 bg-gray-50 rounded-full -translate-y-1/2" />
+            <div className="absolute top-1/2 -right-4 w-8 h-8 bg-gray-50 rounded-full -translate-y-1/2" />
         </div>
     );
 }

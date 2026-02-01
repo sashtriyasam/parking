@@ -5,7 +5,7 @@ const asyncHandler = require('../utils/asyncHandler');
 // --- Facilities ---
 
 const createFacility = asyncHandler(async (req, res, next) => {
-    const { name, address, city, latitude, longitude, total_floors, operating_hours } = req.body;
+    const { name, address, city, latitude, longitude, total_floors, operating_hours, image_url } = req.body;
     const provider_id = req.user.id;
 
     const facility = await prisma.parkingFacility.create({
@@ -18,6 +18,7 @@ const createFacility = asyncHandler(async (req, res, next) => {
             longitude,
             total_floors,
             operating_hours,
+            image_url
         },
     });
 

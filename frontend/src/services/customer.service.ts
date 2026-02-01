@@ -142,4 +142,11 @@ export const customerService = {
         const response = await apiClient.get<ApiResponse<MonthlyPass[]>>('/customer/passes/active');
         return response.data.data;
     },
+
+    async endParking(ticketId: string): Promise<any> {
+        const response = await apiClient.post('/bookings/checkout', {
+            ticket_id: ticketId,
+        });
+        return response.data;
+    },
 };

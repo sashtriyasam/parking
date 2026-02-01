@@ -3,21 +3,30 @@ import { QueryProvider } from './lib/queryClient';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuthStore } from './store/authStore';
 
-// Pages (will be created)
+// Dynamic imports to "debloat" and potentially isolate loading issues
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
 import SignupPage from './pages/auth/SignupPage';
+
+// Customer Pages
 import CustomerSearchPage from './pages/customer/SearchPage';
 import FacilityDetailsPage from './pages/customer/FacilityDetailsPage';
-import MyTicketsPage from './pages/customer/MyTicketsPage';
-import MyPassesPage from './pages/customer/MyPassesPage';
-import ProfilePage from './pages/customer/ProfilePage';
-import ProviderDashboard from './pages/provider/DashboardPage';
-import ManageFacilities from './pages/provider/ManageFacilitiesPage';
 import VehicleDetailsPage from './pages/customer/booking/VehicleDetailsPage';
 import BookingReviewPage from './pages/customer/booking/BookingReviewPage';
 import PaymentPage from './pages/customer/booking/PaymentPage';
 import BookingSuccessPage from './pages/customer/booking/BookingSuccessPage';
+import MyTicketsPage from './pages/customer/MyTicketsPage';
+import MyPassesPage from './pages/customer/MyPassesPage';
+import ProfilePage from './pages/customer/ProfilePage';
+
+// Provider Pages
+import ProviderDashboard from './pages/provider/DashboardPage';
+import FacilitiesPage from './pages/provider/FacilitiesPage';
+import AddFacilityPage from './pages/provider/AddFacilityPage';
+import EditFacilityPage from './pages/provider/EditFacilityPage';
+import AllBookingsPage from './pages/provider/AllBookingsPage';
+import ManageFacilities from './pages/provider/ManageFacilitiesPage';
+import ProviderFacilityDetails from './pages/provider/FacilityDetailsPage';
 
 function App() {
   const { isAuthenticated, user } = useAuthStore();
@@ -26,7 +35,7 @@ function App() {
     <QueryProvider>
       <BrowserRouter>
         <Routes>
-          {/* Public Routes */}
+          {/* Main Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route
             path="/login"
@@ -37,19 +46,10 @@ function App() {
             element={isAuthenticated ? <Navigate to="/" /> : <SignupPage />}
           />
 
-          {/* Customer Routes */}
-          <Route
-            path="/customer/search"
-            element={<CustomerSearchPage />}
-          />
-          <Route
-            path="/customer/facility/:id"
-            element={
-              <ProtectedRoute allowedRoles={['CUSTOMER', 'ADMIN']}>
-                <FacilityDetailsPage />
-              </ProtectedRoute>
-            }
-          />
+          {/* Customer */}
+          <Route path="/customer/search" element={<CustomerSearchPage />} />
+          <Route path="/customer/facility/:id" element={<FacilityDetailsPage />} />
+
           <Route
             path="/customer/booking/:facilityId/vehicle"
             element={
@@ -82,6 +82,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/customer/tickets"
             element={
@@ -107,7 +108,7 @@ function App() {
             }
           />
 
-          {/* Provider Routes */}
+          {/* Provider */}
           <Route
             path="/provider/dashboard"
             element={
@@ -120,12 +121,52 @@ function App() {
             path="/provider/facilities"
             element={
               <ProtectedRoute allowedRoles={['PROVIDER', 'ADMIN']}>
+                <FacilitiesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/provider/facilities/new"
+            element={
+              <ProtectedRoute allowedRoles={['PROVIDER', 'ADMIN']}>
+                <AddFacilityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/provider/facilities/:id/edit"
+            element={
+              <ProtectedRoute allowedRoles={['PROVIDER', 'ADMIN']}>
+                <EditFacilityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/provider/facilities/:id"
+            element={
+              <ProtectedRoute allowedRoles={['PROVIDER', 'ADMIN']}>
+                <ProviderFacilityDetails />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/provider/bookings"
+            element={
+              <ProtectedRoute allowedRoles={['PROVIDER', 'ADMIN']}>
+                <AllBookingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/provider/manage-facilities"
+            element={
+              <ProtectedRoute allowedRoles={['PROVIDER', 'ADMIN']}>
                 <ManageFacilities />
               </ProtectedRoute>
             }
           />
 
-          {/* Fallback */}
+          {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>

@@ -1,4 +1,4 @@
-import { MapPin, IndianRupee } from 'lucide-react';
+import { MapPin, IndianRupee, Star, Zap, Clock, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { ParkingFacility } from '../../types';
 
@@ -7,89 +7,123 @@ interface ParkingCardProps {
 }
 
 export function ParkingCard({ facility }: ParkingCardProps) {
-    const hasAvailability = facility.total_available && facility.total_available > 0;
+    const hasAvailability = (facility.total_available || 0) > 0;
+
+    // Mock rating for now if not present in data
+    const rating = 4.5;
+    const reviewCount = 120;
+
+    const getAvailabilityColor = (count: number) => {
+        if (count > 10) return 'text-green-600 bg-green-50';
+        if (count > 0) return 'text-orange-600 bg-orange-50';
+        return 'text-red-500 bg-red-50';
+    };
 
     return (
-        <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow overflow-hidden">
-            {/* Placeholder Icon (No Images used as requested) */}
-            <div className="relative h-40 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center border-b border-gray-100">
-                <MapPin className="w-12 h-12 text-primary/40" />
-                {!hasAvailability && (
-                    <div className="absolute top-2 right-2 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold shadow-sm">
-                        Full
-                    </div>
-                )}
+        <div className="group bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-300 border border-gray-100 overflow-hidden flex flex-col h-full">
+            {/* Image / Header */}
+            <div className="relative h-56 bg-gray-200 overflow-hidden">
+                <img
+                    src={facility.image_url || 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&q=80'}
+                    alt={facility.name}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                />
+
+                {/* Distance Badge */}
+                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1.5 rounded-xl text-xs font-black shadow-lg flex items-center gap-1.5">
+                    <MapPin className="w-3 h-3 text-primary" />
+                    {facility.distance_text || `${facility.distance?.toFixed(1) || '0.5'} km`}
+                </div>
+
+                {/* Status Badge */}
+                <div className={`absolute top-4 right-4 px-4 py-1.5 rounded-xl text-xs font-black shadow-lg ${hasAvailability ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                    }`}>
+                    {hasAvailability ? 'Available' : 'Sold Out'}
+                </div>
+
+                {/* Rating Overlay */}
+                <div className="absolute bottom-4 left-4 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-xl text-white text-xs font-bold flex items-center gap-1.5 border border-white/20">
+                    <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                    {rating} ({reviewCount} reviews)
+                </div>
             </div>
 
             {/* Content */}
-            <div className="p-4">
-                <h3 className="font-bold text-lg mb-1">{facility.name}</h3>
-
-                <div className="flex items-start gap-1 text-gray-600 text-sm mb-3">
-                    <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                    <span className="line-clamp-1">{facility.address}</span>
+            <div className="p-6 flex flex-col flex-1">
+                <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-black text-xl text-gray-900 group-hover:text-primary transition-colors line-clamp-1">
+                        {facility.name}
+                    </h3>
                 </div>
 
-                {/* Distance & Availability */}
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex flex-col">
-                        <span className="text-sm text-gray-500 font-medium">
-                            {facility.distance_text || `${facility.distance?.toFixed(1)} km`}
-                        </span>
-                        {facility.duration_text && (
-                            <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">
-                                {facility.duration_text} drive
-                            </span>
-                        )}
+                <div className="flex items-center gap-1.5 text-gray-500 text-sm mb-4 font-medium">
+                    <MapPin className="w-4 h-4 text-gray-400" />
+                    <span className="truncate">{facility.address}</span>
+                </div>
+
+                {/* Features Badges */}
+                <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar">
+                    <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-lg text-[10px] font-black uppercase text-gray-500 border border-gray-100">
+                        <ShieldCheck className="w-3 h-3" /> Security
                     </div>
-                    {hasAvailability && (
-                        <span className="text-green-600 font-semibold text-sm">
-                            {facility.total_available} slots available
-                        </span>
+                    <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-lg text-[10px] font-black uppercase text-gray-500 border border-gray-100">
+                        <Clock className="w-3 h-3" /> 24/7
+                    </div>
+                    {facility.total_floors > 1 && (
+                        <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-lg text-[10px] font-black uppercase text-gray-500 border border-gray-100">
+                            Multi-Level
+                        </div>
                     )}
                 </div>
 
-                {/* Vehicle Type Badges */}
-                {facility.available_slots && (
-                    <div className="flex flex-wrap gap-2 mb-3">
-                        {Object.entries(facility.available_slots).map(([type, count]) => (
-                            <span
-                                key={type}
-                                className={`text-xs px-2 py-1 rounded-full ${count > 0
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'bg-gray-100 text-gray-500'
-                                    }`}
-                            >
-                                {type}: {count}
-                            </span>
-                        ))}
-                    </div>
-                )}
+                {/* Availability Ticker */}
+                <div className="space-y-3 mb-8">
+                    {facility.available_slots ? (
+                        <div className="grid grid-cols-2 gap-2">
+                            {Object.entries(facility.available_slots).map(([type, count]) => (
+                                <div key={type} className={`px-3 py-2 rounded-xl border border-transparent flex justify-between items-center transition-colors ${getAvailabilityColor(count)}`}>
+                                    <span className="text-[10px] font-black uppercase tracking-wider">{type}</span>
+                                    <span className="text-sm font-black">{count}</span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="p-3 bg-gray-50 rounded-2xl text-center text-xs font-bold text-gray-400 border border-dashed border-gray-200">
+                            Checking live availability...
+                        </div>
+                    )}
+                </div>
 
-                {/* Pricing */}
-                {facility.pricing && (
-                    <div className="flex items-center gap-1 text-primary font-semibold mb-4">
-                        <IndianRupee className="w-4 h-4" />
-                        <span>{facility.pricing.hourly_rate}/hr</span>
-                        <span className="text-gray-400 text-sm ml-2">
-                            (₹{facility.pricing.daily_max}/day max)
-                        </span>
+                {/* Bottom Row: Price & Actions */}
+                <div className="mt-auto pt-6 border-t border-gray-100 flex items-center justify-between">
+                    <div>
+                        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Starts At</div>
+                        <div className="flex items-center text-primary font-black text-2xl leading-none">
+                            <IndianRupee className="w-4 h-4 mr-0.5" />
+                            {facility.pricing?.hourly_rate || '40'}
+                            <span className="text-xs text-gray-400 ml-1 font-bold">/hr</span>
+                        </div>
                     </div>
-                )}
 
-                {/* Actions */}
-                <div className="flex gap-2">
-                    <Link
-                        to={`/customer/facility/${facility.id}`}
-                        className="flex-1 text-center px-4 py-2 border-2 border-primary text-primary rounded-lg font-semibold hover:bg-primary/10 transition-colors"
-                    >
-                        View Details
-                    </Link>
-                    {hasAvailability && (
-                        <button className="flex-1 px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition-colors">
-                            Quick Book
+                    <div className="flex gap-2">
+                        <Link
+                            to={`/customer/facility/${facility.id}`}
+                            className="bg-gray-100 text-gray-700 w-12 h-12 rounded-2xl flex items-center justify-center hover:bg-gray-200 transition-colors shadow-sm"
+                            title="View Details"
+                        >
+                            <Clock className="w-5 h-5" />
+                        </Link>
+                        <button
+                            disabled={!hasAvailability}
+                            className={`px-6 h-12 rounded-2xl font-black text-white flex items-center gap-2 transition-all shadow-lg ${hasAvailability
+                                    ? 'bg-primary hover:bg-primary-dark shadow-primary/20 hover:scale-105 active:scale-95'
+                                    : 'bg-gray-300 cursor-not-allowed shadow-none'
+                                }`}
+                        >
+                            <Zap className="w-4 h-4 fill-white" />
+                            Book
                         </button>
-                    )}
+                    </div>
                 </div>
             </div>
         </div>

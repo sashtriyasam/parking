@@ -1,110 +1,108 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Heart, MapPin, Navigation, Trash2 } from 'lucide-react';
-import { customerService } from '../../../services/customer.service';
+import { MapPin, Heart, Star, Navigation, Zap, Trash2, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function FavoritesList() {
-    const queryClient = useQueryClient();
+    const navigate = useNavigate();
 
-    const { data: favorites, isLoading } = useQuery({
-        queryKey: ['favorites'],
-        queryFn: () => customerService.getFavorites(),
-    });
-
-    const removeFavoriteMutation = useMutation({
-        mutationFn: (facilityId: string) => customerService.removeFavorite(facilityId),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['favorites'] });
-            alert('Removed from favorites!');
+    // Mock data
+    const favorites = [
+        {
+            id: '1',
+            name: 'Central Mall Basement',
+            address: 'MG Road, City Center, Sector 12',
+            rating: 4.8,
+            distance: '1.2 km',
+            type: 'Multi-level'
         },
-    });
-
-    const handleQuickBook = (facility: any) => {
-        window.location.href = `/customer/facility/${facility.id}`;
-    };
-
-    if (isLoading) {
-        return (
-            <div className="text-center py-8">
-                <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
-            </div>
-        );
-    }
+        {
+            id: '2',
+            name: 'Grand Plaza Parking',
+            address: 'Banjara Hills, Road No 12',
+            rating: 4.5,
+            distance: '3.5 km',
+            type: 'Underground'
+        },
+    ];
 
     return (
-        <div>
-            <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Favorite Locations</h2>
-                <p className="text-sm text-gray-600">{favorites?.length || 0} favorites</p>
+        <div className="space-y-10">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-2xl font-black text-gray-900">Favorite Hubs</h3>
+                    <p className="text-sm font-bold text-gray-400">Places you visit most frequently.</p>
+                </div>
+                <div className="flex items-center gap-2 px-4 py-2 bg-pink-50 text-pink-500 rounded-2xl text-[10px] font-black uppercase tracking-widest">
+                    <Heart size={14} className="fill-pink-500" /> {favorites.length} Saved
+                </div>
             </div>
 
-            {favorites && favorites.length > 0 ? (
-                <div className="space-y-3">
-                    {favorites.map((favorite: any) => (
+            {favorites.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {favorites.map((fav) => (
                         <div
-                            key={favorite.id}
-                            className="flex items-start justify-between p-4 border border-gray-200 rounded-xl hover:border-gray-300 transition-colors"
+                            key={fav.id}
+                            className="group relative bg-white border border-gray-100 rounded-[40px] p-8 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-50/50 transition-all overflow-hidden"
                         >
-                            <div className="flex-1">
-                                <div className="flex items-start gap-3 mb-3">
-                                    <Heart size={20} className="text-red-500 fill-red-500 mt-1" />
-                                    <div>
-                                        <h3 className="font-bold text-gray-900">{favorite.name}</h3>
-                                        <p className="text-sm text-gray-600 flex items-start gap-1 mt-1">
-                                            <MapPin size={14} className="mt-0.5 flex-shrink-0" />
-                                            {favorite.address}
-                                        </p>
+                            <div className="relative z-10 flex flex-col h-full">
+                                <div className="flex justify-between items-start mb-8">
+                                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">
+                                        <MapPin size={32} />
+                                    </div>
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-50 text-yellow-600 rounded-full">
+                                        <Star size={14} className="fill-yellow-600" />
+                                        <span className="text-[10px] font-black">{fav.rating}</span>
                                     </div>
                                 </div>
 
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => handleQuickBook(favorite)}
-                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm transition-colors"
-                                    >
-                                        Quick Book
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            window.open(
-                                                `https://www.google.com/maps/dir/?api=1&destination=${favorite.latitude},${favorite.longitude}`,
-                                                '_blank'
-                                            );
-                                        }}
-                                        className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
-                                    >
-                                        <Navigation size={14} />
-                                        Directions
-                                    </button>
+                                <div className="space-y-2 mb-8">
+                                    <h4 className="text-xl font-black text-gray-900">{fav.name}</h4>
+                                    <p className="text-sm font-bold text-gray-400 flex items-start gap-1">
+                                        <MapPin size={14} className="mt-0.5 shrink-0" />
+                                        {fav.address}
+                                    </p>
+                                </div>
+
+                                <div className="mt-auto flex items-center justify-between">
+                                    <div className="flex gap-4">
+                                        <div className="text-left">
+                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Distance</p>
+                                            <p className="text-xs font-black text-gray-900">{fav.distance}</p>
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Type</p>
+                                            <p className="text-xs font-black text-gray-900">{fav.type}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                        <button className="p-4 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all">
+                                            <Trash2 size={20} />
+                                        </button>
+                                        <button
+                                            onClick={() => navigate(`/customer/facility/${fav.id}`)}
+                                            className="p-4 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 hover:scale-110 transition-all"
+                                        >
+                                            <Navigation size={20} />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
-                            <button
-                                onClick={() => {
-                                    if (confirm('Remove from favorites?')) {
-                                        removeFavoriteMutation.mutate(favorite.id);
-                                    }
-                                }}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-4"
-                            >
-                                <Trash2 size={18} />
-                            </button>
+                            {/* Decorative background element */}
+                            <div className="absolute -bottom-10 -right-10 text-indigo-50/50 opacity-0 group-hover:opacity-100 transition-all group-hover:-translate-x-4 group-hover:-translate-y-4">
+                                <Zap size={140} strokeWidth={1} />
+                            </div>
                         </div>
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-12">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-                        <Heart size={32} className="text-gray-400" />
+                <div className="text-center py-20 bg-gray-50 rounded-[40px] border-2 border-dashed border-gray-200">
+                    <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-pink-100 mx-auto mb-6 shadow-sm">
+                        <Heart size={40} className="fill-pink-50" />
                     </div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">No Favorites Yet</h3>
-                    <p className="text-gray-600 mb-4">
-                        Save your frequently visited parking locations for quick access
-                    </p>
-                    <button
-                        onClick={() => (window.location.href = '/customer/search')}
-                        className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all"
-                    >
-                        Find Parking
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No favorites saved yet</p>
+                    <button className="mt-6 text-indigo-600 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 mx-auto hover:gap-3 transition-all">
+                        Explore facilities <ArrowRight size={14} />
                     </button>
                 </div>
             )}

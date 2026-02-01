@@ -258,6 +258,403 @@ const getLiveStatus = asyncHandler(async (req, res, next) => {
     });
 });
 
+// --- New Dashboard Endpoints ---
+
+const getRevenueData = asyncHandler(async (req, res) => {
+    const { period = '7d' } = req.query;
+    const providerId = req.user.id;
+
+    // Calculate start date based on period
+    const now = new Date();
+    let startDate = new Date();
+
+    switch (period) {
+        case 'today':
+            startDate.setHours(0, 0, 0, 0);
+            break;
+        case '7d':
+            startDate.setDate(now.getDate() - 7);
+            break;
+        case '30d':
+            startDate.setDate(now.getDate() - 30);
+            break;
+        default:
+            startDate.setDate(now.getDate() - 7);
+    }
+
+    // Get facility IDs for this provider
+    const facilities = await prisma.parkingFacility.findMany({
+        where: { provider_id: providerId },
+        select: { id: true }
+    });
+    const facilityIds = facilities.map(f => f.id);
+
+    if (facilityIds.length === 0) {
+        return res.status(200).json({ status: 'success', data: [] });
+    }
+
+    // Get completed tickets grouped by date and vehicle type
+    const tickets = await prisma.ticket.findMany({
+        where: {
+            slot: { floor: { facility_id: { in: facilityIds } } },
+            status: 'COMPLETED',
+            exit_time: { gte: startDate }
+        },
+        select: {
+            exit_time: true,
+            vehicle_type: true,
+            total_fee: true
+        }
+    });
+
+    // Group by date and vehicle type
+    const revenueByDate = {};
+    tickets.forEach(ticket => {
+        const date = ticket.exit_time.toISOString().split('T')[0];
+        if (!revenueByDate[date]) {
+            revenueByDate[date] = { date, car: 0, bike: 0, scooter: 0, truck: 0 };
+        }
+        const vehicleKey = ticket.vehicle_type.toLowerCase();
+        revenueByDate[date][vehicleKey] = (revenueByDate[date][vehicleKey] || 0) + (ticket.total_fee || 0);
+    });
+
+    const revenueData = Object.values(revenueByDate).sort((a, b) =>
+        new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    res.status(200).json({ status: 'success', data: revenueData });
+});
+
+const getOccupancyData = asyncHandler(async (req, res) => {
+    const providerId = req.user.id;
+
+    // Get all facilities with floors
+    const facilities = await prisma.parkingFacility.findMany({
+        where: { provider_id: providerId },
+        include: {
+            floors: {
+                include: {
+                    parking_slots: {
+                        select: {
+                            id: true,
+                            status: true
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Transform to occupancy data
+    const occupancyData = [];
+    facilities.forEach(facility => {
+        facility.floors.forEach(floor => {
+            const totalSlots = floor.parking_slots.length;
+            const occupiedSlots = floor.parking_slots.filter(s => s.status === 'OCCUPIED').length;
+
+            occupancyData.push({
+                floor_id: floor.id,
+                floor_number: floor.floor_number,
+                facility_name: facility.name,
+                total_slots: totalSlots,
+                occupied_slots: occupiedSlots,
+                occupancy_rate: totalSlots > 0 ? (occupiedSlots / totalSlots) * 100 : 0
+            });
+        });
+    });
+
+    res.status(200).json({ status: 'success', data: occupancyData });
+});
+
+const getRecentBookings = asyncHandler(async (req, res) => {
+    const { limit = 5 } = req.query;
+    const providerId = req.user.id;
+
+    // Get facility IDs
+    const facilities = await prisma.parkingFacility.findMany({
+        where: { provider_id: providerId },
+        select: { id: true }
+    });
+    const facilityIds = facilities.map(f => f.id);
+
+    if (facilityIds.length === 0) {
+        return res.status(200).json({ status: 'success', data: [] });
+    }
+
+    const bookings = await prisma.ticket.findMany({
+        where: {
+            slot: { floor: { facility_id: { in: facilityIds } } }
+        },
+        include: {
+            slot: { select: { slot_number: true } },
+            user: { select: { name: true } }
+        },
+        orderBy: { created_at: 'desc' },
+        take: Number(limit)
+    });
+
+    // Transform to match frontend interface
+    const transformedBookings = bookings.map(booking => ({
+        id: booking.id,
+        ticket_id: booking.id,
+        customer_name: booking.user?.name || 'Unknown',
+        vehicle_number: booking.vehicle_number,
+        vehicle_type: booking.vehicle_type,
+        slot_number: booking.slot.slot_number,
+        entry_time: booking.entry_time,
+        amount: booking.total_fee || 0,
+        status: booking.status.toLowerCase()
+    }));
+
+    res.status(200).json({ status: 'success', data: transformedBookings });
+});
+
+const getFacilityDetails = asyncHandler(async (req, res, next) => {
+    const { id } = req.params;
+
+    const facility = await prisma.parkingFacility.findUnique({
+        where: { id },
+        include: {
+            floors: {
+                include: {
+                    parking_slots: true
+                }
+            }
+        }
+    });
+
+    if (!facility || facility.provider_id !== req.user.id) {
+        return next(new AppError('Facility not found or access denied', 404));
+    }
+
+    // Calculate total slots
+    const totalSlots = facility.floors.reduce((sum, floor) =>
+        sum + floor.parking_slots.length, 0
+    );
+
+    // Calculate occupied slots
+    const occupiedSlots = facility.floors.reduce((sum, floor) =>
+        sum + floor.parking_slots.filter(s => s.status === 'OCCUPIED').length, 0
+    );
+
+    // Calculate today's revenue
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const todayRevenue = await prisma.ticket.aggregate({
+        where: {
+            slot: { floor: { facility_id: id } },
+            created_at: { gte: todayStart },
+            status: 'COMPLETED'
+        },
+        _sum: { total_fee: true }
+    });
+
+    // Remove floors from response, add computed fields
+    const { floors, ...facilityData } = facility;
+
+    res.status(200).json({
+        status: 'success',
+        data: {
+            ...facilityData,
+            _count: { parking_slots: totalSlots },
+            slots: totalSlots,
+            occupancy: totalSlots > 0 ? (occupiedSlots / totalSlots) * 100 : 0,
+            revenue: todayRevenue._sum.total_fee || 0
+        }
+    });
+});
+
+const deleteSlot = asyncHandler(async (req, res, next) => {
+    const { id } = req.params;
+
+    const slot = await prisma.parkingSlot.findUnique({
+        where: { id },
+        include: { floor: { include: { facility: true } } }
+    });
+
+    if (!slot || slot.floor.facility.provider_id !== req.user.id) {
+        return next(new AppError('Slot not found or access denied', 404));
+    }
+
+    // Check if slot is occupied
+    if (slot.status === 'OCCUPIED') {
+        return next(new AppError('Cannot delete occupied slot', 400));
+    }
+
+    await prisma.parkingSlot.delete({ where: { id } });
+
+    res.status(204).json({ status: 'success', data: null });
+});
+
+const bulkCreateSlotsByFacility = asyncHandler(async (req, res, next) => {
+    const { facilityId } = req.params;
+    const { floor_number, vehicle_type, start_number, count } = req.body;
+
+    // Verify ownership
+    const facility = await prisma.parkingFacility.findUnique({
+        where: { id: facilityId }
+    });
+
+    if (!facility || facility.provider_id !== req.user.id) {
+        return next(new AppError('Facility not found or access denied', 404));
+    }
+
+    // Find or create floor
+    let floor = await prisma.floor.findFirst({
+        where: { facility_id: facilityId, floor_number }
+    });
+
+    if (!floor) {
+        floor = await prisma.floor.create({
+            data: {
+                facility_id: facilityId,
+                floor_number,
+                floor_name: `Floor ${floor_number}`,
+                total_capacity: count
+            }
+        });
+    }
+
+    // Generate slot data
+    const slots = [];
+    for (let i = 0; i < count; i++) {
+        slots.push({
+            floor_id: floor.id,
+            slot_number: String(start_number + i),
+            vehicle_type,
+            status: 'FREE',
+            is_active: true
+        });
+    }
+
+    const created = await prisma.parkingSlot.createMany({ data: slots });
+
+    res.status(201).json({
+        status: 'success',
+        message: `${created.count} slots created`,
+        data: { floor_id: floor.id, created_count: created.count }
+    });
+});
+
+const getAllBookings = asyncHandler(async (req, res) => {
+    const { status, facility_id, start_date, end_date } = req.query;
+    const providerId = req.user.id;
+
+    // Get facility IDs for this provider
+    const facilities = await prisma.parkingFacility.findMany({
+        where: { provider_id: providerId },
+        select: { id: true }
+    });
+    const facilityIds = facilities.map(f => f.id);
+
+    if (facilityIds.length === 0) {
+        return res.status(200).json({ status: 'success', results: 0, data: [] });
+    }
+
+    // Build where clause
+    const where = {
+        slot: {
+            floor: {
+                facility_id: { in: facilityIds }
+            }
+        }
+    };
+
+    if (status && status !== 'all') {
+        where.status = status.toUpperCase();
+    }
+
+    if (facility_id && facility_id !== 'all') {
+        where.slot.floor.facility_id = facility_id;
+    }
+
+    if (start_date || end_date) {
+        where.created_at = {};
+        if (start_date) where.created_at.gte = new Date(start_date);
+        if (end_date) {
+            const endDateTime = new Date(end_date);
+            endDateTime.setHours(23, 59, 59, 999);
+            where.created_at.lte = endDateTime;
+        }
+    }
+
+    const bookings = await prisma.ticket.findMany({
+        where,
+        include: {
+            slot: { select: { slot_number: true } },
+            user: { select: { name: true } }
+        },
+        orderBy: { created_at: 'desc' }
+    });
+
+    // Transform to frontend format
+    const transformedBookings = bookings.map(booking => ({
+        id: booking.id,
+        ticket_id: booking.id,
+        customer_name: booking.user?.name || 'Unknown',
+        vehicle_number: booking.vehicle_number,
+        vehicle_type: booking.vehicle_type,
+        slot_number: booking.slot.slot_number,
+        entry_time: booking.entry_time,
+        amount: booking.total_fee || 0,
+        status: booking.status.toLowerCase()
+    }));
+
+    res.status(200).json({
+        status: 'success',
+        results: transformedBookings.length,
+        data: transformedBookings
+    });
+});
+
+const updateFacilityPricing = asyncHandler(async (req, res, next) => {
+    const { id: facilityId } = req.params;
+    const { car_hourly, bike_hourly, scooter_hourly, truck_hourly } = req.body;
+
+    const facility = await prisma.parkingFacility.findUnique({
+        where: { id: facilityId }
+    });
+
+    if (!facility || facility.provider_id !== req.user.id) {
+        return next(new AppError('Facility not found or access denied', 404));
+    }
+
+    // Update or create pricing rules for each vehicle type
+    const vehicleTypes = [
+        { type: 'CAR', rate: car_hourly },
+        { type: 'BIKE', rate: bike_hourly },
+        { type: 'SCOOTER', rate: scooter_hourly },
+        { type: 'TRUCK', rate: truck_hourly }
+    ];
+
+    for (const { type, rate } of vehicleTypes) {
+        if (rate !== undefined && rate !== null) {
+            const existing = await prisma.pricingRule.findFirst({
+                where: { facility_id: facilityId, vehicle_type: type }
+            });
+
+            if (existing) {
+                await prisma.pricingRule.update({
+                    where: { id: existing.id },
+                    data: { hourly_rate: parseFloat(rate) }
+                });
+            } else {
+                await prisma.pricingRule.create({
+                    data: {
+                        facility_id: facilityId,
+                        vehicle_type: type,
+                        hourly_rate: parseFloat(rate)
+                    }
+                });
+            }
+        }
+    }
+
+    res.status(200).json({ status: 'success', message: 'Pricing updated successfully' });
+});
+
+
 module.exports = {
     updateFacility,
     deleteFacility,
@@ -268,5 +665,15 @@ module.exports = {
     getFacilityPricing,
     getStats,
     getRevenueReport,
-    getLiveStatus
+    getLiveStatus,
+    // New exports
+    getRevenueData,
+    getOccupancyData,
+    getRecentBookings,
+    getFacilityDetails,
+    deleteSlot,
+    bulkCreateSlotsByFacility,
+    getAllBookings,
+    updateFacilityPricing
 };
+

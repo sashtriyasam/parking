@@ -1,87 +1,115 @@
 import { useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
-import { useBookingFlowStore } from '../../../store/bookingFlowStore';
-import { useSearchStore } from '../../../store/searchStore';
-import BookingProgressBar from '../../../components/customer/booking/BookingProgressBar';
-import VehicleDetailsForm from '../../../components/customer/booking/VehicleDetailsForm';
-import type { VehicleDetails } from '../../../store/bookingFlowStore';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { ChevronLeft, Info } from 'lucide-react';
+import { useBookingFlowStore, type VehicleDetails } from '../../../store/bookingFlowStore';
+import { customerService } from '../../../services/customer.service';
+import { BookingProgressIndicator } from '../../../components/customer/booking/BookingProgressIndicator';
+import { VehicleDetailsForm } from '../../../components/customer/booking/VehicleDetailsForm';
 
 export default function VehicleDetailsPage() {
-    const navigate = useNavigate();
     const { facilityId } = useParams<{ facilityId: string }>();
-    const { filters } = useSearchStore();
+    const navigate = useNavigate();
     const {
-        currentStep,
+        facilityId: storeFacilityId,
         slotId,
         setStep,
         setVehicleDetails,
-        goToNextStep,
+        setBookingDetails,
     } = useBookingFlowStore();
 
+    // Ensure state consistency
     useEffect(() => {
-        // Ensure we're on step 1
-        if (currentStep !== 1) {
-            setStep(1);
-        }
-
-        // Verify we have a slot selected
-        if (!slotId) {
-            // Redirect back to facility details if no slot selected
+        if (!facilityId || facilityId !== storeFacilityId || !slotId) {
             navigate(`/customer/facility/${facilityId}`);
         }
-    }, [currentStep, slotId, facilityId, setStep, navigate]);
+        setStep(1);
+    }, [facilityId, storeFacilityId, slotId, navigate, setStep]);
 
-    const handleSubmit = (details: VehicleDetails) => {
+    // Fetch Facility Details for Pricing
+    const { data: facility } = useQuery({
+        queryKey: ['facility', facilityId],
+        queryFn: () => customerService.getFacilityDetails(facilityId!),
+        enabled: !!facilityId,
+    });
+
+    // Fetch Saved Vehicles
+    const { data: savedVehicles } = useQuery({
+        queryKey: ['my-vehicles'],
+        queryFn: () => customerService.getVehicles(),
+    });
+
+    const handleContinue = async (details: VehicleDetails) => {
+        if (!facility) return;
+
         setVehicleDetails(details);
-        goToNextStep();
-        navigate(`/customer/booking/${facilityId}/review`);
-    };
 
-    const handleBack = () => {
-        navigate(`/customer/facility/${facilityId}`);
+        // Find pricing rule for this vehicle
+        const pricingRule = facility.pricing_rules.find(r => r.vehicle_type === details.vehicle_type) || facility.pricing_rules[0];
+
+        // Find selecting slot
+        const slot = facility.floors.flatMap(f => f.parking_slots).find(s => s.id === slotId);
+
+        if (slot) {
+            const entryTime = new Date().toISOString();
+            const duration = 1; // Default
+            const baseFee = pricingRule.hourly_rate * duration;
+            const gst = Math.round(baseFee * 0.18);
+            const totalFee = baseFee + gst;
+
+            setBookingDetails({
+                facility,
+                slot,
+                entry_time: entryTime,
+                duration,
+                total_fee: totalFee,
+                base_fee: baseFee,
+                gst
+            });
+
+            navigate(`/customer/booking/${facilityId}/review`);
+        }
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <BookingProgressBar currentStep={1} />
-
-            <div className="max-w-2xl mx-auto px-4 py-8">
-                {/* Back Button */}
-                <button
-                    onClick={handleBack}
-                    className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
-                >
-                    <ArrowLeft size={20} />
-                    Back to Facility
-                </button>
-
-                {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-black text-gray-900 mb-2">
-                        Vehicle Details
-                    </h1>
-                    <p className="text-gray-600">
-                        Enter your vehicle information to continue with the booking
-                    </p>
+        <div className="min-h-screen bg-[#fafafa]">
+            {/* Header */}
+            <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
+                <div className="max-w-4xl mx-auto px-6 py-5 flex items-center justify-between">
+                    <button
+                        onClick={() => navigate(`/customer/facility/${facilityId}`)}
+                        className="p-3 bg-gray-50 rounded-2xl text-gray-500 hover:text-indigo-600 transition-all"
+                    >
+                        <ChevronLeft size={24} />
+                    </button>
+                    <div className="text-center">
+                        <h1 className="text-lg font-black text-gray-900 tracking-tight leading-none mb-1">Reserve Your Spot</h1>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{facility?.name || 'Loading...'}</p>
+                    </div>
+                    <button className="p-3 bg-indigo-50 rounded-2xl text-indigo-600">
+                        <Info size={24} />
+                    </button>
                 </div>
+                <BookingProgressIndicator currentStep={1} />
+            </header>
 
-                {/* Form Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
+            <main className="max-w-3xl mx-auto px-6 pt-12 pb-24">
+                <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-gray-100">
                     <VehicleDetailsForm
-                        initialVehicleType={filters.vehicleType as any || 'CAR'}
-                        onSubmit={handleSubmit}
+                        onContinue={handleContinue}
+                        savedVehicles={savedVehicles}
                     />
                 </div>
 
-                {/* Info Box */}
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                    <p className="text-sm text-blue-800">
-                        <strong>Note:</strong> Your vehicle details will be verified at the entry gate.
-                        Please ensure the information is accurate.
+                <div className="mt-12 flex items-center gap-4 p-6 bg-indigo-50/50 rounded-3xl border border-indigo-100">
+                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm shrink-0">
+                        <Info size={24} />
+                    </div>
+                    <p className="text-sm font-bold text-indigo-900 leading-relaxed">
+                        Your slot is already reserved for <span className="text-indigo-600">5 minutes</span> while you complete this flow. If you exit, the reservation will be cancelled.
                     </p>
                 </div>
-            </div>
+            </main>
         </div>
     );
 }
