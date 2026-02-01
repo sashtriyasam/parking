@@ -51,7 +51,7 @@ export default function MyTicketsPage() {
     });
 
     const handleGetDirections = (ticket: any) => {
-        const facility = ticket.parking_facility || ticket.slot?.floor?.facility;
+        const facility = ticket.facility || ticket.slot?.floor?.facility;
         if (facility?.latitude && facility?.longitude) {
             window.open(
                 `https://www.google.com/maps/dir/?api=1&destination=${facility.latitude},${facility.longitude}`,

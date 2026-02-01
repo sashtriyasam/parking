@@ -76,6 +76,13 @@ export const customerService = {
         return response.data;
     },
 
+    async downloadInvoice(ticketId: string): Promise<Blob> {
+        const response = await apiClient.get(`/customer/booking/${ticketId}/pdf`, {
+            responseType: 'blob',
+        });
+        return response.data;
+    },
+
     // Alias for booking success page
     getTicketDetails(ticketId: string): Promise<Ticket> {
         return this.getTicketById(ticketId);

@@ -169,38 +169,51 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
         return next(new AppError('Payment processing failed', 500));
     }
 
-    // Create ticket
-    const ticket = await prisma.ticket.create({
-        data: {
-            customer_id,
-            slot_id,
-            vehicle_number,
-            vehicle_type,
-            entry_time: new Date(entry_time),
-            status: 'ACTIVE',
-            total_fee: totalFee,
-            payment_status: payment_method === 'PAY_AT_EXIT' ? 'PENDING' : 'PAID',
-            payment_method,
-            payment_id: paymentResult.paymentId,
-        },
-        include: {
-            parking_slot: {
-                include: {
-                    floor: {
-                        include: {
-                            facility: true
+    // Transaction to ensure slot is locked and ticket is created
+    const ticket = await prisma.$transaction(async (tx) => {
+        // Double check slot status inside transaction
+        const currentSlot = await tx.parkingSlot.findUnique({
+            where: { id: slot_id },
+        });
+
+        if (!currentSlot || currentSlot.status !== 'FREE') {
+            throw new AppError('Slot is no longer available', 400);
+        }
+
+        // Update slot status
+        await tx.parkingSlot.update({
+            where: { id: slot_id },
+            data: { status: 'OCCUPIED' }
+        });
+
+        // Create ticket
+        return await tx.ticket.create({
+            data: {
+                customer_id,
+                facility_id: slot.floor.facility.id,
+                slot_id,
+                vehicle_number,
+                vehicle_type,
+                entry_time: new Date(entry_time),
+                status: 'ACTIVE',
+                total_fee: totalFee,
+                payment_status: payment_method === 'PAY_AT_EXIT' ? 'PENDING' : 'PAID',
+                payment_method,
+                payment_id: paymentResult.paymentId,
+            },
+            include: {
+                slot: {
+                    include: {
+                        floor: {
+                            include: {
+                                facility: true
+                            }
                         }
                     }
-                }
-            },
-            parking_facility: true,
-        }
-    });
-
-    // Update slot status
-    await prisma.parkingSlot.update({
-        where: { id: slot_id },
-        data: { status: 'OCCUPIED' }
+                },
+                facility: true,
+            }
+        });
     });
 
     // Generate QR code
@@ -210,6 +223,12 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
         vehicleNumber: vehicle_number,
         entryTime: entry_time,
         facilityId: slot.floor.facility.id,
+    });
+
+    // Update ticket with QR code (Optional: just return in response or save to DB)
+    await prisma.ticket.update({
+        where: { id: ticket.id },
+        data: { qr_code: qrCode }
     });
 
     // Emit socket event for real-time update
@@ -230,6 +249,7 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
     });
 });
 
+
 /**
  * Download ticket as PDF
  */
@@ -239,12 +259,12 @@ const downloadTicketPDF = asyncHandler(async (req, res, next) => {
     const ticket = await prisma.ticket.findUnique({
         where: { id: ticketId },
         include: {
-            parking_slot: {
+            slot: {
                 include: {
                     floor: true
                 }
             },
-            parking_facility: true,
+            facility: true,
         }
     });
 

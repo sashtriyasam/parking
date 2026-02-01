@@ -1,6 +1,8 @@
-import { X, Download, MapPin, Calendar, Car, CreditCard, HelpCircle, Share2, Info, Navigation, IndianRupee, Clock, Smartphone } from 'lucide-react';
+import { X, Download, MapPin, Calendar, Car, CreditCard, HelpCircle, Share2, Info, Navigation, IndianRupee, Clock, Smartphone, Zap } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useTicketsStore } from '../../../store/ticketsStore';
+
+import { customerService } from '../../../services/customer.service';
 
 export default function TicketDetailModal() {
     const { selectedTicket, isDetailModalOpen, closeDetailModal } = useTicketsStore();
@@ -19,8 +21,21 @@ export default function TicketDetailModal() {
     };
 
     const handleDownloadPDF = async () => {
-        // Implementation here...
-        console.log('Downloading PDF for', selectedTicket.id);
+        if (!selectedTicket) return;
+        try {
+            const blob = await customerService.downloadInvoice(selectedTicket.id);
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `ticket-${selectedTicket.id.slice(0, 8)}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode?.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Failed to download invoice:', error);
+            alert('Failed to download invoice. Please try again.');
+        }
     };
 
     const handleShare = async () => {
@@ -28,7 +43,7 @@ export default function TicketDetailModal() {
             try {
                 await navigator.share({
                     title: 'Parking Ticket',
-                    text: `My parking ticket for ${selectedTicket.parking_facility?.name}`,
+                    text: `My parking ticket for ${selectedTicket.facility?.name}`,
                     url: window.location.href,
                 });
             } catch (error) {
@@ -37,7 +52,13 @@ export default function TicketDetailModal() {
         }
     };
 
-    const facility = selectedTicket.parking_facility || selectedTicket.slot?.floor?.facility;
+    const facility = selectedTicket.facility || selectedTicket.slot?.floor?.facility;
+
+    const handleGetDirections = () => {
+        if (!facility?.address) return;
+        const query = encodeURIComponent(`${facility.name}, ${facility.address}`);
+        window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+    };
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -103,9 +124,10 @@ export default function TicketDetailModal() {
                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 leading-none">Assigned Slot</p>
                                     <p className="text-xl font-black text-gray-900 flex items-center gap-2">
                                         <Zap size={18} className="text-indigo-600 fill-indigo-600" />
-                                        {selectedTicket.parking_slot?.slot_number}
+                                        {selectedTicket.slot?.slot_number}
                                     </p>
-                                    <p className="text-[10px] font-bold text-indigo-500 uppercase">Floor {selectedTicket.parking_slot?.floor?.floor_number}</p>
+                                    <p className="text-[10px] font-bold text-indigo-500 uppercase">Floor {selectedTicket.slot?.floor?.floor_number}</p>
+
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 leading-none">Vehicle</p>
@@ -140,7 +162,10 @@ export default function TicketDetailModal() {
                     <div className="space-y-6">
                         <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest px-1">Utility & Support</h4>
                         <div className="grid grid-cols-2 gap-4">
-                            <button className="p-6 bg-white border border-gray-100 rounded-3xl flex flex-col items-center gap-3 hover:border-indigo-200 transition-all group">
+                            <button
+                                onClick={handleGetDirections}
+                                className="p-6 bg-white border border-gray-100 rounded-3xl flex flex-col items-center gap-3 hover:border-indigo-200 transition-all group"
+                            >
                                 <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <Navigation size={24} />
                                 </div>

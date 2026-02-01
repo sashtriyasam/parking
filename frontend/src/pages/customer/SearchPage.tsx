@@ -17,6 +17,7 @@ export default function SearchPage() {
     const { filters, viewMode, setFilters, setViewMode } = useSearchStore();
     const { latitude, longitude } = useGeolocation();
     const [showFilters, setShowFilters] = useState(false);
+    const [showMobileSearch, setShowMobileSearch] = useState(false);
     const [scrolled, setScrolled] = useState(false);
 
     // Watch for scroll to change header style
@@ -162,7 +163,10 @@ export default function SearchPage() {
                         </div>
 
                         {/* Mobile Search Toggle */}
-                        <button className="lg:hidden p-4 bg-gray-50 rounded-2xl text-gray-600 border border-gray-100">
+                        <button
+                            onClick={() => setShowMobileSearch(true)}
+                            className="lg:hidden p-4 bg-gray-50 rounded-2xl text-gray-600 border border-gray-100"
+                        >
                             <SearchIcon className="w-5 h-5" />
                         </button>
 
@@ -282,6 +286,30 @@ export default function SearchPage() {
                 <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm lg:hidden animate-in fade-in duration-300">
                     <div className="absolute bottom-0 w-full h-[90vh] bg-white rounded-t-[40px] p-2 animate-in slide-in-from-bottom duration-500 shadow-2xl">
                         <FilterSidebar onClose={() => setShowFilters(false)} mobile />
+                    </div>
+                </div>
+            )}
+
+            {/* Mobile Search Overlay */}
+            {showMobileSearch && (
+                <div className="fixed inset-0 z-[100] bg-white/95 backdrop-blur-xl lg:hidden animate-in fade-in duration-200">
+                    <div className="p-6">
+                        <div className="flex justify-end mb-4">
+                            <button
+                                onClick={() => setShowMobileSearch(false)}
+                                className="p-2 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+                        <h2 className="text-2xl font-black text-gray-900 mb-6 px-2">Where to?</h2>
+                        <SearchBar
+                            onSearch={(loc, type) => {
+                                handleSearch(loc, type);
+                                setShowMobileSearch(false);
+                            }}
+                            compact
+                        />
                     </div>
                 </div>
             )}

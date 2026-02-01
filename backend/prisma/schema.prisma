@@ -49,7 +49,9 @@ model ParkingFacility {
   floors          Floor[]
   pricing_rules   PricingRule[]
   monthly_passes  MonthlyPass[]
+  tickets         Ticket[]
   favorites       Favorite[]
+
 
   @@map("parking_facilities")
 }
@@ -83,37 +85,51 @@ model ParkingSlot {
 }
 
 model Ticket {
-  id             String       @id @default(uuid())
+  id             String          @id @default(uuid())
   customer_id    String
-  customer       User         @relation(fields: [customer_id], references: [id])
+  customer       User            @relation(fields: [customer_id], references: [id])
+  facility_id    String
+  facility       ParkingFacility @relation(fields: [facility_id], references: [id])
   slot_id        String
-  slot           ParkingSlot  @relation(fields: [slot_id], references: [id])
+  slot           ParkingSlot     @relation(fields: [slot_id], references: [id])
   vehicle_number String
   vehicle_type   String
-  entry_time     DateTime     @default(now())
+  entry_time     DateTime        @default(now())
   exit_time      DateTime?
   base_fee       Decimal?
   extra_charges  Decimal?
   total_fee      Decimal?
-  status         String       @default("ACTIVE")
+  status         String          @default("ACTIVE")
+  payment_status String?         @default("PENDING") // PENDING, PAID, REFUNDED
+  payment_method String?         // CARD, UPI, PAY_AT_EXIT, PASS
+  payment_id     String?         // Provider payment ID
+  qr_code        String?         // Cached QR data or URL
+  created_at     DateTime        @default(now())
+  updated_at     DateTime        @updatedAt
 
   @@map("tickets")
 }
 
+
 model MonthlyPass {
-  id           String          @id @default(uuid())
-  customer_id  String
-  customer     User            @relation(fields: [customer_id], references: [id])
-  facility_id  String
-  facility     ParkingFacility @relation(fields: [facility_id], references: [id])
-  vehicle_type String
-  start_date   DateTime
-  end_date     DateTime
-  price        Decimal
-  status       String          @default("ACTIVE")
+  id             String          @id @default(uuid())
+  customer_id    String
+  customer       User            @relation(fields: [customer_id], references: [id])
+  facility_id    String
+  facility       ParkingFacility @relation(fields: [facility_id], references: [id])
+  vehicle_type   String
+  start_date     DateTime
+  end_date       DateTime
+  price          Decimal
+  status         String          @default("ACTIVE")
+  payment_id     String?
+  payment_status String?         @default("PAID")
+  created_at     DateTime        @default(now())
+  updated_at     DateTime        @updatedAt
 
   @@map("monthly_passes")
 }
+
 
 model PricingRule {
   id                 String          @id @default(uuid())

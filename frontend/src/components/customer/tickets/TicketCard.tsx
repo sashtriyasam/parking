@@ -80,11 +80,11 @@ export default function TicketCard({ ticket, type, onExtend, onEnd, onGetDirecti
                         </div>
                         <div>
                             <h3 className={`text-2xl font-black tracking-tight leading-tight ${type === 'active' ? 'text-white' : 'text-gray-900'}`}>
-                                {ticket.parking_facility?.name || ticket.slot?.floor?.facility?.name || 'Facility Name'}
+                                {ticket.facility?.name || ticket.slot?.floor?.facility?.name || 'Facility Name'}
                             </h3>
                             <div className="flex items-center gap-2 mt-2 text-gray-400 text-sm font-bold">
                                 <MapPin size={16} className="shrink-0" />
-                                <span className="truncate">{ticket.parking_facility?.address || ticket.slot?.floor?.facility?.address}</span>
+                                <span className="truncate">{ticket.facility?.address || ticket.slot?.floor?.facility?.address}</span>
                             </div>
                         </div>
                     </div>
@@ -105,7 +105,7 @@ export default function TicketCard({ ticket, type, onExtend, onEnd, onGetDirecti
                                 <Car size={16} /> {ticket.vehicle_number}
                             </p>
                             <p className="text-[10px] font-bold text-gray-500 uppercase mt-1">
-                                {ticket.parking_slot?.slot_number} • FL {ticket.parking_slot?.floor?.floor_number}
+                                {ticket.slot?.slot_number} • FL {ticket.slot?.floor?.floor_number}
                             </p>
                         </div>
                     </div>

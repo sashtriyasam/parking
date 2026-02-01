@@ -29,12 +29,14 @@ export default function AddFacilityPage() {
     const [amenities, setAmenities] = useState<string[]>([]);
 
     const { register, handleSubmit, watch, formState: { errors } } = useForm<FacilityFormData>({
-        resolver: zodResolver(facilitySchema),
+        resolver: zodResolver(facilitySchema) as any,
+
         defaultValues: {
             is_24_7: true,
             total_floors: 1,
         },
     });
+
 
     const is24_7 = watch('is_24_7');
 

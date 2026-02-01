@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SlidersHorizontal, X, MapPin, IndianRupee, Shield, Zap, Info } from 'lucide-react';
 import { useSearchStore } from '../../store/searchStore';
+import { useDebounce } from '../../hooks/useDebounce';
 import type { VehicleType } from '../../types';
 
 interface FilterSidebarProps {
@@ -11,6 +12,14 @@ interface FilterSidebarProps {
 export function FilterSidebar({ onClose, mobile = false }: FilterSidebarProps) {
     const { filters, setFilters, resetFilters } = useSearchStore();
     const [localFilters, setLocalFilters] = useState(filters);
+    const debouncedFilters = useDebounce(localFilters, 500);
+
+    // Live update for desktop (debounced)
+    useEffect(() => {
+        if (!mobile) {
+            setFilters(debouncedFilters);
+        }
+    }, [debouncedFilters, mobile, setFilters]);
 
     const handleApply = () => {
         setFilters(localFilters);
@@ -19,7 +28,20 @@ export function FilterSidebar({ onClose, mobile = false }: FilterSidebarProps) {
 
     const handleReset = () => {
         resetFilters();
-        setLocalFilters(filters);
+        // We need to get the default filters from store after reset
+        // Since resetFilters is sync but store update might be batched, 
+        // strictly we might need to know default values. 
+        // For now, let's assume resetFilters resets store state, 
+        // but we need to update local state immediately.
+        // Or simpler: just manually reset local state to defaults.
+        setLocalFilters({
+            ...filters,
+            radius: 5,
+            priceRange: [0, 1000],
+            vehicleType: '',
+            features: [],
+            sortBy: 'distance'
+        });
     };
 
     const featureIcons: Record<string, any> = {
@@ -60,8 +82,8 @@ export function FilterSidebar({ onClose, mobile = false }: FilterSidebarProps) {
                             key={option.id}
                             onClick={() => setLocalFilters({ ...localFilters, sortBy: option.id as any })}
                             className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all border ${localFilters.sortBy === option.id
-                                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200'
-                                    : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-indigo-200'
+                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200'
+                                : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-indigo-200'
                                 }`}
                         >
                             {option.label}
@@ -173,8 +195,8 @@ export function FilterSidebar({ onClose, mobile = false }: FilterSidebarProps) {
                         <label
                             key={feature}
                             className={`flex items-center p-4 rounded-2xl border transition-all cursor-pointer ${localFilters.features.includes(feature)
-                                    ? 'bg-indigo-50 border-indigo-200'
-                                    : 'bg-white border-gray-100 hover:border-gray-200'
+                                ? 'bg-indigo-50 border-indigo-200'
+                                : 'bg-white border-gray-100 hover:border-gray-200'
                                 }`}
                         >
                             <input

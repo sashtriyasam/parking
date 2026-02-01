@@ -1,127 +1,97 @@
 const PDFDocument = require('pdfkit');
-const { generateQRCodeBuffer } = require('./qrcode');
 
 /**
- * Generate parking ticket PDF
- * @param {Object} ticketData - Complete ticket information
- * @returns {Promise<Buffer>} PDF buffer
+ * Generates a PDF buffer for a ticket invoice
+ * @param {Object} ticket - Ticket object with related data
+ * @returns {Promise<Buffer>}
  */
-async function generateTicketPDF(ticketData) {
-    return new Promise(async (resolve, reject) => {
+const generateTicketPDF = (ticket) => {
+    return new Promise((resolve, reject) => {
         try {
-            const doc = new PDFDocument({
-                size: 'A4',
-                margin: 50,
-            });
-
+            const doc = new PDFDocument({ margin: 50 });
             const buffers = [];
+
             doc.on('data', buffers.push.bind(buffers));
             doc.on('end', () => {
-                const pdfBuffer = Buffer.concat(buffers);
-                resolve(pdfBuffer);
+                const pdfData = Buffer.concat(buffers);
+                resolve(pdfData);
             });
 
-            // Header
-            doc.fontSize(24)
-                .fillColor('#4F46E5')
-                .text('ParkEase', { align: 'center' })
-                .fontSize(16)
-                .fillColor('#000000')
-                .text('Parking Ticket', { align: 'center' })
+            // --- Header ---
+            doc.fillColor('#444444')
+                .fontSize(20)
+                .text('PARKING THING', 50, 50)
+                .fontSize(10)
+                .text('Official Parking Invoice', 200, 50, { align: 'right' })
+                .text(`Date: ${new Date().toLocaleDateString()}`, 200, 65, { align: 'right' })
                 .moveDown();
 
-            // Ticket ID
-            doc.fontSize(12)
-                .fillColor('#6B7280')
-                .text('Ticket ID:', 50, doc.y)
-                .fontSize(14)
-                .fillColor('#000000')
-                .text(ticketData.id.slice(0, 8).toUpperCase(), 150, doc.y - 14)
-                .moveDown();
+            // --- Divider ---
+            doc.strokeColor('#aaaaaa')
+                .lineWidth(1)
+                .moveTo(50, 90)
+                .lineTo(550, 90)
+                .stroke();
 
-            // QR Code
-            const qrBuffer = await generateQRCodeBuffer({
-                ticketId: ticketData.id,
-                slotId: ticketData.slot_id,
-                vehicleNumber: ticketData.vehicle_number,
-                entryTime: ticketData.entry_time,
-                facilityId: ticketData.parking_facility?.id,
-            });
+            // --- Ticket Info ---
+            doc.fontSize(14).text('Ticket Information', 50, 110);
+            doc.fontSize(10).font('Helvetica-Bold');
 
-            const qrX = (doc.page.width - 200) / 2;
-            doc.image(qrBuffer, qrX, doc.y, { width: 200, height: 200 });
-            doc.moveDown(12);
+            const startY = 140;
+            const leftX = 50;
+            const rightX = 300;
 
-            // Facility Details
-            doc.fontSize(14)
-                .fillColor('#4F46E5')
-                .text('Facility Details', { underline: true })
-                .moveDown(0.5);
+            // Row 1
+            doc.text('Ticket ID:', leftX, startY).font('Helvetica').text(ticket.id.toUpperCase(), leftX + 80, startY);
+            doc.font('Helvetica-Bold').text('Vehicle:', rightX, startY).font('Helvetica').text(`${ticket.vehicle_number} (${ticket.vehicle_type})`, rightX + 60, startY);
 
-            doc.fontSize(12)
-                .fillColor('#000000')
-                .text(`Name: ${ticketData.parking_facility?.name || 'N/A'}`)
-                .text(`Address: ${ticketData.parking_facility?.address || 'N/A'}`)
-                .moveDown();
+            // Row 2
+            doc.font('Helvetica-Bold').text('Facility:', leftX, startY + 20).font('Helvetica').text(ticket.parking_facility?.name || 'N/A', leftX + 80, startY + 20);
+            doc.font('Helvetica-Bold').text('Slot:', rightX, startY + 20).font('Helvetica').text(ticket.parking_slot?.slot_number || 'N/A', rightX + 60, startY + 20);
 
-            // Parking Details
-            doc.fontSize(14)
-                .fillColor('#4F46E5')
-                .text('Parking Details', { underline: true })
-                .moveDown(0.5);
+            // --- Time Table ---
+            const tableTop = 200;
+            doc.font('Helvetica-Bold');
+            doc.text('Description', 50, tableTop);
+            doc.text('Time', 300, tableTop);
+            doc.text('Date', 450, tableTop);
 
-            doc.fontSize(12)
-                .fillColor('#000000')
-                .text(`Slot Number: ${ticketData.parking_slot?.slot_number || 'N/A'}`)
-                .text(`Floor: ${ticketData.parking_slot?.floor?.floor_number || 'N/A'}`)
-                .text(`Vehicle Number: ${ticketData.vehicle_number}`)
-                .text(`Vehicle Type: ${ticketData.vehicle_type}`)
-                .moveDown();
+            doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).stroke();
 
-            // Booking Details
-            doc.fontSize(14)
-                .fillColor('#4F46E5')
-                .text('Booking Details', { underline: true })
-                .moveDown(0.5);
+            doc.font('Helvetica');
+            doc.text('Entry Time', 50, tableTop + 30);
+            doc.text(new Date(ticket.entry_time).toLocaleTimeString(), 300, tableTop + 30);
+            doc.text(new Date(ticket.entry_time).toLocaleDateString(), 450, tableTop + 30);
 
-            const entryTime = new Date(ticketData.entry_time).toLocaleString('en-IN');
-            const exitTime = ticketData.exit_time
-                ? new Date(ticketData.exit_time).toLocaleString('en-IN')
-                : 'Not exited yet';
+            if (ticket.exit_time) {
+                doc.text('Exit Time', 50, tableTop + 50);
+                doc.text(new Date(ticket.exit_time).toLocaleTimeString(), 300, tableTop + 50);
+                doc.text(new Date(ticket.exit_time).toLocaleDateString(), 450, tableTop + 50);
+            }
 
-            doc.fontSize(12)
-                .fillColor('#000000')
-                .text(`Entry Time: ${entryTime}`)
-                .text(`Exit Time: ${exitTime}`)
-                .text(`Status: ${ticketData.status}`)
-                .moveDown();
+            // --- Payment Details ---
+            const paymentTop = 300;
+            doc.rect(50, paymentTop, 500, 100).fill('#f9f9f9').stroke('#eeeeee');
+            doc.fillColor('#444444');
 
-            // Payment Details
-            doc.fontSize(14)
-                .fillColor('#4F46E5')
-                .text('Payment Details', { underline: true })
-                .moveDown(0.5);
+            doc.fontSize(14).text('Payment Summary', 70, paymentTop + 20);
+            doc.fontSize(10);
 
-            doc.fontSize(12)
-                .fillColor('#000000')
-                .text(`Total Fee: ₹${ticketData.total_fee?.toFixed(2) || '0.00'}`)
-                .text(`Payment Status: ${ticketData.payment_status || 'Pending'}`)
-                .moveDown();
+            doc.text('Total Amount Paid:', 70, paymentTop + 50);
+            doc.fontSize(18).font('Helvetica-Bold').text(`Rs. ${ticket.total_fee || 0}.00`, 400, paymentTop + 45, { align: 'right' });
 
-            // Footer
+            doc.fontSize(10).font('Helvetica').text(`Status: ${ticket.payment_status || 'PENDING'}`, 70, paymentTop + 70);
+            doc.text(`Method: ${ticket.payment_method || 'N/A'}`, 250, paymentTop + 70);
+
+            // --- Footer ---
             doc.fontSize(10)
-                .fillColor('#6B7280')
-                .text('Thank you for using ParkEase!', { align: 'center' })
-                .text('For support, contact: support@parkease.com', { align: 'center' });
+                .text('Thank you for parking with us.', 50, 700, { align: 'center', width: 500 });
 
             doc.end();
         } catch (error) {
-            console.error('Error generating PDF:', error);
-            reject(new Error('Failed to generate PDF'));
+            reject(error);
         }
     });
-}
-
-module.exports = {
-    generateTicketPDF,
 };
+
+module.exports = { generateTicketPDF };

@@ -50,7 +50,7 @@ export default function BookingSuccessPage() {
         </div>
     );
 
-    const facility = ticket.parking_facility || ticket.slot?.floor?.facility;
+    const facility = ticket.facility || ticket.slot?.floor?.facility;
 
     return (
         <div className="min-h-screen bg-indigo-600 pb-20 overflow-hidden relative">
@@ -104,9 +104,9 @@ export default function BookingSuccessPage() {
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 leading-none">Assigned Slot</p>
                                 <p className="text-xl font-black text-gray-900 flex items-center gap-2">
                                     <Zap size={18} className="text-indigo-600 fill-indigo-600" />
-                                    {ticket.parking_slot?.slot_number}
+                                    {ticket.slot?.slot_number}
                                 </p>
-                                <p className="text-[10px] font-bold text-indigo-500 uppercase">Floor {ticket.parking_slot?.floor?.floor_number}</p>
+                                <p className="text-[10px] font-bold text-indigo-500 uppercase">Floor {ticket.slot?.floor?.floor_number}</p>
                             </div>
                             <div>
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 leading-none">Vehicle</p>

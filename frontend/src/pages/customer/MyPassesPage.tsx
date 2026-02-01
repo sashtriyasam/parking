@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CreditCard, Plus, ChevronLeft, Zap, ShieldCheck, IndianRupee, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { customerService } from '../../services/customer.service';
@@ -17,18 +17,15 @@ export default function MyPassesPage() {
     });
 
     const purchaseMutation = useMutation({
-        mutationFn: async ({ duration, vehicleType }: { duration: number, vehicleType: string }) => {
-            // Hardcoded facility for now or should be selected. 
-            // In a real app, user selects facility first. 
-            // For MVP, we'll auto-select the first available facility or require facility selection in modal.
-            // Let's assume a default facility for demo or fetch one.
-            // Changing logic: PurchasePassModal should probably accept a facilityId if we are on a specific facility page, 
-            // OR the modal should allow picking a facility. 
-            // The service requires facility_id.
-            // Let's hardcode a known facility ID from previous context or fetch list.
-            // Better: Get list of facilities and pick first one for now.
-            const facilities = await customerService.searchParking({});
-            if (facilities.length === 0) throw new Error('No facilities available');
+        mutationFn: async ({ vehicleType }: { duration: number, vehicleType: any }) => {
+            // Fetch facilities with default coordinates to get a valid facility_id
+            const facilities = await customerService.searchParking({
+                latitude: 19.0760, // Default to Mumbai
+                longitude: 72.8777,
+                radius: 50
+            });
+
+            if (!facilities || facilities.length === 0) throw new Error('No facilities available');
             return customerService.purchasePass(facilities[0].id, vehicleType);
         },
         onSuccess: () => {
@@ -36,6 +33,7 @@ export default function MyPassesPage() {
             setIsPurchaseModalOpen(false);
             alert('Membership activated successfully!');
         },
+
         onError: (err) => {
             alert('Failed to purchase pass. Please try again.');
             console.error(err);

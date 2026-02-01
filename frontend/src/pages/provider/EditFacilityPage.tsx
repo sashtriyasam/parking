@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useForm, SubmitHandler } from 'react-hook-form';
+import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Building2, Clock, Layers, Camera, FileText, Zap, Shield, Cctv, ArrowLeft } from 'lucide-react';
@@ -37,7 +37,7 @@ export default function EditFacilityPage() {
     });
 
     const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<FacilityFormData>({
-        resolver: zodResolver(facilitySchema),
+        resolver: zodResolver(facilitySchema) as any,
         defaultValues: {
             is_24_7: true,
             total_floors: 1,

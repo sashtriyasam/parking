@@ -387,7 +387,7 @@ const getRecentBookings = asyncHandler(async (req, res) => {
         },
         include: {
             slot: { select: { slot_number: true } },
-            user: { select: { name: true } }
+            customer: { select: { full_name: true } }
         },
         orderBy: { created_at: 'desc' },
         take: Number(limit)
@@ -397,7 +397,7 @@ const getRecentBookings = asyncHandler(async (req, res) => {
     const transformedBookings = bookings.map(booking => ({
         id: booking.id,
         ticket_id: booking.id,
-        customer_name: booking.user?.name || 'Unknown',
+        customer_name: booking.customer?.full_name || 'Unknown',
         vehicle_number: booking.vehicle_number,
         vehicle_type: booking.vehicle_type,
         slot_number: booking.slot.slot_number,
@@ -583,7 +583,7 @@ const getAllBookings = asyncHandler(async (req, res) => {
         where,
         include: {
             slot: { select: { slot_number: true } },
-            user: { select: { name: true } }
+            customer: { select: { full_name: true } }
         },
         orderBy: { created_at: 'desc' }
     });
@@ -592,7 +592,7 @@ const getAllBookings = asyncHandler(async (req, res) => {
     const transformedBookings = bookings.map(booking => ({
         id: booking.id,
         ticket_id: booking.id,
-        customer_name: booking.user?.name || 'Unknown',
+        customer_name: booking.customer?.full_name || 'Unknown',
         vehicle_number: booking.vehicle_number,
         vehicle_type: booking.vehicle_type,
         slot_number: booking.slot.slot_number,

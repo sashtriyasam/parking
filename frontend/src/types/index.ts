@@ -103,6 +103,7 @@ export interface ParkingSlot {
 export interface Ticket {
     id: string;
     customer_id: string;
+    facility_id: string;
     slot_id: string;
     vehicle_number: string;
     vehicle_type: VehicleType;
@@ -113,18 +114,15 @@ export interface Ticket {
     payment_status?: 'PENDING' | 'PAID' | 'REFUNDED';
     payment_method?: string;
     payment_id?: string;
-    parking_slot?: ParkingSlot & {
-        floor?: Floor & {
-            facility?: ParkingFacility;
-        };
-    };
-    parking_facility?: ParkingFacility;
+    qr_code?: string;
     slot?: ParkingSlot & {
         floor?: Floor & {
             facility?: ParkingFacility;
         };
     };
+    facility?: ParkingFacility;
 }
+
 
 export interface Reservation {
     id: string;

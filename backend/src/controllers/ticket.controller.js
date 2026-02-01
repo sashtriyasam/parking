@@ -11,7 +11,7 @@ const getActiveTickets = asyncHandler(async (req, res, next) => {
             status: 'ACTIVE'
         },
         include: {
-            parking_slot: {
+            slot: {
                 include: {
                     floor: {
                         include: {
@@ -20,7 +20,7 @@ const getActiveTickets = asyncHandler(async (req, res, next) => {
                     }
                 }
             },
-            parking_facility: true // Direct relation if exists, or via slot
+            facility: true // Direct relation if exists, or via slot
         },
         orderBy: {
             entry_time: 'desc'
@@ -36,7 +36,7 @@ const getActiveTickets = asyncHandler(async (req, res, next) => {
         try {
             // Re-calculate fee based on current duration
             // Note: This relies on pricing service to handle partial hours
-            const facilityId = ticket.parking_facility?.id || ticket.parking_slot?.floor?.facility?.id;
+            const facilityId = ticket.facility?.id || ticket.slot?.floor?.facility?.id;
 
             if (facilityId) {
                 const pricing = await pricingService.calculateParkingFee(
@@ -77,8 +77,8 @@ const getTicketHistory = asyncHandler(async (req, res, next) => {
             }
         },
         include: {
-            parking_facility: true,
-            parking_slot: {
+            facility: true,
+            slot: {
                 include: {
                     floor: true
                 }
@@ -116,8 +116,8 @@ const getTicketById = asyncHandler(async (req, res, next) => {
     const ticket = await prisma.ticket.findUnique({
         where: { id: ticketId },
         include: {
-            parking_facility: true,
-            parking_slot: {
+            facility: true,
+            slot: {
                 include: {
                     floor: true
                 }
@@ -146,7 +146,7 @@ const getTicketById = asyncHandler(async (req, res, next) => {
     if (ticket.status === 'ACTIVE') {
         const exitTime = new Date();
         const entryTime = new Date(ticket.entry_time);
-        const facilityId = ticket.parking_facility?.id || ticket.parking_slot?.floor?.facility?.id;
+        const facilityId = ticket.facility?.id || ticket.slot?.floor?.facility?.id;
 
         if (facilityId) {
             const pricing = await pricingService.calculateParkingFee(
