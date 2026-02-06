@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Car, Bike, Truck, Check, X, Clock, Wrench } from 'lucide-react';
-import { ParkingSlot, VehicleType } from '@/types';
+import type { ParkingSlot, VehicleType } from '@/types';
 import { cn } from '@/app/components/ui/utils';
 import { motion } from 'motion/react';
 

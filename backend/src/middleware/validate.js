@@ -9,7 +9,10 @@ const validate = (schema) => (req, res, next) => {
         });
         next();
     } catch (error) {
-        const errorMessage = error.errors.map((err) => err.message).join(', ');
+        // Safely handle Zod errors and other error types
+        const errorMessage = error.errors
+            ? error.errors.map((err) => err.message).join(', ')
+            : error.message || 'Validation failed';
         return next(new AppError(errorMessage, 400));
     }
 };

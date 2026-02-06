@@ -6,7 +6,7 @@ const registerSchema = z.object({
         password: z.string().min(6, 'Password must be at least 6 characters'),
         full_name: z.string().min(2, 'Name must be at least 2 characters'),
         phone_number: z.string().optional(),
-        role: z.enum(['CUSTOMER', 'PROVIDER']).default('CUSTOMER'),
+        role: z.enum(['CUSTOMER', 'PROVIDER', 'customer', 'provider']).transform(val => val.toUpperCase()).default('CUSTOMER'),
     }),
 });
 

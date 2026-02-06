@@ -8,7 +8,7 @@ import { Card } from '@/app/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/app/components/ui/radio-group';
 import { Separator } from '@/app/components/ui/separator';
 import { useApp } from '@/context/AppContext';
-import { VehicleType, PaymentMethod } from '@/types';
+import type { VehicleType, PaymentMethod } from '@/types';
 import { toast } from 'sonner';
 import QRCode from 'react-qr-code';
 
@@ -17,10 +17,10 @@ export function BookingVehicle() {
   const location = useLocation();
   const { id } = useParams();
   const { getFacilityById, user } = useApp();
-  
+
   const facility = getFacilityById(id!);
   const { slotId } = location.state || {};
-  
+
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [vehicleType, setVehicleType] = useState<VehicleType>('car');
   const [duration, setDuration] = useState(3);
@@ -71,7 +71,7 @@ export function BookingVehicle() {
 
         <Card className="p-8">
           <h2 className="text-2xl font-black mb-6">Vehicle Details</h2>
-          
+
           <div className="space-y-6">
             <div>
               <Label htmlFor="vehicleNumber">Vehicle Number</Label>
@@ -166,7 +166,7 @@ export function BookingPayment() {
   const navigate = useNavigate();
   const location = useLocation();
   const { createBooking, user } = useApp();
-  
+
   const bookingData = location.state || {};
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('upi');
   const [upiId, setUpiId] = useState('');
@@ -231,7 +231,7 @@ export function BookingPayment() {
           <div className="lg:col-span-2">
             <Card className="p-8">
               <h2 className="text-2xl font-black mb-6">Payment Method</h2>
-              
+
               <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)} className="space-y-4">
                 <Card className={`p-4 cursor-pointer ${paymentMethod === 'upi' ? 'border-2 border-indigo-600 bg-indigo-50' : ''}`}>
                   <RadioGroupItem value="upi" id="upi" className="sr-only" />
@@ -295,7 +295,7 @@ export function BookingPayment() {
                   <span className="text-indigo-600">₹{bookingData.amount}</span>
                 </div>
               </div>
-              
+
               <Button
                 onClick={handleConfirmPayment}
                 disabled={loading}
@@ -316,7 +316,7 @@ export function BookingSuccess() {
   const location = useLocation();
   const { booking } = location.state || {};
   const { getFacilityById } = useApp();
-  
+
   const facility = getFacilityById(booking?.facilityId);
 
   if (!booking) {

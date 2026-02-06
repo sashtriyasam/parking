@@ -114,3 +114,79 @@ export interface AuthResponse {
   };
 }
 
+// API Types
+export interface ApiResponse<T> {
+  status: string;
+  data: T;
+  message?: string;
+  metadata?: {
+    page?: number;
+    limit?: number;
+    total?: number;
+  };
+}
+
+export interface ParkingFacility {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+  images: string[];
+  description?: string;
+  rating: number;
+  review_count: number;
+  total_slots: number;
+  available_slots: number;
+  floors: number;
+  operating_hours: string;
+  amenities: string[];
+  provider_id: string;
+  verified: boolean;
+  distance?: number;
+  price_per_hour?: number;
+}
+
+export interface SearchParams {
+  latitude?: number;
+  longitude?: number;
+  radius?: number;
+  vehicle_type?: VehicleType;
+  city?: string;
+  amenities?: string[];
+}
+
+export interface Ticket {
+  id: string;
+  user_id: string;
+  facility_id: string;
+  slot_id: string;
+  vehicle_number: string;
+  vehicle_type: VehicleType;
+  entry_time: string;
+  exit_time?: string;
+  duration_hours?: number;
+  amount?: number;
+  payment_method?: PaymentMethod;
+  status: 'active' | 'completed' | 'cancelled';
+  qr_code: string;
+  facility?: ParkingFacility;
+  slot?: ParkingSlot;
+}
+
+export interface Reservation {
+  id: string;
+  slot_id: string;
+  user_id: string;
+  expires_at: string;
+  status: 'pending' | 'confirmed' | 'expired';
+}
+
+export interface BookingRequest {
+  slot_id: string;
+  vehicle_number: string;
+  vehicle_type: VehicleType;
+  payment_method: PaymentMethod;
+  duration_hours?: number;
+}

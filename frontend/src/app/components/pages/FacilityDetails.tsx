@@ -8,14 +8,14 @@ import { Badge } from '@/app/components/ui/badge';
 import { SlotGrid } from '@/app/components/SlotGrid';
 import { useApp } from '@/context/AppContext';
 import { mockPricing, mockReviews } from '@/data/mockData';
-import { VehicleType } from '@/types';
+import type { VehicleType } from '@/types';
 import { toast } from 'sonner';
 
 export function FacilityDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getFacilityById, slots, isAuthenticated } = useApp();
-  
+
   const facility = getFacilityById(id!);
   const facilitySlots = slots[id!] || [];
   const pricing = mockPricing[id!] || mockPricing['facility-1'];
@@ -167,7 +167,7 @@ export function FacilityDetails() {
                   {Array.from({ length: facility.floors }, (_, i) => i).map((floor) => {
                     const floorSlots = facilitySlots.filter(s => s.floor === floor);
                     const availableSlots = floorSlots.filter(s => s.status === 'free').length;
-                    
+
                     return (
                       <Button
                         key={floor}
@@ -231,7 +231,7 @@ export function FacilityDetails() {
             <Card className="p-6 sticky top-24 space-y-6">
               <div>
                 <h3 className="font-bold text-lg mb-4">Pricing</h3>
-                
+
                 {/* Vehicle Type Tabs */}
                 <Tabs value={selectedVehicleType} onValueChange={(v) => setSelectedVehicleType(v as VehicleType)}>
                   <TabsList className="grid grid-cols-4 w-full mb-4">

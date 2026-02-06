@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { User, Facility, ParkingSlot, Booking } from '@/types';
 import { mockFacilities, mockSlots, mockBookings } from '@/data/mockData';
@@ -7,6 +7,7 @@ import { authService } from '@/services/auth.service';
 interface AppContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   facilities: Facility[];
   slots: Record<string, ParkingSlot[]>;
   bookings: Booking[];
@@ -23,9 +24,29 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [facilities] = useState<Facility[]>(mockFacilities);
   const [slots, setSlots] = useState<Record<string, ParkingSlot[]>>(mockSlots);
   const [bookings, setBookings] = useState<Booking[]>(mockBookings);
+
+  // Restore user session from localStorage on mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    const accessToken = localStorage.getItem('accessToken');
+
+    if (storedUser && accessToken) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+      } catch (e) {
+        // Invalid stored user, clear it
+        localStorage.removeItem('user');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      }
+    }
+    setIsLoading(false);
+  }, []);
 
   const login = async (email: string, password: string) => {
     try {
@@ -121,6 +142,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isAuthenticated: !!user,
+        isLoading,
         facilities,
         slots,
         bookings,

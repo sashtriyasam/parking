@@ -10,14 +10,14 @@ import { Checkbox } from '@/app/components/ui/checkbox';
 import { Label } from '@/app/components/ui/label';
 import { Badge } from '@/app/components/ui/badge';
 import { useApp } from '@/context/AppContext';
-import { VehicleType } from '@/types';
+import type { VehicleType } from '@/types';
 import { Sheet, SheetContent, SheetTrigger } from '@/app/components/ui/sheet';
 
 export function CustomerSearch() {
   const navigate = useNavigate();
   const { facilities } = useApp();
   const [searchParams] = useSearchParams();
-  
+
   const [searchLocation, setSearchLocation] = useState(searchParams.get('location') || '');
   const [vehicleType, setVehicleType] = useState<VehicleType>((searchParams.get('vehicleType') as VehicleType) || 'car');
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 150]);
@@ -32,7 +32,7 @@ export function CustomerSearch() {
 
     // Filter by location
     if (searchLocation) {
-      filtered = filtered.filter(f => 
+      filtered = filtered.filter(f =>
         f.city.toLowerCase().includes(searchLocation.toLowerCase()) ||
         f.address.toLowerCase().includes(searchLocation.toLowerCase()) ||
         f.name.toLowerCase().includes(searchLocation.toLowerCase())
@@ -132,8 +132,8 @@ export function CustomerSearch() {
         </div>
       </div>
 
-      <Button 
-        variant="outline" 
+      <Button
+        variant="outline"
         className="w-full"
         onClick={() => {
           setSearchLocation('');
@@ -155,7 +155,7 @@ export function CustomerSearch() {
             <h1 className="text-3xl font-black mb-2">Find Parking</h1>
             <p className="text-gray-600">{filteredFacilities.length} facilities available</p>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             {/* Sort */}
             <Select value={sortBy} onValueChange={setSortBy}>
@@ -243,14 +243,14 @@ export function CustomerSearch() {
                         </Badge>
                       )}
                     </div>
-                    
+
                     <div className="p-4">
                       <h3 className="font-bold text-lg mb-1 line-clamp-1">{facility.name}</h3>
                       <div className="flex items-center text-sm text-gray-600 mb-2">
                         <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
                         <span className="line-clamp-1">{facility.address}</span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between pt-3 border-t">
                         <div>
                           <span className="text-2xl font-black text-indigo-600">₹60</span>
