@@ -10,6 +10,10 @@ import { BookingVehicle, BookingPayment, BookingSuccess } from '@/app/components
 import { CustomerTickets } from '@/app/components/pages/CustomerTickets';
 import { CustomerProfile } from '@/app/components/pages/CustomerProfile';
 import { ProviderDashboard } from '@/app/components/pages/ProviderDashboard';
+import { ProviderFacilities } from '@/app/components/pages/ProviderFacilities';
+import { ProviderSlotManagement } from '@/app/components/pages/ProviderSlotManagement';
+import { ProviderBookings } from '@/app/components/pages/ProviderBookings';
+import { ProviderVehicleChecker } from '@/app/components/pages/ProviderVehicleChecker';
 import { Toaster } from '@/app/components/ui/sonner';
 import type { ReactNode } from 'react';
 
@@ -89,6 +93,39 @@ function AppContent() {
             element={
               <ProtectedRoute requiredRole="provider">
                 <ProviderDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/provider/facilities"
+            element={
+              <ProtectedRoute requiredRole="provider">
+                <ProviderFacilities />
+              </ProtectedRoute>
+            }
+          />
+          {/* We will implement these next */}
+          <Route
+            path="/provider/facilities/:id/slots"
+            element={
+              <ProtectedRoute requiredRole="provider">
+                <ProviderSlotManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/provider/bookings"
+            element={
+              <ProtectedRoute requiredRole="provider">
+                <ProviderBookings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/provider/vehicle-checker"
+            element={
+              <ProtectedRoute requiredRole="provider">
+                <ProviderVehicleChecker />
               </ProtectedRoute>
             }
           />

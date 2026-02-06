@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MapPin, Star, Filter, Grid3X3, Map as MapIcon, Search } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
@@ -12,6 +12,30 @@ import { Badge } from '@/app/components/ui/badge';
 import { useApp } from '@/context/AppContext';
 import type { VehicleType } from '@/types';
 import { Sheet, SheetContent, SheetTrigger } from '@/app/components/ui/sheet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+// Fix for default marker icon
+let DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
+
+// Component to re-center map when facilities change
+function MapUpdater({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, 13);
+  }, [center, map]);
+  return null;
+}
 
 export function CustomerSearch() {
   const navigate = useNavigate();
@@ -57,6 +81,16 @@ export function CustomerSearch() {
 
     return filtered;
   }, [facilities, searchLocation, selectedAmenities, sortBy]);
+
+  const mapCenter = useMemo((): [number, number] => {
+    if (filteredFacilities.length > 0) {
+      // Average center of all filtered facilities
+      const lat = filteredFacilities.reduce((sum, f) => sum + f.latitude, 0) / filteredFacilities.length;
+      const lng = filteredFacilities.reduce((sum, f) => sum + f.longitude, 0) / filteredFacilities.length;
+      return [lat, lng];
+    }
+    return [19.0760, 72.8777]; // Default Mumbai
+  }, [filteredFacilities]);
 
   const toggleAmenity = (amenity: string) => {
     setSelectedAmenities(prev =>
@@ -281,19 +315,39 @@ export function CustomerSearch() {
                 ))}
               </div>
             ) : (
-              <Card className="h-[calc(100vh-200px)] flex items-center justify-center">
-                <div className="text-center">
-                  <MapIcon className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-xl font-bold mb-2">Map View</h3>
-                  <p className="text-gray-600">
-                    Interactive map view would be displayed here with markers for each facility
-                  </p>
-                </div>
+              <Card className="h-[calc(100vh-200px)] overflow-hidden">
+                <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  />
+                  <MapUpdater center={mapCenter} />
+                  {filteredFacilities.map((facility) => (
+                    <Marker
+                      key={facility.id}
+                      position={[facility.latitude, facility.longitude]}
+                    >
+                      <Popup>
+                        <div className="w-48">
+                          <h3 className="font-bold text-sm mb-1">{facility.name}</h3>
+                          <p className="text-xs text-gray-600 mb-2">{facility.address}</p>
+                          <Button
+                            size="sm"
+                            className="w-full text-xs h-8"
+                            onClick={() => navigate(`/customer/facility/${facility.id}`)}
+                          >
+                            View Details
+                          </Button>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  ))}
+                </MapContainer>
               </Card>
             )}
 
             {filteredFacilities.length === 0 && (
-              <Card className="p-12 text-center">
+              <Card className="p-12 text-center mt-6">
                 <div className="text-gray-400 mb-4">
                   <MapPin className="w-16 h-16 mx-auto" />
                 </div>

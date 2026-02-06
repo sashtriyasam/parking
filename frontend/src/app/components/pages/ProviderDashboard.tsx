@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IndianRupee, Users, ParkingSquare, TrendingUp, Building, Plus } from 'lucide-react';
-import { Card } from '@/app/components/ui/card';
+import { IndianRupee, Users, ParkingSquare, TrendingUp, Building, Plus, Search } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { useApp } from '@/context/AppContext';
@@ -43,7 +43,7 @@ export function ProviderDashboard() {
   }, [bookings, facilities, user]);
 
   const totalSlots = providerFacilities.reduce((sum, f) => sum + f.totalSlots, 0);
-  const occupancyRate = totalSlots > 0 
+  const occupancyRate = totalSlots > 0
     ? Math.round((activeBookings.length / totalSlots) * 100)
     : 0;
 
@@ -76,6 +76,39 @@ export function ProviderDashboard() {
             <Plus className="w-5 h-5 mr-2" />
             Add New Facility
           </Button>
+        </div>
+
+        {/* Quick Actions / Navigation */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card className="hover:shadow-md transition-shadow cursor-pointer border-indigo-100" onClick={() => navigate('/provider/facilities')}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">My Facilities</CardTitle>
+              <Building className="h-4 w-4 text-indigo-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-gray-500">Manage your parking locations and slots</div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow cursor-pointer border-indigo-100" onClick={() => navigate('/provider/bookings')}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Bookings</CardTitle>
+              <Users className="h-4 w-4 text-indigo-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-gray-500">View and manage customer reservations</div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-md transition-shadow cursor-pointer border-indigo-100" onClick={() => navigate('/provider/vehicle-checker')}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Vehicle Checker</CardTitle>
+              <Search className="h-4 w-4 text-indigo-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-gray-500">Verify vehicles by number plate</div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Stats Grid */}
@@ -136,7 +169,7 @@ export function ProviderDashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                 <XAxis dataKey="date" stroke="#6B7280" />
                 <YAxis stroke="#6B7280" />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ backgroundColor: '#FFF', border: '1px solid #E5E7EB', borderRadius: '8px' }}
                   formatter={(value: number) => [`₹${value}`, 'Revenue']}
                 />
@@ -152,7 +185,7 @@ export function ProviderDashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                 <XAxis dataKey="name" stroke="#6B7280" />
                 <YAxis stroke="#6B7280" />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ backgroundColor: '#FFF', border: '1px solid #E5E7EB', borderRadius: '8px' }}
                   formatter={(value: number) => [`${value}%`, 'Occupancy']}
                 />
@@ -178,7 +211,7 @@ export function ProviderDashboard() {
                 <div className="p-4">
                   <h3 className="font-bold text-lg mb-1">{facility.name}</h3>
                   <p className="text-sm text-gray-600 mb-3">{facility.city}</p>
-                  
+
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div>
                       <p className="text-xs text-gray-500">Total</p>

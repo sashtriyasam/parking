@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { User, Car, CreditCard, Heart, Settings } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Car, CreditCard, Heart, Plus, Trash2 } from 'lucide-react';
 import { Card } from '@/app/components/ui/card';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
@@ -7,6 +7,18 @@ import { Button } from '@/app/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { useApp } from '@/context/AppContext';
 import { toast } from 'sonner';
+import { customerService } from '@/services/customer.service';
+import type { Vehicle } from '@/types';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/app/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 
 export function CustomerProfile() {
   const { user } = useApp();
@@ -14,8 +26,67 @@ export function CustomerProfile() {
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
 
-  const handleSaveProfile = () => {
-    toast.success('Profile updated successfully!');
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [isAddVehicleOpen, setIsAddVehicleOpen] = useState(false);
+  const [newVehicle, setNewVehicle] = useState<{
+    vehicleNumber: string;
+    vehicleType: string;
+    nickname: string;
+  }>({
+    vehicleNumber: '',
+    vehicleType: 'car',
+    nickname: ''
+  });
+
+  useEffect(() => {
+    loadVehicles();
+  }, []);
+
+  const loadVehicles = async () => {
+    try {
+      const data = await customerService.getVehicles();
+      setVehicles(data);
+    } catch (error) {
+      console.error('Failed to load vehicles', error);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      await customerService.updateProfile({ full_name: name, phone_number: phone });
+      toast.success('Profile updated successfully!');
+    } catch (error) {
+      toast.error('Failed to update profile');
+    }
+  };
+
+  const handleAddVehicle = async () => {
+    try {
+      // Cast to any to bypass strict type check for now if userId is missing, 
+      // or rely on backend to infer userId from token
+      await customerService.addVehicle({
+        ...newVehicle,
+        vehicleType: newVehicle.vehicleType as any,
+        userId: user?.id || '',
+        isDefault: false
+      });
+      toast.success('Vehicle added successfully');
+      setIsAddVehicleOpen(false);
+      setNewVehicle({ vehicleNumber: '', vehicleType: 'car', nickname: '' });
+      loadVehicles();
+    } catch (error) {
+      toast.error('Failed to add vehicle');
+    }
+  };
+
+  const handleDeleteVehicle = async (id: string) => {
+    try {
+      await customerService.deleteVehicle(id);
+      toast.success('Vehicle deleted');
+      loadVehicles();
+    } catch (error) {
+      toast.error('Failed to delete vehicle');
+    }
   };
 
   return (
@@ -38,19 +109,19 @@ export function CustomerProfile() {
             </div>
 
             <div className="space-y-2">
-              <Button variant="ghost" className="w-full justify-start" onClick={() => {}}>
+              <Button variant="ghost" className="w-full justify-start">
                 <User className="w-4 h-4 mr-2" />
                 Personal Info
               </Button>
-              <Button variant="ghost" className="w-full justify-start" onClick={() => {}}>
+              <Button variant="ghost" className="w-full justify-start">
                 <Car className="w-4 h-4 mr-2" />
                 My Vehicles
               </Button>
-              <Button variant="ghost" className="w-full justify-start" onClick={() => {}}>
+              <Button variant="ghost" className="w-full justify-start">
                 <CreditCard className="w-4 h-4 mr-2" />
                 Payment Methods
               </Button>
-              <Button variant="ghost" className="w-full justify-start" onClick={() => {}}>
+              <Button variant="ghost" className="w-full justify-start">
                 <Heart className="w-4 h-4 mr-2" />
                 Favorites
               </Button>
@@ -114,85 +185,90 @@ export function CustomerProfile() {
                 <Card className="p-6">
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-black">My Vehicles</h2>
-                    <Button className="bg-indigo-600 hover:bg-indigo-700">Add Vehicle</Button>
+                    <Dialog open={isAddVehicleOpen} onOpenChange={setIsAddVehicleOpen}>
+                      <DialogTrigger asChild>
+                        <Button className="bg-indigo-600 hover:bg-indigo-700">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Vehicle
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add New Vehicle</DialogTitle>
+                          <DialogDescription>Enter vehicle details below</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label>Vehicle Number</Label>
+                            <Input
+                              placeholder="MH01AB1234"
+                              value={newVehicle.vehicleNumber}
+                              onChange={(e) => setNewVehicle({ ...newVehicle, vehicleNumber: e.target.value.toUpperCase() })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Nickname (Optional)</Label>
+                            <Input
+                              placeholder="My City Car"
+                              value={newVehicle.nickname}
+                              onChange={(e) => setNewVehicle({ ...newVehicle, nickname: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Type</Label>
+                            <Select value={newVehicle.vehicleType} onValueChange={(v) => setNewVehicle({ ...newVehicle, vehicleType: v })}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="car">Car</SelectItem>
+                                <SelectItem value="bike">Bike</SelectItem>
+                                <SelectItem value="scooter">Scooter</SelectItem>
+                                <SelectItem value="truck">Truck</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button onClick={handleAddVehicle}>Save Vehicle</Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   </div>
-                  <div className="space-y-4">
-                    <Card className="p-4 border-2 border-indigo-600">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
-                            <Car className="w-6 h-6 text-indigo-600" />
-                          </div>
-                          <div>
-                            <p className="font-bold text-lg">MH 01 AB 1234</p>
-                            <p className="text-sm text-gray-600">Honda City • Car</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-medium">
-                            Default
-                          </span>
-                          <Button variant="ghost" size="sm">Edit</Button>
-                        </div>
-                      </div>
-                    </Card>
 
-                    <Card className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <Car className="w-6 h-6 text-gray-600" />
+                  <div className="space-y-4">
+                    {vehicles.length === 0 ? (
+                      <p className="text-center text-gray-500 py-8">No vehicles added yet.</p>
+                    ) : (
+                      vehicles.map(vehicle => (
+                        <Card key={vehicle.id} className="p-4 border">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                                <Car className="w-6 h-6 text-indigo-600" />
+                              </div>
+                              <div>
+                                <p className="font-bold text-lg">{vehicle.vehicleNumber}</p>
+                                <p className="text-sm text-gray-600 capitalize">{vehicle.nickname || 'My Vehicle'} • {vehicle.vehicleType}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700" onClick={() => handleDeleteVehicle(vehicle.id)}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-bold text-lg">MH 02 CD 5678</p>
-                            <p className="text-sm text-gray-600">Royal Enfield • Bike</p>
-                          </div>
-                        </div>
-                        <Button variant="ghost" size="sm">Edit</Button>
-                      </div>
-                    </Card>
+                        </Card>
+                      ))
+                    )}
                   </div>
                 </Card>
               </TabsContent>
 
               <TabsContent value="payment">
                 <Card className="p-6">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-black">Payment Methods</h2>
-                    <Button className="bg-indigo-600 hover:bg-indigo-700">Add Payment</Button>
-                  </div>
-                  <div className="space-y-4">
-                    <Card className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <CreditCard className="w-6 h-6 text-blue-600" />
-                          </div>
-                          <div>
-                            <p className="font-bold">•••• •••• •••• 4242</p>
-                            <p className="text-sm text-gray-600">Expires 12/25</p>
-                          </div>
-                        </div>
-                        <Button variant="ghost" size="sm">Remove</Button>
-                      </div>
-                    </Card>
-
-                    <Card className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <svg className="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M19.5 3.5L4.5 3.5C3.12 3.5 2 4.62 2 6V18C2 19.38 3.12 20.5 4.5 20.5H19.5C20.88 20.5 22 19.38 22 18V6C22 4.62 20.88 3.5 19.5 3.5ZM19.5 18H4.5V6H19.5V18ZM12 15C10.34 15 9 13.66 9 12C9 10.34 10.34 9 12 9C13.66 9 15 10.34 15 12C15 13.66 13.66 15 12 15Z"/>
-                            </svg>
-                          </div>
-                          <div>
-                            <p className="font-bold">user@upi</p>
-                            <p className="text-sm text-gray-600">UPI ID</p>
-                          </div>
-                        </div>
-                        <Button variant="ghost" size="sm">Remove</Button>
-                      </div>
-                    </Card>
+                  <div className="text-center py-12 text-gray-500">
+                    Payment methods management coming soon.
                   </div>
                 </Card>
               </TabsContent>
