@@ -13,14 +13,21 @@ const searchParking = asyncHandler(async (req, res) => {
         throw new AppError('Latitude and longitude are required', 400);
     }
 
-    const cacheKey = `search_${latitude}_${longitude}_${radius}_${vehicle_type}_${city}`;
+    // Parse coordinates (BUG-006 fix)
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    const rad = parseFloat(radius) || 5;
+
+    // Build cache key with only defined values (BUG-010 fix)
+    const cacheParams = { lat, lng, rad, vehicle_type, city };
+    const cacheKey = `search_${Object.entries(cacheParams).filter(([_, v]) => v !== undefined).map(([k, v]) => `${k}:${v}`).join('_')}`;
     let results = cache.get(cacheKey);
 
     if (!results) {
         results = await discoveryService.searchNearbyFacilities(
-            latitude,
-            longitude,
-            parseFloat(radius) || 5,
+            lat,
+            lng,
+            rad,
             { vehicle_type, city }
         );
         cache.set(cacheKey, results, 60); // Cache for 1 minute

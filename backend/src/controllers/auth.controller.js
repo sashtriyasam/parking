@@ -2,7 +2,7 @@ const bcrypt = require('bcryptjs');
 const prisma = require('../config/db');
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
-const { generateTokens } = require('../utils/token');
+const { generateTokens, verifyRefreshToken } = require('../utils/token');
 
 const register = asyncHandler(async (req, res, next) => {
     const { email, password, full_name, phone_number, role } = req.body;

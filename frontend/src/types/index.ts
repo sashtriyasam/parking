@@ -1,188 +1,116 @@
-// User and Auth Types
+export type VehicleType = 'bike' | 'scooter' | 'car' | 'truck';
+export type SlotStatus = 'free' | 'occupied' | 'reserved' | 'maintenance';
+export type BookingStatus = 'active' | 'completed' | 'cancelled';
+export type PaymentMethod = 'upi' | 'card' | 'pay-at-exit';
+export type UserRole = 'customer' | 'provider';
+
 export interface User {
-    id: string;
-    email: string;
-    full_name: string;
-    phone_number?: string;
-    role: 'CUSTOMER' | 'PROVIDER' | 'ADMIN';
-    created_at: string;
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: UserRole;
+  avatar?: string;
 }
 
-export interface LoginCredentials {
-    email: string;
-    password: string;
-}
-
-export interface RegisterData {
-    email: string;
-    password: string;
-    full_name: string;
-    phone_number?: string;
-    role: 'CUSTOMER' | 'PROVIDER';
-}
-
-export interface AuthResponse {
-    status: string;
-    accessToken: string;
-    refreshToken: string;
-    data: User;
-}
-
-// Parking Types
-export type VehicleType = 'BIKE' | 'SCOOTER' | 'CAR' | 'TRUCK';
-export type SlotStatus = 'FREE' | 'OCCUPIED' | 'RESERVED' | 'MAINTENANCE';
-
-export interface PricingRule {
-    vehicle_type: VehicleType;
-    hourly_rate: number;
-    daily_max?: number;
-    monthly_pass_price?: number;
-}
-
-export interface Amenity {
-    id: string;
-    name: string;
-    icon: string;
-}
-
-export interface Review {
-    id: string;
-    customer_name: string;
-    rating: number;
-    comment: string;
-    created_at: string;
-}
-
-export interface ParkingFacility {
-    id: string;
-    name: string;
-    address: string;
-    city: string;
-    latitude?: number;
-    longitude?: number;
-    total_floors: number;
-    operating_hours?: string;
-    contact_info?: string;
-    description?: string;
-    image_url?: string;
-    images?: string[];
-    distance?: number;
-    distance_text?: string;
-    duration_text?: string;
-    available_slots?: Record<VehicleType, number>;
-    total_available?: number;
-    pricing_rules: PricingRule[];
-    pricing?: PricingRule; // Helper for first pricing rule
-    amenities: string[]; // for now just strings
-    floors: (Floor & { parking_slots: ParkingSlot[] })[];
-    reviews?: Review[];
-    rating_avg?: number;
-    rating_count?: number;
-}
-
-export interface Floor {
-    id: string;
-    floor_number: number;
-    floor_name?: string;
-    total_capacity: number;
+export interface Facility {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+  images: string[];
+  description: string;
+  rating: number;
+  reviewCount: number;
+  totalSlots: number;
+  availableSlots: number;
+  floors: number;
+  operatingHours: string;
+  amenities: string[];
+  providerId: string;
+  verified: boolean;
 }
 
 export interface ParkingSlot {
-    id: string;
-    slot_number: string;
-    vehicle_type: VehicleType;
-    status: SlotStatus;
-    area_sqft?: number;
-    floor?: {
-        floor_number: number;
-        floor_name?: string;
-    };
+  id: string;
+  facilityId: string;
+  slotNumber: string;
+  floor: number;
+  vehicleType: VehicleType;
+  status: SlotStatus;
+  pricePerHour: number;
 }
 
-// Booking Types
-export interface Ticket {
-    id: string;
-    customer_id: string;
-    facility_id: string;
-    slot_id: string;
-    vehicle_number: string;
-    vehicle_type: VehicleType;
-    entry_time: string;
-    exit_time?: string;
-    total_fee?: number;
-    status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
-    payment_status?: 'PENDING' | 'PAID' | 'REFUNDED';
-    payment_method?: string;
-    payment_id?: string;
-    qr_code?: string;
-    slot?: ParkingSlot & {
-        floor?: Floor & {
-            facility?: ParkingFacility;
-        };
-    };
-    facility?: ParkingFacility;
+export interface Pricing {
+  vehicleType: VehicleType;
+  hourlyRate: number;
+  dailyMax: number;
+  monthlyPass: number;
 }
 
-
-export interface Reservation {
-    id: string;
-    slot_id: string;
-    expires_at: string;
+export interface Booking {
+  id: string;
+  customerId: string;
+  facilityId: string;
+  slotId: string;
+  vehicleNumber: string;
+  vehicleType: VehicleType;
+  entryTime: string;
+  exitTime?: string;
+  duration: number;
+  amount: number;
+  paymentMethod: PaymentMethod;
+  status: BookingStatus;
+  qrCode: string;
 }
 
-export interface BookingRequest {
-    reservation_id?: string;
-    slot_id: string;
-    vehicle_number: string;
-    vehicle_type: VehicleType;
-    entry_time: string;
-    duration: number;
-    payment_method: string;
-    payment_details: any;
-}
-
-// Pass Types
-export interface MonthlyPass {
-    id: string;
-    facility_id: string;
-    vehicle_type: VehicleType;
-    start_date: string;
-    end_date: string;
-    price: number;
-    status: 'ACTIVE' | 'EXPIRED';
-    facility?: ParkingFacility;
-}
-
-// Vehicle Types
 export interface Vehicle {
+  id: string;
+  userId: string;
+  vehicleNumber: string;
+  vehicleType: VehicleType;
+  nickname?: string;
+  isDefault: boolean;
+}
+
+export interface MonthlyPass {
+  id: string;
+  userId: string;
+  facilityId: string;
+  vehicleId: string;
+  startDate: string;
+  endDate: string;
+  amount: number;
+  isActive: boolean;
+}
+
+// Auth Types
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface RegisterData {
+  email: string;
+  password: string;
+  full_name: string;
+  phone_number?: string;
+  role: UserRole;
+}
+
+export interface AuthResponse {
+  status: string;
+  accessToken: string;
+  refreshToken: string;
+  data: {
     id: string;
-    vehicle_number: string;
-    vehicle_type: VehicleType;
-    nickname?: string;
+    email: string;
+    full_name: string;
+    phone_number?: string;
+    role: UserRole;
     created_at: string;
+  };
 }
 
-// Search Types
-export interface SearchParams {
-    latitude: number;
-    longitude: number;
-    radius?: number;
-    vehicle_type?: VehicleType;
-    city?: string;
-}
-
-// API Response Types
-export interface ApiResponse<T> {
-    status: string;
-    data: T;
-    message?: string;
-    results?: number;
-    total?: number;
-    page?: number;
-    pages?: number;
-}
-
-export interface ApiError {
-    message: string;
-    statusCode: number;
-}

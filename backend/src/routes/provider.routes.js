@@ -41,5 +41,8 @@ router.put('/facilities/:id/pricing', providerController.updateFacilityPricing);
 // Bookings
 router.get('/bookings', providerController.getAllBookings);
 
+// Vehicle Checker
+router.get('/check-vehicle', providerController.checkVehicleByPlate);
+
 module.exports = router;
 

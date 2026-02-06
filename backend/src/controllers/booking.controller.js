@@ -5,12 +5,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const bookingService = require('../services/booking.service');
 const pricingService = require('../services/pricing.service');
 
-// Calculate fee helper (Simplistic version)
-const calculateFee = (entryTime, exitTime, hourlyRate) => {
-    const durationMs = exitTime - entryTime;
-    const durationHours = Math.ceil(durationMs / (1000 * 60 * 60));
-    return durationHours * hourlyRate;
-};
+
 
 const reserveSlot = asyncHandler(async (req, res) => {
     const { facility_id, vehicle_type, floor_id } = req.body;
@@ -20,7 +15,6 @@ const reserveSlot = asyncHandler(async (req, res) => {
 
 const createBooking = asyncHandler(async (req, res, next) => {
     const { slot_id, vehicle_number, vehicle_type } = req.body;
-    const customer_id = req.user.id;
 
     // Assuming the user has already "reserved" or we do a direct book.
     // If direct book, we might skip reservation or do it internally.
@@ -63,8 +57,8 @@ const endBooking = asyncHandler(async (req, res, next) => {
     const total_fee = pricingResult.total_fee;
 
     // Transaction
-    const result = await prisma.$transaction(async (prisma) => {
-        const updatedTicket = await prisma.ticket.update({
+    const result = await prisma.$transaction(async (tx) => {
+        const updatedTicket = await tx.ticket.update({
             where: { id: ticket_id },
             data: {
                 exit_time,
@@ -73,7 +67,7 @@ const endBooking = asyncHandler(async (req, res, next) => {
             },
         });
 
-        await prisma.parkingSlot.update({
+        await tx.parkingSlot.update({
             where: { id: ticket.slot_id },
             data: { status: 'FREE' },
         });

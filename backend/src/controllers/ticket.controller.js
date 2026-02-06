@@ -2,6 +2,7 @@ const prisma = require('../config/db');
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const pricingService = require('../services/pricing.service');
+const logger = require('../utils/logger');
 
 // Get all active tickets for the logged-in customer
 const getActiveTickets = asyncHandler(async (req, res, next) => {
@@ -48,7 +49,7 @@ const getActiveTickets = asyncHandler(async (req, res, next) => {
                 currentFee = pricing.total_fee;
             }
         } catch (err) {
-            console.error(`Error calculating fee for ticket ${ticket.id}:`, err);
+            logger.error(`Error calculating fee for ticket ${ticket.id}:`, err);
         }
 
         return {
@@ -66,7 +67,8 @@ const getActiveTickets = asyncHandler(async (req, res, next) => {
 
 // Get ticket history (Completed, Cancelled)
 const getTicketHistory = asyncHandler(async (req, res, next) => {
-    const { page = 1, limit = 20 } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     const skip = (page - 1) * limit;
 
     const tickets = await prisma.ticket.findMany({

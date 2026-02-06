@@ -312,9 +312,9 @@ const getRevenueData = asyncHandler(async (req, res) => {
     tickets.forEach(ticket => {
         const date = ticket.exit_time.toISOString().split('T')[0];
         if (!revenueByDate[date]) {
-            revenueByDate[date] = { date, car: 0, bike: 0, scooter: 0, truck: 0 };
+            revenueByDate[date] = { date, CAR: 0, BIKE: 0, SCOOTER: 0, TRUCK: 0 };
         }
-        const vehicleKey = ticket.vehicle_type.toLowerCase();
+        const vehicleKey = ticket.vehicle_type.toUpperCase();
         revenueByDate[date][vehicleKey] = (revenueByDate[date][vehicleKey] || 0) + (ticket.total_fee || 0);
     });
 
@@ -367,7 +367,7 @@ const getOccupancyData = asyncHandler(async (req, res) => {
 });
 
 const getRecentBookings = asyncHandler(async (req, res) => {
-    const { limit = 5 } = req.query;
+    const limit = Math.min(parseInt(req.query.limit) || 5, 100);
     const providerId = req.user.id;
 
     // Get facility IDs
@@ -477,9 +477,9 @@ const deleteSlot = asyncHandler(async (req, res, next) => {
         return next(new AppError('Slot not found or access denied', 404));
     }
 
-    // Check if slot is occupied
-    if (slot.status === 'OCCUPIED') {
-        return next(new AppError('Cannot delete occupied slot', 400));
+    // Check if slot is occupied or reserved
+    if (slot.status === 'OCCUPIED' || slot.status === 'RESERVED') {
+        return next(new AppError('Cannot delete occupied or reserved slot', 400));
     }
 
     await prisma.parkingSlot.delete({ where: { id } });
@@ -654,6 +654,122 @@ const updateFacilityPricing = asyncHandler(async (req, res, next) => {
     res.status(200).json({ status: 'success', message: 'Pricing updated successfully' });
 });
 
+// --- Number Plate Checker ---
+
+/**
+ * Check vehicle by plate number
+ * Returns active ticket, current fee, duration, and history
+ */
+const checkVehicleByPlate = asyncHandler(async (req, res, next) => {
+    const { vehicle_number } = req.query;
+    const providerId = req.user.id;
+
+    if (!vehicle_number) {
+        return next(new AppError('Vehicle number is required', 400));
+    }
+
+    // Normalize plate number (uppercase, remove spaces)
+    const normalizedPlate = vehicle_number.toUpperCase().replace(/\s/g, '');
+
+    // Get provider's facility IDs
+    const facilities = await prisma.parkingFacility.findMany({
+        where: { provider_id: providerId },
+        select: { id: true, name: true }
+    });
+    const facilityIds = facilities.map(f => f.id);
+
+    if (facilityIds.length === 0) {
+        return res.status(200).json({
+            status: 'success',
+            data: { found: false, message: 'No facilities found for this provider' }
+        });
+    }
+
+    // Find active ticket for this vehicle at provider's facilities
+    const activeTicket = await prisma.ticket.findFirst({
+        where: {
+            vehicle_number: { contains: normalizedPlate, mode: 'insensitive' },
+            facility_id: { in: facilityIds },
+            status: 'ACTIVE'
+        },
+        include: {
+            slot: {
+                include: {
+                    floor: true
+                }
+            },
+            facility: {
+                select: { name: true, pricing_rules: true }
+            }
+        }
+    });
+
+    // Calculate current fee if active
+    let currentFee = 0;
+    let durationMinutes = 0;
+
+    if (activeTicket) {
+        const now = new Date();
+        const entryTime = new Date(activeTicket.entry_time);
+        durationMinutes = Math.round((now - entryTime) / (1000 * 60));
+
+        // Get pricing for this vehicle type
+        const pricingRule = activeTicket.facility.pricing_rules.find(
+            r => r.vehicle_type === activeTicket.vehicle_type
+        );
+
+        if (pricingRule) {
+            const hours = Math.ceil(durationMinutes / 60);
+            currentFee = hours * pricingRule.hourly_rate;
+            if (pricingRule.daily_max && currentFee > pricingRule.daily_max) {
+                currentFee = pricingRule.daily_max;
+            }
+        }
+    }
+
+    // Get parking history at provider's facilities
+    const history = await prisma.ticket.findMany({
+        where: {
+            vehicle_number: { contains: normalizedPlate, mode: 'insensitive' },
+            facility_id: { in: facilityIds },
+            status: { in: ['COMPLETED', 'CANCELLED'] }
+        },
+        orderBy: { entry_time: 'desc' },
+        take: 10,
+        include: {
+            facility: { select: { name: true } },
+            slot: { select: { slot_number: true } }
+        }
+    });
+
+    res.status(200).json({
+        status: 'success',
+        data: {
+            found: !!activeTicket,
+            vehicle_number: normalizedPlate,
+            active_ticket: activeTicket ? {
+                id: activeTicket.id,
+                slot: activeTicket.slot.slot_number,
+                floor: activeTicket.slot.floor.floor_name,
+                facility: activeTicket.facility.name,
+                vehicle_type: activeTicket.vehicle_type,
+                entry_time: activeTicket.entry_time,
+                duration_minutes: durationMinutes,
+                current_fee: currentFee
+            } : null,
+            history: history.map(t => ({
+                id: t.id,
+                facility: t.facility.name,
+                slot: t.slot?.slot_number,
+                entry_time: t.entry_time,
+                exit_time: t.exit_time,
+                total_fee: t.total_fee,
+                status: t.status
+            }))
+        }
+    });
+});
+
 
 module.exports = {
     updateFacility,
@@ -674,6 +790,7 @@ module.exports = {
     deleteSlot,
     bulkCreateSlotsByFacility,
     getAllBookings,
-    updateFacilityPricing
+    updateFacilityPricing,
+    checkVehicleByPlate
 };
 

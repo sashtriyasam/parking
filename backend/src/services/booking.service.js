@@ -9,7 +9,8 @@ const { emitSlotUpdate } = require('./socket.service');
 const reserveSlot = async (facilityId, vehicleType, floorId = null, userId) => {
     // 1. Find potential candidate slot
     // We prioritize a specific floor if provided, otherwise any floor in facility
-    const expiryTime = new Date(Date.now() + 5 * 60 * 1000); // 5 mins from now
+    const RESERVATION_MINUTES = parseInt(process.env.RESERVATION_TIMEOUT_MINUTES) || 5;
+    const expiryTime = new Date(Date.now() + RESERVATION_MINUTES * 60 * 1000);
 
     // We can't do a simple FIND one because of concurrency.
     // We should try to UPDATE one directly.
@@ -89,7 +90,10 @@ const confirmBooking = async (slotId, userId, vehicleNumber, vehicleType) => {
     // Strictly speaking, we should pass a reservation ID or token, but here we trust the slot state + 5 min window
 
     return await prisma.$transaction(async (tx) => {
-        const slot = await tx.parkingSlot.findUnique({ where: { id: slotId } });
+        const slot = await tx.parkingSlot.findUnique({
+            where: { id: slotId },
+            include: { floor: true }
+        });
 
         if (!slot) throw new AppError('Slot not found', 404);
 
@@ -111,6 +115,7 @@ const confirmBooking = async (slotId, userId, vehicleNumber, vehicleType) => {
             data: {
                 customer_id: userId,
                 slot_id: slotId,
+                facility_id: slot.floor.facility_id,
                 vehicle_number: vehicleNumber,
                 vehicle_type: vehicleType,
                 status: 'ACTIVE',

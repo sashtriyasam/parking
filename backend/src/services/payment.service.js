@@ -1,11 +1,17 @@
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
-// Initialize Razorpay (you'll need to add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to .env)
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_demo',
-    key_secret: process.env.RAZORPAY_KEY_SECRET || 'demo_secret',
-});
+// Initialize Razorpay with lazy initialization pattern to prevent crash on startup
+let razorpay = null;
+try {
+    razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_demo',
+        key_secret: process.env.RAZORPAY_KEY_SECRET || 'demo_secret',
+    });
+} catch (error) {
+    logger.warn('Razorpay initialization failed. Payment features may not work:', error.message);
+}
 
 /**
  * Create a payment order
@@ -26,7 +32,7 @@ async function createPaymentOrder(amount, currency = 'INR', metadata = {}) {
         const order = await razorpay.orders.create(options);
         return order;
     } catch (error) {
-        console.error('Error creating payment order:', error);
+        logger.error('Error creating payment order:', error);
         throw new Error('Failed to create payment order');
     }
 }
@@ -48,7 +54,7 @@ function verifyPaymentSignature(orderId, paymentId, signature) {
 
         return expectedSignature === signature;
     } catch (error) {
-        console.error('Error verifying payment signature:', error);
+        logger.error('Error verifying payment signature:', error);
         return false;
     }
 }
@@ -110,7 +116,7 @@ async function processRefund(paymentId, amount = null) {
         const refund = await razorpay.payments.refund(paymentId, refundData);
         return refund;
     } catch (error) {
-        console.error('Error processing refund:', error);
+        logger.error('Error processing refund:', error);
         throw new Error('Failed to process refund');
     }
 }

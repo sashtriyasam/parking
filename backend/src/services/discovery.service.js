@@ -1,6 +1,7 @@
 const prisma = require('../config/db');
 const AppError = require('../utils/AppError');
 const axios = require('axios');
+const logger = require('../utils/logger');
 
 const GOOGLE_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
@@ -29,7 +30,7 @@ const getRealDistances = async (origin, destinations) => {
             return null;
         });
     } catch (error) {
-        console.error('Distance Matrix API Error:', error.message);
+        logger.error('Distance Matrix API Error:', error.message);
         return null;
     }
 };

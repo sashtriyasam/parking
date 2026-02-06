@@ -19,14 +19,22 @@ const getAvailablePasses = async (facilityId, vehicleType) => {
     }
 
     // Return pass options based on pricing rules
-    return facility.pricing_rules.map(rule => ({
-        facility_id: facilityId,
-        facility_name: facility.name,
-        vehicle_type: rule.vehicle_type,
-        monthly_price: rule.monthly_pass_price || rule.daily_max * 30, // Fallback calculation
-        hourly_rate: rule.hourly_rate,
-        daily_max: rule.daily_max
-    }));
+    return facility.pricing_rules.map(rule => {
+        // Calculate monthly price with proper null handling (BUG-011 fix)
+        let monthlyPrice = rule.monthly_pass_price;
+        if (!monthlyPrice) {
+            monthlyPrice = rule.daily_max ? rule.daily_max * 30 : rule.hourly_rate * 24 * 30;
+        }
+
+        return {
+            facility_id: facilityId,
+            facility_name: facility.name,
+            vehicle_type: rule.vehicle_type,
+            monthly_price: monthlyPrice,
+            hourly_rate: rule.hourly_rate,
+            daily_max: rule.daily_max
+        };
+    });
 };
 
 /**
