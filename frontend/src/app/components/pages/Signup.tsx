@@ -1,49 +1,40 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/app/components/ui/radio-group';
-import { Card } from '@/app/components/ui/card';
 import { useApp } from '@/context/AppContext';
 import { toast } from 'sonner';
 
 export function Signup() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signup } = useApp();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<'customer' | 'provider'>('customer');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [agreed, setAgreed] = useState(false);
+
+  // Check if directed here with intent to be provider
+  const [isProvider, setIsProvider] = useState(location.state?.isProvider || false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
-
-    if (!agreed) {
-      toast.error('Please accept the terms and conditions');
-      return;
-    }
-
     setLoading(true);
 
     try {
-      await signup(name, email, password, role);
-      toast.success('Account created successfully!');
-      
-      if (role === 'customer') {
-        navigate('/customer/search');
+      // Pass the selected role preference
+      await signup(name, email, password, isProvider ? 'provider' : 'customer');
+      toast.success(isProvider ? 'Partner account created!' : 'Account created!');
+
+      // Redirect based on role
+      if (isProvider) {
+        navigate('/provider/onboarding');
       } else {
-        navigate('/provider/dashboard');
+        navigate('/customer/search');
       }
     } catch (error) {
       toast.error('Signup failed. Please try again.');
@@ -53,177 +44,109 @@ export function Signup() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left Side - Image */}
-      <div 
-        className="hidden lg:block lg:w-1/2 relative bg-cover bg-center"
-        style={{
-          backgroundImage: 'url(https://images.unsplash.com/photo-1758304480989-38ce585ea04d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBwYXJraW5nJTIwbG90JTIwYWVyaWFsJTIwdmlld3xlbnwxfHx8fDE3NzAwNTkwMTB8MA&ixlib=rb-4.1.0&q=80&w=1080)',
-        }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/90 to-indigo-700/80"></div>
-        <div className="relative h-full flex items-center justify-center p-12">
-          <div className="text-white">
-            <h1 className="text-5xl font-black mb-6">Join ParkEasy!</h1>
-            <p className="text-xl text-gray-200">
-              Start your journey to hassle-free parking today
-            </p>
-          </div>
-        </div>
+    <div className="min-h-screen bg-white p-6 flex flex-col">
+      {/* Header */}
+      <div className="flex items-center mb-8">
+        <button onClick={() => navigate('/login')} className="p-2 -ml-2 hover:bg-gray-100 rounded-full">
+          <ArrowLeft className="w-6 h-6 text-gray-900" />
+        </button>
       </div>
 
-      {/* Right Side - Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-gray-50">
-        <Card className="w-full max-w-md p-8">
-          <div className="text-center mb-8">
-            <Link to="/" className="inline-flex items-center space-x-2 mb-6">
-              <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-black text-xl">P</span>
-              </div>
-              <span className="text-2xl font-black">ParkEasy</span>
-            </Link>
-            <h2 className="text-3xl font-black text-gray-900 mb-2">Create Account</h2>
-            <p className="text-gray-600">Sign up to get started</p>
+      <div className="max-w-md mx-auto w-full flex-1 flex flex-col pb-12">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          {isProvider ? 'Become a Partner' : 'Create account'}
+        </h1>
+        <p className="text-gray-500 mb-8">
+          {isProvider ? 'List your spot and start earning' : 'Join ParkEasy to book spots in seconds'}
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <Label className="text-gray-700 font-medium mb-1.5 block">Full Name</Label>
+            <Input
+              type="text"
+              placeholder="John Doe"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="h-12 border-gray-300 text-lg"
+              required
+            />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Role Selection */}
-            <div>
-              <Label className="mb-3 block">I am a</Label>
-              <RadioGroup value={role} onValueChange={(value) => setRole(value as 'customer' | 'provider')}>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <RadioGroupItem value="customer" id="customer" className="peer sr-only" />
-                    <Label
-                      htmlFor="customer"
-                      className="flex flex-col items-center justify-center rounded-lg border-2 border-gray-300 bg-white p-4 hover:bg-gray-50 peer-checked:border-indigo-600 peer-checked:bg-indigo-50 cursor-pointer transition-all"
-                    >
-                      <svg className="w-8 h-8 mb-2 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                      <span className="font-semibold">Customer</span>
-                    </Label>
-                  </div>
-                  <div>
-                    <RadioGroupItem value="provider" id="provider" className="peer sr-only" />
-                    <Label
-                      htmlFor="provider"
-                      className="flex flex-col items-center justify-center rounded-lg border-2 border-gray-300 bg-white p-4 hover:bg-gray-50 peer-checked:border-indigo-600 peer-checked:bg-indigo-50 cursor-pointer transition-all"
-                    >
-                      <svg className="w-8 h-8 mb-2 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
-                      <span className="font-semibold">Provider</span>
-                    </Label>
-                  </div>
-                </div>
-              </RadioGroup>
-            </div>
+          <div>
+            <Label className="text-gray-700 font-medium mb-1.5 block">Email</Label>
+            <Input
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="h-12 border-gray-300 text-lg"
+              required
+            />
+          </div>
 
-            {/* Name */}
-            <div>
-              <Label htmlFor="name">Full Name</Label>
+          <div>
+            <Label className="text-gray-700 font-medium mb-1.5 block">Password</Label>
+            <div className="relative">
               <Input
-                id="name"
-                type="text"
-                placeholder="John Doe"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                // Actually keep it password type but toggle visibility
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Create a password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-12 border-gray-300 text-lg pr-10"
                 required
-                className="mt-1"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
+          </div>
 
-            {/* Email */}
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="mt-1"
-              />
+          <Button
+            type="submit"
+            className="w-full h-12 text-lg font-semibold bg-primary hover:bg-primary/90 mt-4 shadow-md"
+            disabled={loading}
+          >
+            {loading ? 'Creating...' : (isProvider ? 'Register as Partner' : 'Sign Up')}
+          </Button>
+
+          <p className="text-xs text-gray-500 text-center mt-4">
+            By continuing, you agree to our <span className="underline cursor-pointer">Terms of Service</span> and <span className="underline cursor-pointer">Privacy Policy</span>.
+          </p>
+
+          <div className="mt-6 text-center text-sm">
+            <div className="text-xs text-gray-500">
+              {isProvider ? (
+                <>
+                  Looking to park?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setIsProvider(false)}
+                    className="underline text-primary font-medium focus:outline-none"
+                  >
+                    Join as Customer
+                  </button>
+                </>
+              ) : (
+                <>
+                  Have a parking spot?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setIsProvider(true)}
+                    className="underline text-primary font-medium focus:outline-none"
+                  >
+                    Join as Partner
+                  </button>
+                </>
+              )}
             </div>
-
-            {/* Password */}
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <div className="relative mt-1">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Create a password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Confirm Password */}
-            <div>
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="Confirm your password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                className="mt-1"
-              />
-            </div>
-
-            {/* Terms */}
-            <div>
-              <label className="flex items-start space-x-2 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  className="rounded border-gray-300 mt-1"
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                />
-                <span className="text-sm text-gray-600">
-                  I agree to the{' '}
-                  <Link to="/terms" className="text-indigo-600 hover:text-indigo-700 font-medium">
-                    Terms of Service
-                  </Link>
-                  {' '}and{' '}
-                  <Link to="/privacy" className="text-indigo-600 hover:text-indigo-700 font-medium">
-                    Privacy Policy
-                  </Link>
-                </span>
-              </label>
-            </div>
-
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 text-base font-semibold"
-              disabled={loading}
-            >
-              {loading ? 'Creating account...' : 'Create Account'}
-            </Button>
-
-            {/* Login Link */}
-            <p className="text-center text-sm text-gray-600">
-              Already have an account?{' '}
-              <Link to="/login" className="text-indigo-600 hover:text-indigo-700 font-semibold">
-                Sign in
-              </Link>
-            </p>
-          </form>
-        </Card>
+          </div>
+        </form>
       </div>
     </div>
   );

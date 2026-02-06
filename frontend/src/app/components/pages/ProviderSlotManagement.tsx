@@ -65,16 +65,26 @@ export function ProviderSlotManagement() {
         if (!id) return;
 
         try {
+            // 1. Create Slots
             await providerService.bulkCreateSlots(id, {
                 prefix: slotRange.prefix,
                 start_number: Number(slotRange.startNumber),
                 count: Number(slotRange.count),
-                floor: Number(slotRange.floor),
-                vehicle_type: slotRange.vehicleType,
-                price_per_hour: Number(slotRange.pricePerHour)
+                floor_number: Number(slotRange.floor),
+                vehicle_type: slotRange.vehicleType.toUpperCase(),
+                // price_per_hour is NOT handled by this endpoint, we set it below
             });
 
-            toast.success('Slots created successfully');
+            // 2. Update Pricing Rule for this vehicle type
+            if (slotRange.pricePerHour > 0) {
+                await providerService.setPricingRule({
+                    facility_id: id,
+                    vehicle_type: slotRange.vehicleType.toUpperCase(),
+                    hourly_rate: Number(slotRange.pricePerHour)
+                });
+            }
+
+            toast.success('Slots created and pricing updated!');
             loadData();
         } catch (error) {
             toast.error('Failed to create slots');

@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from '@/context/AppContext';
 import { Navigation } from '@/app/components/Navigation';
-import { Landing } from '@/app/components/pages/Landing';
+import { Landing } from '@/app/components/pages/Landing'; // This will be our Welcome page
+import { Splash } from '@/app/components/pages/Splash';
 import { Login } from '@/app/components/pages/Login';
 import { Signup } from '@/app/components/pages/Signup';
 import { CustomerSearch } from '@/app/components/pages/CustomerSearch';
@@ -14,19 +15,30 @@ import { ProviderFacilities } from '@/app/components/pages/ProviderFacilities';
 import { ProviderSlotManagement } from '@/app/components/pages/ProviderSlotManagement';
 import { ProviderBookings } from '@/app/components/pages/ProviderBookings';
 import { ProviderVehicleChecker } from '@/app/components/pages/ProviderVehicleChecker';
+import { ProviderOnboarding } from '@/app/components/pages/ProviderOnboarding';
 import { Toaster } from '@/app/components/ui/sonner';
 import type { ReactNode } from 'react';
 
 // Protected Route Component
+// Protected Route Component
 function ProtectedRoute({ children, requiredRole }: { children: ReactNode; requiredRole?: 'customer' | 'provider' }) {
-  const { isAuthenticated, user } = useApp();
+  const { isAuthenticated, user, isLoading } = useApp();
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+    </div>;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
   if (requiredRole && user?.role !== requiredRole) {
-    return <Navigate to="/" replace />;
+    console.warn(`Redirecting: User role '${user?.role}' does not match required '${requiredRole}'`);
+    // If role doesn't match, redirect to their dashboard or home based on their actual role
+    if (user?.role === 'provider') return <Navigate to="/provider/dashboard" replace />;
+    return <Navigate to="/customer/search" replace />;
   }
 
   return <>{children}</>;
@@ -35,22 +47,23 @@ function ProtectedRoute({ children, requiredRole }: { children: ReactNode; requi
 function AppContent() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-white">
-        <Navigation />
+      <div className="min-h-screen bg-background text-foreground font-sans">
+        {/* We only show Navigation on non-splash/welcome/auth pages for clean onboarding */}
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<Splash />} />
+          <Route path="/welcome" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
-          {/* Customer Routes */}
-          <Route path="/customer/search" element={<CustomerSearch />} />
-          <Route path="/customer/facility/:id" element={<FacilityDetails />} />
+          {/* Customer Routes - these will have Navigation wrapped inside or layout */}
+          <Route path="/customer/search" element={<><Navigation /><CustomerSearch /></>} />
+          <Route path="/customer/facility/:id" element={<><Navigation /><FacilityDetails /></>} />
           <Route
             path="/customer/booking/:id/vehicle"
             element={
               <ProtectedRoute requiredRole="customer">
-                <BookingVehicle />
+                <Navigation /><BookingVehicle />
               </ProtectedRoute>
             }
           />
@@ -58,7 +71,7 @@ function AppContent() {
             path="/customer/booking/:id/payment"
             element={
               <ProtectedRoute requiredRole="customer">
-                <BookingPayment />
+                <Navigation /><BookingPayment />
               </ProtectedRoute>
             }
           />
@@ -66,7 +79,7 @@ function AppContent() {
             path="/customer/booking/success"
             element={
               <ProtectedRoute requiredRole="customer">
-                <BookingSuccess />
+                <Navigation /><BookingSuccess />
               </ProtectedRoute>
             }
           />
@@ -74,7 +87,7 @@ function AppContent() {
             path="/customer/tickets"
             element={
               <ProtectedRoute requiredRole="customer">
-                <CustomerTickets />
+                <Navigation /><CustomerTickets />
               </ProtectedRoute>
             }
           />
@@ -82,7 +95,7 @@ function AppContent() {
             path="/customer/profile"
             element={
               <ProtectedRoute requiredRole="customer">
-                <CustomerProfile />
+                <Navigation /><CustomerProfile />
               </ProtectedRoute>
             }
           />
@@ -92,7 +105,7 @@ function AppContent() {
             path="/provider/dashboard"
             element={
               <ProtectedRoute requiredRole="provider">
-                <ProviderDashboard />
+                <Navigation /><ProviderDashboard />
               </ProtectedRoute>
             }
           />
@@ -100,16 +113,15 @@ function AppContent() {
             path="/provider/facilities"
             element={
               <ProtectedRoute requiredRole="provider">
-                <ProviderFacilities />
+                <Navigation /><ProviderFacilities />
               </ProtectedRoute>
             }
           />
-          {/* We will implement these next */}
           <Route
             path="/provider/facilities/:id/slots"
             element={
               <ProtectedRoute requiredRole="provider">
-                <ProviderSlotManagement />
+                <Navigation /><ProviderSlotManagement />
               </ProtectedRoute>
             }
           />
@@ -117,7 +129,15 @@ function AppContent() {
             path="/provider/bookings"
             element={
               <ProtectedRoute requiredRole="provider">
-                <ProviderBookings />
+                <Navigation /><ProviderBookings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/provider/onboarding"
+            element={
+              <ProtectedRoute requiredRole="provider">
+                <ProviderOnboarding />
               </ProtectedRoute>
             }
           />
@@ -125,7 +145,7 @@ function AppContent() {
             path="/provider/vehicle-checker"
             element={
               <ProtectedRoute requiredRole="provider">
-                <ProviderVehicleChecker />
+                <Navigation /><ProviderVehicleChecker />
               </ProtectedRoute>
             }
           />

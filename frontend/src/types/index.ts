@@ -102,15 +102,17 @@ export interface RegisterData {
 
 export interface AuthResponse {
   status: string;
-  accessToken: string;
-  refreshToken: string;
   data: {
-    id: string;
-    email: string;
-    full_name: string;
-    phone_number?: string;
-    role: UserRole;
-    created_at: string;
+    user: {
+      id: string;
+      email: string;
+      full_name: string;
+      phone_number?: string;
+      role: UserRole;
+      created_at?: string;
+    };
+    accessToken: string;
+    refreshToken: string;
   };
 }
 
@@ -184,9 +186,12 @@ export interface Reservation {
 }
 
 export interface BookingRequest {
+  facility_id: string;
   slot_id: string;
   vehicle_number: string;
   vehicle_type: VehicleType;
   payment_method: PaymentMethod;
   duration_hours?: number;
+  start_time?: string;
+  amount?: number;
 }

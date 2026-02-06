@@ -13,6 +13,11 @@ import type {
 
 export const customerService = {
     // Search & Discovery
+    async getAllFacilities(): Promise<ParkingFacility[]> {
+        const response = await apiClient.get<ApiResponse<ParkingFacility[]>>('/parking');
+        return response.data.data;
+    },
+
     async searchParking(params: SearchParams): Promise<ParkingFacility[]> {
         const response = await apiClient.get<ApiResponse<ParkingFacility[]>>('/parking/search', {
             params,

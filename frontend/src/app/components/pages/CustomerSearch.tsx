@@ -1,21 +1,18 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MapPin, Star, Filter, Grid3X3, Map as MapIcon, Search } from 'lucide-react';
+import { MapPin, Search, Navigation, Filter, Star, Clock, Shield, Zap } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Card } from '@/app/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
-import { Slider } from '@/app/components/ui/slider';
-import { Checkbox } from '@/app/components/ui/checkbox';
-import { Label } from '@/app/components/ui/label';
 import { Badge } from '@/app/components/ui/badge';
 import { useApp } from '@/context/AppContext';
-import type { VehicleType } from '@/types';
 import { Sheet, SheetContent, SheetTrigger } from '@/app/components/ui/sheet';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+import { cn } from '@/lib/utils';
+import type { Facility } from '@/types';
 
 // Fix for default marker icon
 let DefaultIcon = L.icon({
@@ -25,14 +22,27 @@ let DefaultIcon = L.icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41]
 });
-
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Component to re-center map when facilities change
-function MapUpdater({ center }: { center: [number, number] }) {
+// Custom Marker Component that handles clicks
+function InteractiveMarker({ facility, onClick }: { facility: Facility, onClick: (f: Facility) => void }) {
+  return (
+    <Marker
+      position={[facility.latitude, facility.longitude]}
+      eventHandlers={{
+        click: () => onClick(facility),
+      }}
+    // In a real app we would use a custom divIcon to show price pills:
+    // icon={L.divIcon({ className: 'custom-pill-marker', ... })}
+    />
+  );
+}
+
+// Map Controller
+function MapController({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, 13);
+    map.flyTo(center, 14, { duration: 1.5 });
   }, [center, map]);
   return null;
 }
@@ -40,332 +50,165 @@ function MapUpdater({ center }: { center: [number, number] }) {
 export function CustomerSearch() {
   const navigate = useNavigate();
   const { facilities } = useApp();
-  const [searchParams] = useSearchParams();
+  const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
-  const [searchLocation, setSearchLocation] = useState(searchParams.get('location') || '');
-  const [vehicleType, setVehicleType] = useState<VehicleType>((searchParams.get('vehicleType') as VehicleType) || 'car');
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 150]);
-  const [sortBy, setSortBy] = useState<string>('distance');
-  const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
-  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
-
-  const amenitiesList = ['CCTV Security', 'EV Charging', 'Covered Parking', '24/7 Access', 'Wheelchair Access'];
+  // Mock Amenities for Filter Chips
+  const filterChips = [
+    { id: 'covered', label: 'Covered', icon: Shield },
+    { id: 'ev', label: 'EV Charging', icon: Zap },
+    { id: '247', label: '24/7', icon: Clock },
+    { id: 'cheap', label: 'Cheapest', icon: Filter },
+  ];
 
   const filteredFacilities = useMemo(() => {
     let filtered = facilities;
-
-    // Filter by location
-    if (searchLocation) {
+    if (searchQuery) {
       filtered = filtered.filter(f =>
-        f.city.toLowerCase().includes(searchLocation.toLowerCase()) ||
-        f.address.toLowerCase().includes(searchLocation.toLowerCase()) ||
-        f.name.toLowerCase().includes(searchLocation.toLowerCase())
+        f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        f.address.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-
-    // Filter by amenities
-    if (selectedAmenities.length > 0) {
-      filtered = filtered.filter(f =>
-        selectedAmenities.every(amenity => f.amenities.includes(amenity))
-      );
-    }
-
-    // Sort
-    if (sortBy === 'price-low') {
-      filtered = [...filtered].sort((a, b) => 60 - 60); // Mock pricing
-    } else if (sortBy === 'price-high') {
-      filtered = [...filtered].sort((a, b) => 60 - 60);
-    } else if (sortBy === 'rating') {
-      filtered = [...filtered].sort((a, b) => b.rating - a.rating);
-    }
+    // Simple mock filter logic
+    if (activeFilter === 'ev') filtered = filtered.filter(f => f.amenities.includes('EV Charging'));
+    if (activeFilter === 'covered') filtered = filtered.filter(f => f.amenities.includes('Covered Parking'));
 
     return filtered;
-  }, [facilities, searchLocation, selectedAmenities, sortBy]);
+  }, [facilities, searchQuery, activeFilter]);
 
   const mapCenter = useMemo((): [number, number] => {
-    if (filteredFacilities.length > 0) {
-      // Average center of all filtered facilities
-      const lat = filteredFacilities.reduce((sum, f) => sum + f.latitude, 0) / filteredFacilities.length;
-      const lng = filteredFacilities.reduce((sum, f) => sum + f.longitude, 0) / filteredFacilities.length;
-      return [lat, lng];
-    }
-    return [19.0760, 72.8777]; // Default Mumbai
-  }, [filteredFacilities]);
+    if (selectedFacility) return [selectedFacility.latitude, selectedFacility.longitude];
+    if (filteredFacilities.length > 0) return [filteredFacilities[0].latitude, filteredFacilities[0].longitude];
+    return [19.0760, 72.8777]; // Mumbai Default
+  }, [filteredFacilities, selectedFacility]);
 
-  const toggleAmenity = (amenity: string) => {
-    setSelectedAmenities(prev =>
-      prev.includes(amenity)
-        ? prev.filter(a => a !== amenity)
-        : [...prev, amenity]
-    );
-  };
+  return (
+    <div className="relative h-screen w-full overflow-hidden bg-gray-100">
 
-  const FilterPanel = () => (
-    <div className="space-y-6">
-      <div>
-        <h3 className="font-bold mb-3">Location</h3>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+      {/* MAP BACKGROUND */}
+      <div className="absolute inset-0 z-0">
+        <MapContainer
+          center={mapCenter}
+          zoom={14}
+          zoomControl={false}
+          style={{ height: '100%', width: '100%' }}
+        >
+          <TileLayer
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          />
+          <MapController center={mapCenter} />
+          {filteredFacilities.map(facility => (
+            <InteractiveMarker
+              key={facility.id}
+              facility={facility}
+              onClick={setSelectedFacility}
+            />
+          ))}
+        </MapContainer>
+      </div>
+
+      {/* TOP FLOATING SEARCH */}
+      <div className="absolute top-4 left-4 right-4 z-10 md:w-[400px] md:left-6">
+        <div className="bg-white rounded-xl shadow-lg shadow-black/5 p-2 flex items-center space-x-2">
+          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => navigate('/welcome')}>
+            <Search className="w-5 h-5 text-gray-500" />
+          </Button>
           <Input
-            placeholder="Search location..."
-            value={searchLocation}
-            onChange={(e) => setSearchLocation(e.target.value)}
-            className="pl-10"
+            placeholder="Where to?"
+            className="border-0 shadow-none focus-visible:ring-0 text-base font-medium placeholder:text-gray-400 bg-transparent h-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
-        </div>
-      </div>
-
-      <div>
-        <h3 className="font-bold mb-3">Vehicle Type</h3>
-        <Select value={vehicleType} onValueChange={(v) => setVehicleType(v as VehicleType)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="bike">Bike</SelectItem>
-            <SelectItem value="scooter">Scooter</SelectItem>
-            <SelectItem value="car">Car</SelectItem>
-            <SelectItem value="truck">Truck</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <h3 className="font-bold mb-3">Price Range (per hour)</h3>
-        <div className="px-2">
-          <Slider
-            value={priceRange}
-            onValueChange={(value) => setPriceRange(value as [number, number])}
-            min={0}
-            max={200}
-            step={10}
-            className="mb-4"
-          />
-          <div className="flex justify-between text-sm text-gray-600">
-            <span>₹{priceRange[0]}</span>
-            <span>₹{priceRange[1]}</span>
+          <div className="shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-xs text-primary">
+            AG
           </div>
         </div>
-      </div>
 
-      <div>
-        <h3 className="font-bold mb-3">Amenities</h3>
-        <div className="space-y-2">
-          {amenitiesList.map((amenity) => (
-            <div key={amenity} className="flex items-center space-x-2">
-              <Checkbox
-                id={amenity}
-                checked={selectedAmenities.includes(amenity)}
-                onCheckedChange={() => toggleAmenity(amenity)}
-              />
-              <Label htmlFor={amenity} className="cursor-pointer text-sm">
-                {amenity}
-              </Label>
-            </div>
+        {/* FILTER CHIPS */}
+        <div className="flex gap-2 mt-3 overflow-x-auto pb-2 scrollbar-hide">
+          {filterChips.map((chip) => (
+            <button
+              key={chip.id}
+              onClick={() => setActiveFilter(activeFilter === chip.id ? null : chip.id)}
+              className={cn(
+                "flex items-center space-x-1 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm transition-all whitespace-nowrap",
+                activeFilter === chip.id
+                  ? "bg-primary text-white"
+                  : "bg-white text-gray-700 hover:bg-gray-50"
+              )}
+            >
+              <chip.icon className="w-3 h-3" />
+              <span>{chip.label}</span>
+            </button>
           ))}
         </div>
       </div>
 
-      <Button
-        variant="outline"
-        className="w-full"
-        onClick={() => {
-          setSearchLocation('');
-          setSelectedAmenities([]);
-          setPriceRange([0, 150]);
-        }}
-      >
-        Clear Filters
-      </Button>
-    </div>
-  );
-
-  return (
-    <div className="min-h-screen bg-gray-50 pt-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-black mb-2">Find Parking</h1>
-            <p className="text-gray-600">{filteredFacilities.length} facilities available</p>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            {/* Sort */}
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="distance">Distance</SelectItem>
-                <SelectItem value="price-low">Price: Low to High</SelectItem>
-                <SelectItem value="price-high">Price: High to Low</SelectItem>
-                <SelectItem value="rating">Rating</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* View Toggle */}
-            <div className="hidden sm:flex border rounded-lg">
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                size="icon"
-                onClick={() => setViewMode('grid')}
+      {/* BOTTOM SHEET FACILITY PREVIEW */}
+      {selectedFacility && (
+        <div className="absolute bottom-[80px] left-4 right-4 md:left-6 md:w-[400px] z-20 animate-in slide-in-from-bottom duration-300">
+          <Card className="rounded-2xl shadow-xl overflow-hidden border-0">
+            <div className="relative h-32 bg-gray-200">
+              <img
+                src={selectedFacility.images[0]}
+                alt={selectedFacility.name}
+                className="w-full h-full object-cover"
+              />
+              <button
+                className="absolute top-2 right-2 bg-white/90 p-1.5 rounded-full"
+                onClick={(e) => { e.stopPropagation(); setSelectedFacility(null); }}
               >
-                <Grid3X3 className="w-5 h-5" />
-              </Button>
+                <span className="sr-only">Close</span>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+              <div className="absolute bottom-2 right-2 bg-white/90 backdrop-blur px-2 py-0.5 rounded-md text-xs font-bold flex items-center shadow-sm">
+                <Star className="w-3 h-3 text-yellow-500 fill-yellow-500 mr-1" />
+                {selectedFacility.rating}
+              </div>
+            </div>
+            <div className="p-4">
+              <div className="flex justify-between items-start mb-1">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 leading-tight">{selectedFacility.name}</h3>
+                  <p className="text-xs text-gray-500">{selectedFacility.address}</p>
+                </div>
+                <div className="text-right">
+                  <span className="block text-lg font-black text-primary">₹60</span>
+                  <span className="text-[10px] text-gray-400 font-medium uppercase">Per Hour</span>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 my-3">
+                <Badge variant="secondary" className="text-[10px] px-1.5 h-5 bg-green-100 text-green-700 hover:bg-green-100">
+                  {selectedFacility.availableSlots} spots left
+                </Badge>
+                <div className="text-xs text-gray-400">•</div>
+                <div className="text-xs text-gray-500">
+                  4 min drive
+                </div>
+              </div>
+
               <Button
-                variant={viewMode === 'map' ? 'default' : 'ghost'}
-                size="icon"
-                onClick={() => setViewMode('map')}
+                className="w-full h-11 text-base font-bold shadow-md"
+                onClick={() => navigate(`/customer/facility/${selectedFacility.id}`)}
               >
-                <MapIcon className="w-5 h-5" />
+                Reserve Spot
               </Button>
             </div>
+          </Card>
+        </div>
+      )}
 
-            {/* Mobile Filter Button */}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="outline" className="sm:hidden">
-                  <Filter className="w-5 h-5 mr-2" />
-                  Filters
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-80 overflow-y-auto">
-                <div className="mt-6">
-                  <FilterPanel />
-                </div>
-              </SheetContent>
-            </Sheet>
+      {/* EMPTY STATE / "Explore area" Text if nothing selected */}
+      {!selectedFacility && (
+        <div className="absolute bottom-[80px] left-0 right-0 z-10 flex justify-center pointer-events-none">
+          <div className="bg-white/80 backdrop-blur-md px-4 py-2 rounded-full text-xs font-medium text-gray-600 shadow-sm mb-4">
+            Explore parking near you
           </div>
         </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Desktop Filter Sidebar */}
-          <div className="hidden lg:block lg:col-span-1">
-            <Card className="p-6 sticky top-24">
-              <h2 className="text-xl font-black mb-6 flex items-center">
-                <Filter className="w-5 h-5 mr-2" />
-                Filters
-              </h2>
-              <FilterPanel />
-            </Card>
-          </div>
-
-          {/* Results */}
-          <div className="lg:col-span-3">
-            {viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredFacilities.map((facility) => (
-                  <Card
-                    key={facility.id}
-                    className="overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
-                    onClick={() => navigate(`/customer/facility/${facility.id}`)}
-                  >
-                    <div className="relative h-48">
-                      <img
-                        src={facility.images[0]}
-                        alt={facility.name}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full flex items-center space-x-1">
-                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                        <span className="font-semibold text-sm">{facility.rating}</span>
-                      </div>
-                      {facility.verified && (
-                        <Badge className="absolute top-3 left-3 bg-emerald-500">
-                          Verified
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="p-4">
-                      <h3 className="font-bold text-lg mb-1 line-clamp-1">{facility.name}</h3>
-                      <div className="flex items-center text-sm text-gray-600 mb-2">
-                        <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
-                        <span className="line-clamp-1">{facility.address}</span>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-3 border-t">
-                        <div>
-                          <span className="text-2xl font-black text-indigo-600">₹60</span>
-                          <span className="text-sm text-gray-600">/hr</span>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-emerald-600">
-                            {facility.availableSlots} slots
-                          </p>
-                          <p className="text-xs text-gray-500">available</p>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-1 mt-3">
-                        {facility.amenities.slice(0, 2).map((amenity) => (
-                          <Badge key={amenity} variant="outline" className="text-xs">
-                            {amenity}
-                          </Badge>
-                        ))}
-                        {facility.amenities.length > 2 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{facility.amenities.length - 2}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <Card className="h-[calc(100vh-200px)] overflow-hidden">
-                <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
-                  <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  />
-                  <MapUpdater center={mapCenter} />
-                  {filteredFacilities.map((facility) => (
-                    <Marker
-                      key={facility.id}
-                      position={[facility.latitude, facility.longitude]}
-                    >
-                      <Popup>
-                        <div className="w-48">
-                          <h3 className="font-bold text-sm mb-1">{facility.name}</h3>
-                          <p className="text-xs text-gray-600 mb-2">{facility.address}</p>
-                          <Button
-                            size="sm"
-                            className="w-full text-xs h-8"
-                            onClick={() => navigate(`/customer/facility/${facility.id}`)}
-                          >
-                            View Details
-                          </Button>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  ))}
-                </MapContainer>
-              </Card>
-            )}
-
-            {filteredFacilities.length === 0 && (
-              <Card className="p-12 text-center mt-6">
-                <div className="text-gray-400 mb-4">
-                  <MapPin className="w-16 h-16 mx-auto" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">No parking facilities found</h3>
-                <p className="text-gray-600 mb-6">
-                  Try adjusting your filters or search in a different location
-                </p>
-                <Button onClick={() => {
-                  setSearchLocation('');
-                  setSelectedAmenities([]);
-                }}>
-                  Clear Filters
-                </Button>
-              </Card>
-            )}
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

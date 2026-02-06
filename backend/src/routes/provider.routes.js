@@ -7,7 +7,7 @@ const router = express.Router();
 
 // Protect ALL provider routes
 router.use(protect);
-router.use(restrictTo('PROVIDER', 'ADMIN'));
+router.use(restrictTo('PROVIDER', 'ADMIN', 'provider'));
 
 
 // Analytics & Dashboard

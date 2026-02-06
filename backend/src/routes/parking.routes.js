@@ -15,7 +15,7 @@ router.get('/floors/:floorId/slots', parkingController.getFloorSlots);
 
 // Provider routes
 router.use(protect);
-router.use(restrictTo('PROVIDER', 'ADMIN'));
+router.use(restrictTo('PROVIDER', 'ADMIN', 'provider'));
 
 router.post('/', parkingController.createFacility);
 router.get('/me/facilities', parkingController.getMyFacilities);

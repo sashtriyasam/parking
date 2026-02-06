@@ -13,8 +13,8 @@ export const authService = {
     },
 
     async getCurrentUser(): Promise<User> {
-        const response = await apiClient.get<{ status: string; data: User }>('/auth/me');
-        return response.data.data;
+        const response = await apiClient.get<{ status: string; data: { user: User } }>('/auth/me');
+        return response.data.data.user;
     },
 
     logout(): void {

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IndianRupee, Users, ParkingSquare, TrendingUp, Building, Plus, Search } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/app/components/ui/card';
+import { IndianRupee, Users, ParkingSquare, TrendingUp, Plus, ScanLine, ArrowUpRight, Clock, Car } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { useApp } from '@/context/AppContext';
@@ -20,15 +20,6 @@ export function ProviderDashboard() {
       const facility = facilities.find(f => f.id === b.facilityId);
       return facility?.providerId === user?.id && b.status === 'active';
     });
-  }, [bookings, facilities, user]);
-
-  const totalRevenue = useMemo(() => {
-    return bookings
-      .filter(b => {
-        const facility = facilities.find(f => f.id === b.facilityId);
-        return facility?.providerId === user?.id;
-      })
-      .reduce((sum, b) => sum + b.amount, 0);
   }, [bookings, facilities, user]);
 
   const todayRevenue = useMemo(() => {
@@ -58,214 +49,169 @@ export function ProviderDashboard() {
     { date: 'Sun', revenue: 19800 },
   ];
 
-  const occupancyData = providerFacilities.map(f => ({
-    name: f.name.split(' ')[0],
-    occupancy: Math.round(((f.totalSlots - f.availableSlots) / f.totalSlots) * 100),
-  }));
-
   return (
-    <div className="min-h-screen bg-gray-50 pt-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-gray-50 pt-20 pb-20">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6">
+
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-black mb-2">Provider Dashboard</h1>
-            <p className="text-gray-600">Real-time analytics & management hub</p>
+            <p className="text-gray-500 text-sm">Welcome back,</p>
+            <h1 className="text-2xl font-black text-gray-900">{user?.name || 'Provider'}</h1>
           </div>
-          <Button onClick={() => navigate('/provider/facilities/new')} className="bg-indigo-600 hover:bg-indigo-700">
-            <Plus className="w-5 h-5 mr-2" />
-            Add New Facility
+          <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center font-bold text-indigo-700">
+            {user?.name?.charAt(0) || 'P'}
+          </div>
+        </div>
+
+        {/* Hero Revenue Card */}
+        <Card className="bg-gradient-to-br from-indigo-600 to-indigo-800 text-white border-0 shadow-xl mb-8 overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl" />
+          <div className="p-6 relative z-10">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-indigo-200 text-sm font-medium mb-1">Today's Revenue</p>
+                <h2 className="text-4xl font-black">₹{todayRevenue.toLocaleString()}</h2>
+              </div>
+              <Badge className="bg-emerald-400/20 text-emerald-300 hover:bg-emerald-400/20 border-0 backdrop-blur-sm">
+                <TrendingUp className="w-3 h-3 mr-1" />
+                +12.5% This Week
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-indigo-500/30">
+              <div>
+                <p className="text-indigo-200 text-xs mb-1">Active Vehicles</p>
+                <p className="text-xl font-bold flex items-center">
+                  {activeBookings.length}
+                  <span className="text-xs font-normal text-indigo-300 ml-2">Currently Parked</span>
+                </p>
+              </div>
+              <div>
+                <p className="text-indigo-200 text-xs mb-1">Occupancy</p>
+                <p className="text-xl font-bold flex items-center">
+                  {occupancyRate}%
+                  <span className="text-xs font-normal text-indigo-300 ml-2">Full</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Quick Actions */}
+        <h3 className="font-bold text-lg mb-4 text-gray-900">Quick Actions</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <ActionCard
+            icon={ScanLine}
+            label="Scan QR"
+            color="text-indigo-600"
+            bg="bg-indigo-50"
+            onClick={() => navigate('/provider/vehicle-checker')}
+          />
+          <ActionCard
+            icon={Plus}
+            label="New Facility"
+            color="text-emerald-600"
+            bg="bg-emerald-50"
+            onClick={() => navigate('/provider/facilities')}
+          />
+          <ActionCard
+            icon={ParkingSquare}
+            label="Manage Slots"
+            color="text-blue-600"
+            bg="bg-blue-50"
+            onClick={() => navigate('/provider/facilities')}
+          />
+          <ActionCard
+            icon={Users}
+            label="Bookings"
+            color="text-purple-600"
+            bg="bg-purple-50"
+            onClick={() => navigate('/provider/bookings')}
+          />
+        </div>
+
+        {/* Analytics Chart */}
+        <Card className="p-6 mb-8 border-gray-100 shadow-sm">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="font-bold text-gray-900">Weekly Performance</h3>
+            <select className="bg-gray-50 border-0 text-xs rounded-lg p-2 font-medium text-gray-600 cursor-pointer outline-none">
+              <option>Last 7 Days</option>
+              <option>Last 30 Days</option>
+            </select>
+          </div>
+          <div className="h-[250px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={revenueData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} tickFormatter={(v) => `₹${v / 1000}k`} />
+                <Tooltip
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                />
+                <Line type="monotone" dataKey="revenue" stroke="#4F46E5" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#4F46E5' }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        {/* Live Activity Feed */}
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-lg text-gray-900">Recent Activity</h3>
+          <Button variant="link" className="text-indigo-600 text-sm p-0 h-auto" onClick={() => navigate('/provider/bookings')}>
+            View All
           </Button>
         </div>
 
-        {/* Quick Actions / Navigation */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer border-indigo-100" onClick={() => navigate('/provider/facilities')}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">My Facilities</CardTitle>
-              <Building className="h-4 w-4 text-indigo-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm text-gray-500">Manage your parking locations and slots</div>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow cursor-pointer border-indigo-100" onClick={() => navigate('/provider/bookings')}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Bookings</CardTitle>
-              <Users className="h-4 w-4 text-indigo-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm text-gray-500">View and manage customer reservations</div>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow cursor-pointer border-indigo-100" onClick={() => navigate('/provider/vehicle-checker')}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Vehicle Checker</CardTitle>
-              <Search className="h-4 w-4 text-indigo-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm text-gray-500">Verify vehicles by number plate</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
-                <IndianRupee className="w-6 h-6 text-emerald-600" />
-              </div>
-              <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                +12.5%
-              </Badge>
-            </div>
-            <p className="text-3xl font-black text-gray-900 mb-1">₹{todayRevenue.toLocaleString()}</p>
-            <p className="text-sm text-gray-600">Today's Revenue</p>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
-                <Users className="w-6 h-6 text-indigo-600" />
-              </div>
-            </div>
-            <p className="text-3xl font-black text-gray-900 mb-1">{activeBookings.length}</p>
-            <p className="text-sm text-gray-600">Active Bookings</p>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-                <ParkingSquare className="w-6 h-6 text-gray-600" />
-              </div>
-            </div>
-            <p className="text-3xl font-black text-gray-900 mb-1">{totalSlots}</p>
-            <p className="text-sm text-gray-600">Total Slots</p>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-indigo-600" />
-              </div>
-            </div>
-            <p className="text-3xl font-black text-gray-900 mb-1">{occupancyRate}%</p>
-            <p className="text-sm text-gray-600">Occupancy Rate</p>
-          </Card>
-        </div>
-
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <Card className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black">Revenue Overview</h2>
-              <Badge variant="outline">Last 7 Days</Badge>
-            </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={revenueData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="date" stroke="#6B7280" />
-                <YAxis stroke="#6B7280" />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#FFF', border: '1px solid #E5E7EB', borderRadius: '8px' }}
-                  formatter={(value: number) => [`₹${value}`, 'Revenue']}
-                />
-                <Line type="monotone" dataKey="revenue" stroke="#4F46E5" strokeWidth={3} dot={{ fill: '#4F46E5', r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </Card>
-
-          <Card className="p-6">
-            <h2 className="text-xl font-black mb-6">Occupancy by Facility</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={occupancyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="name" stroke="#6B7280" />
-                <YAxis stroke="#6B7280" />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#FFF', border: '1px solid #E5E7EB', borderRadius: '8px' }}
-                  formatter={(value: number) => [`${value}%`, 'Occupancy']}
-                />
-                <Bar dataKey="occupancy" fill="#4F46E5" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-        </div>
-
-        {/* Facilities */}
-        <Card className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-black">My Facilities</h2>
-            <Button variant="outline" onClick={() => navigate('/provider/facilities')}>
-              View All
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {providerFacilities.slice(0, 3).map(facility => (
-              <Card key={facility.id} className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate(`/provider/facility/${facility.id}`)}>
-                <img src={facility.images[0]} alt={facility.name} className="w-full h-40 object-cover" />
-                <div className="p-4">
-                  <h3 className="font-bold text-lg mb-1">{facility.name}</h3>
-                  <p className="text-sm text-gray-600 mb-3">{facility.city}</p>
-
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <p className="text-xs text-gray-500">Total</p>
-                      <p className="font-bold">{facility.totalSlots}</p>
+        <div className="space-y-4">
+          {activeBookings.slice(0, 5).map(booking => {
+            const facility = facilities.find(f => f.id === booking.facilityId);
+            return (
+              <Card key={booking.id} className="p-4 border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
+                      <Car className="w-5 h-5 text-indigo-600" />
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Available</p>
-                      <p className="font-bold text-emerald-600">{facility.availableSlots}</p>
+                      <p className="font-bold text-gray-900">{booking.vehicleNumber}</p>
+                      <p className="text-xs text-gray-500">{facility?.name}</p>
                     </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Revenue</p>
-                      <p className="font-bold text-indigo-600">₹{(Math.random() * 10000 + 5000).toFixed(0)}</p>
-                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                      Active
+                    </span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      <Clock className="w-3 h-3 inline mr-1" />
+                      {new Date(booking.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
                   </div>
                 </div>
               </Card>
-            ))}
-          </div>
-        </Card>
-
-        {/* Recent Bookings */}
-        <Card className="p-6 mt-6">
-          <h2 className="text-xl font-black mb-6">Recent Bookings</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="border-b">
-                <tr className="text-left">
-                  <th className="pb-3 font-semibold">Booking ID</th>
-                  <th className="pb-3 font-semibold">Facility</th>
-                  <th className="pb-3 font-semibold">Vehicle</th>
-                  <th className="pb-3 font-semibold">Status</th>
-                  <th className="pb-3 font-semibold">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeBookings.slice(0, 5).map(booking => {
-                  const facility = facilities.find(f => f.id === booking.facilityId);
-                  return (
-                    <tr key={booking.id} className="border-b last:border-b-0">
-                      <td className="py-3 text-sm font-mono">{booking.id}</td>
-                      <td className="py-3 text-sm">{facility?.name}</td>
-                      <td className="py-3 text-sm">{booking.vehicleNumber}</td>
-                      <td className="py-3">
-                        <Badge className="bg-emerald-500">Active</Badge>
-                      </td>
-                      <td className="py-3 text-sm font-semibold">₹{booking.amount}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+            );
+          })}
+          {activeBookings.length === 0 && (
+            <div className="text-center py-8 text-gray-500 bg-white rounded-xl border border-dashed">
+              <p>No active bookings right now</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
+}
+
+function ActionCard({ icon: Icon, label, color, bg, onClick }: any) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all active:scale-95"
+    >
+      <div className={`w-12 h-12 ${bg} rounded-xl flex items-center justify-center mb-3`}>
+        <Icon className={`w-6 h-6 ${color}`} />
+      </div>
+      <span className="font-semibold text-sm text-gray-700">{label}</span>
+    </button>
+  )
 }

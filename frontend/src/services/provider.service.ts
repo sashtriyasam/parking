@@ -106,7 +106,7 @@ export const providerService = {
     },
 
     getFacilityDetails: async (id: string): Promise<Facility> => {
-        const response = await apiClient.get(`/customer/facility/${id}`);
+        const response = await apiClient.get(`/provider/facilities/${id}`);
         return response.data.data;
     },
 
@@ -131,6 +131,11 @@ export const providerService = {
     },
 
     // Pricing
+    setPricingRule: async (data: { facility_id: string; vehicle_type: string; hourly_rate: number; daily_max?: number }): Promise<any> => {
+        const response = await apiClient.post('/provider/pricing-rules', data);
+        return response.data.data;
+    },
+
     getFacilityPricing: async (facilityId: string): Promise<any> => {
         const response = await apiClient.get(`/provider/facilities/${facilityId}/pricing`);
         return response.data.data;

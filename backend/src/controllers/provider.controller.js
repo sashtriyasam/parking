@@ -518,11 +518,14 @@ const bulkCreateSlotsByFacility = asyncHandler(async (req, res, next) => {
 
     // Generate slot data
     const slots = [];
+    // Default prefix if not provided
+    const slotPrefix = req.body.prefix ? req.body.prefix.toUpperCase() : '';
+
     for (let i = 0; i < count; i++) {
         slots.push({
             floor_id: floor.id,
-            slot_number: String(start_number + i),
-            vehicle_type,
+            slot_number: `${slotPrefix}${start_number + i}`,
+            vehicle_type: vehicle_type.toUpperCase(), // ENFORCE UPPERCASE
             status: 'FREE',
             is_active: true
         });
