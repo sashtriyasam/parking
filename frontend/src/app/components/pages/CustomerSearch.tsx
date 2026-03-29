@@ -118,12 +118,37 @@ export function CustomerSearch() {
           <Input
             placeholder="Where to?"
             className="border-0 shadow-none focus-visible:ring-0 text-base font-medium placeholder:text-gray-400 bg-transparent h-10"
-            value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <div className="shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-xs text-primary">
-            AG
-          </div>
+
+          <Sheet>
+            <SheetTrigger asChild>
+              <button className="shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-xs text-primary hover:bg-gray-200 transition-colors">
+                AG
+              </button>
+            </SheetTrigger>
+            <SheetContent side="left">
+              <div className="py-6">
+                <h2 className="text-xl font-bold mb-6">Menu</h2>
+                <div className="space-y-4">
+                  <Button variant="ghost" className="w-full justify-start pl-0" onClick={() => navigate('/customer/tickets')}>
+                    My Bookings
+                  </Button>
+                  <Button variant="ghost" className="w-full justify-start pl-0" onClick={() => navigate('/customer/profile')}>
+                    Profile
+                  </Button>
+                  <div className="h-px bg-gray-100 my-2" />
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h3 className="font-semibold text-blue-900 mb-1">Have a parking spot?</h3>
+                    <p className="text-xs text-blue-700 mb-3">Earn money by renting it out.</p>
+                    <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" onClick={() => useApp().switchRole()}>
+                      Switch to Partner Mode
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
 
         {/* FILTER CHIPS */}
@@ -152,7 +177,7 @@ export function CustomerSearch() {
           <Card className="rounded-2xl shadow-xl overflow-hidden border-0">
             <div className="relative h-32 bg-gray-200">
               <img
-                src={selectedFacility.images[0]}
+                src={selectedFacility.images?.[0] || selectedFacility.image_url || '/placeholder-parking.jpg'}
                 alt={selectedFacility.name}
                 className="w-full h-full object-cover"
               />

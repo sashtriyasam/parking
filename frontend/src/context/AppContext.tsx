@@ -23,6 +23,7 @@ interface AppContextType {
   getBookingsByUser: (userId: string) => Booking[];
   getFacilityById: (id: string) => Facility | undefined;
   refreshData: () => Promise<void>;
+  switchRole: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -211,6 +212,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await loadInitialData();
   };
 
+  const switchRole = async () => {
+    setIsLoading(true);
+    try {
+      const response = await authService.switchRole();
+      const { user: backendUser, accessToken, refreshToken } = response.data;
+      const frontendUser = mapBackendUserToFrontend(backendUser);
+
+      setUser(frontendUser);
+      localStorage.setItem('user', JSON.stringify(frontendUser));
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+
+      await loadInitialData();
+      toast.success(`Switched to ${frontendUser.role === 'provider' ? 'Partner' : 'Customer'} mode`);
+
+      // Force navigation
+      // Note: ProtectedRoute will handle the rest based on user.role
+      if (frontendUser.role === 'provider') {
+        // If new provider, they likely need onboarding. Check if they have facilities.
+        try {
+          const facilities = await providerService.getMyFacilities();
+          if (facilities.length === 0) {
+            // No facilities -> Onboarding
+            // We can't navigate here easily without `useNavigate` hook context.
+            // But state change will trigger re-render in App.
+            // We rely on component level logic or redirecting
+            window.location.href = '/provider/onboarding'; // Hard refresh/nav safest here
+            return;
+          }
+          window.location.href = '/provider/dashboard';
+        } catch (e) {
+          window.location.href = '/provider/onboarding';
+        }
+      } else {
+        window.location.href = '/customer/search';
+      }
+
+    } catch (error) {
+      console.error('Failed to switch role', error);
+      toast.error('Failed to switch role');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -227,7 +273,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createBooking,
         getBookingsByUser,
         getFacilityById,
-        refreshData
+        refreshData,
+        switchRole
       }}
     >
       {children}

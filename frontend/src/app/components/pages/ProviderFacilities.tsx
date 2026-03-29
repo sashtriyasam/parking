@@ -19,9 +19,11 @@ import { Textarea } from '@/app/components/ui/textarea';
 import { toast } from 'sonner';
 import { providerService } from '@/services/provider.service';
 import type { Facility } from '@/services/provider.service';
+import { useApp } from '@/context/AppContext';
 
 export function ProviderFacilities() {
     const navigate = useNavigate();
+    const { refreshData } = useApp();
     const [facilities, setFacilities] = useState<Facility[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -73,10 +75,14 @@ export function ProviderFacilities() {
                 await providerService.createFacility(formData);
                 toast.success('Facility created successfully');
             }
+
+            // Refresh global context so Customer View sees changes
+            await refreshData();
+
             setIsAddDialogOpen(false);
             setEditingFacility(null);
             resetForm();
-            loadFacilities();
+            loadFacilities(); // Keep local refresh for immediate grid update
         } catch (error) {
             toast.error(editingFacility ? 'Failed to update facility' : 'Failed to create facility');
             console.error(error);

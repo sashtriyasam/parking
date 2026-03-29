@@ -121,9 +121,42 @@ const getMe = asyncHandler(async (req, res) => {
     });
 });
 
+const switchRole = asyncHandler(async (req, res, next) => {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+
+    if (!user) {
+        return next(new AppError('User not found', 404));
+    }
+
+    const newRole = user.role === 'CUSTOMER' ? 'PROVIDER' : 'CUSTOMER';
+
+    // Update role
+    const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: { role: newRole }
+    });
+
+    // Generate new tokens
+    const tokens = generateTokens(updatedUser.id, updatedUser.role);
+
+    res.status(200).json({
+        status: 'success',
+        data: {
+            user: {
+                id: updatedUser.id,
+                email: updatedUser.email,
+                full_name: updatedUser.full_name,
+                role: updatedUser.role,
+            },
+            ...tokens,
+        },
+    });
+});
+
 module.exports = {
     register,
     login,
     getMe,
     refresh,
+    switchRole,
 };

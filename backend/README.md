@@ -37,28 +37,20 @@ Create a `.env` file in the `backend/` directory:
 cp .env.example .env
 ```
 
-Update the `.env` file with your configuration:
+See the **[Supabase Database Setup](#-supabase-database-setup)** section below for how to get your connection strings.
 
-```env
-DATABASE_URL="postgresql://username:password@localhost:5432/parking_system"
-JWT_SECRET="your-secret-key"
-JWT_EXPIRES_IN="7d"
-PORT=5000
-NODE_ENV="development"
-```
-
-### 3. Database Setup
-
-Run Prisma migrations to create the database schema:
-
-```bash
-npx prisma migrate dev --name init
-```
+### 3. Database Setup (Supabase PostgreSQL)
 
 Generate Prisma Client:
 
 ```bash
 npx prisma generate
+```
+
+Push the schema to your Supabase database:
+
+```bash
+npx prisma db push
 ```
 
 (Optional) Seed the database:
@@ -168,6 +160,69 @@ backend/
 - Rate limiting (recommended to add)
 - CORS configuration
 
+## 🐘 Supabase Database Setup
+
+This project uses **Supabase** as the hosted PostgreSQL provider. Prisma needs **two** connection strings:
+
+| Variable | Purpose | Supabase Mode | Port |
+|---|---|---|---|
+| `DATABASE_URL` | Runtime queries (Prisma Client) | **Session mode** (pooled via PgBouncer) | `6543` |
+| `DIRECT_URL` | Migrations & `prisma db push` | **Direct connection** | `5432` |
+
+### Where to find them in the Supabase Dashboard
+
+1. Go to your **Supabase Dashboard** → select your project
+2. Navigate to **Project Settings** (gear icon in the sidebar)
+3. Click **Database** in the left menu
+4. Scroll to the **Connection String** section
+
+#### For `DATABASE_URL` (pooled — Session mode)
+
+5. Select the **"Session"** tab under Connection Pooling
+6. Copy the connection string. It will look like:
+
+```
+postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true
+```
+
+7. Paste it as `DATABASE_URL` in your `.env`
+
+#### For `DIRECT_URL` (non-pooled — Direct)
+
+8. Select the **"URI"** tab (or "Direct connection")
+9. Copy the connection string. It will look like:
+
+```
+postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres
+```
+
+10. Paste it as `DIRECT_URL` in your `.env`
+
+> **⚠️ Why two URLs?** Supabase puts PgBouncer in front of PostgreSQL for connection pooling. PgBouncer doesn't support the DDL statements Prisma uses during migrations (`CREATE TABLE`, `ALTER TABLE`, etc.), so `DIRECT_URL` bypasses PgBouncer to connect directly to PostgreSQL. Your app still uses the pooled `DATABASE_URL` at runtime for better performance.
+
+### Example `.env`
+
+```env
+# Pooled connection — used by your app at runtime
+DATABASE_URL="postgresql://postgres.abcdefghijklmnop:MyP@ssword123@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+
+# Direct connection — used by Prisma CLI for migrations
+DIRECT_URL="postgresql://postgres.abcdefghijklmnop:MyP@ssword123@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
+```
+
+### Commands after setup
+
+```bash
+# 1. Regenerate Prisma Client
+npx prisma generate
+
+# 2. Push schema to Supabase (uses DIRECT_URL internally)
+npx prisma db push
+
+# 3. (Optional) Open Prisma Studio to browse your data
+npx prisma studio
+```
+
 ## 📊 Database Schema
 
 The system uses the following core models:
@@ -218,12 +273,14 @@ docker run -p 5000:5000 --env-file .env parking-api
 
 ### Environment Variables for Production
 
-Ensure these are set in your production environment:
+Use `.env.production` as a template. Ensure these are set:
 
 - `NODE_ENV="production"`
-- `DATABASE_URL` (use connection pooling for serverless)
-- Strong `JWT_SECRET` and `JWT_REFRESH_SECRET`
-- Configure `ALLOWED_ORIGINS` for CORS
+- `DATABASE_URL` — Supabase pooled connection (Session mode, port 6543)
+- `DIRECT_URL` — Supabase direct connection (port 5432) for migrations
+- Strong `JWT_SECRET` and `JWT_REFRESH_SECRET` (generate with `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`)
+- `ALLOWED_ORIGINS` — comma-separated list of allowed frontend domains
+- `RAZORPAY_KEY_ID` — use `rzp_live_` prefix for production
 
 ## 📝 License
 

@@ -75,7 +75,7 @@ export function Navigation() {
                       Dashboard
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem onClick={() => navigate('/customer/profile')}>
+                  <DropdownMenuItem onClick={() => navigate(user.role === 'provider' ? '/provider/profile' : '/customer/profile')}>
                     <User className="w-4 h-4 mr-2" />
                     Profile
                   </DropdownMenuItem>
@@ -100,7 +100,7 @@ export function Navigation() {
         <div className="grid grid-cols-3 h-full">
           <NavItem icon={Search} label="Explore" path="/customer/search" />
           <NavItem icon={Ticket} label="Bookings" path="/customer/tickets" />
-          <NavItem icon={User} label="Account" path="/customer/profile" />
+          <NavItem icon={User} label="Account" path={user?.role === 'provider' ? "/provider/profile" : "/customer/profile"} />
         </div>
       </div>
     </>

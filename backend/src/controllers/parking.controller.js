@@ -1,6 +1,7 @@
 const prisma = require('../config/db');
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
+const geocodingService = require('../services/geocoding.service');
 
 // --- Facilities ---
 
@@ -8,15 +9,27 @@ const createFacility = asyncHandler(async (req, res, next) => {
     const { name, address, city, latitude, longitude, total_floors, operating_hours, image_url } = req.body;
     const provider_id = req.user.id;
 
+    // Auto-geocode if lat/lng not provided
+    let finalLatitude = latitude;
+    let finalLongitude = longitude;
+
+    if (!latitude || !longitude) {
+        const coords = await geocodingService.geocodeAddress(address, city);
+        if (coords) {
+            finalLatitude = coords.latitude;
+            finalLongitude = coords.longitude;
+        }
+    }
+
     const facility = await prisma.parkingFacility.create({
         data: {
             provider_id,
             name,
             address,
             city,
-            latitude,
-            longitude,
-            total_floors,
+            latitude: finalLatitude,
+            longitude: finalLongitude,
+            total_floors: parseInt(total_floors) || 1,
             operating_hours,
             image_url
         },
@@ -24,6 +37,7 @@ const createFacility = asyncHandler(async (req, res, next) => {
 
     res.status(201).json({ status: 'success', data: facility });
 });
+
 
 const getMyFacilities = asyncHandler(async (req, res) => {
     const facilities = await prisma.parkingFacility.findMany({

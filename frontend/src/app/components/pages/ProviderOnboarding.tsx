@@ -8,9 +8,11 @@ import { Textarea } from '@/app/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
 import { toast } from 'sonner';
 import { providerService } from '@/services/provider.service';
+import { useApp } from '@/context/AppContext';
 
 export function ProviderOnboarding() {
     const navigate = useNavigate();
+    const { refreshData } = useApp();
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
@@ -45,6 +47,10 @@ export function ProviderOnboarding() {
             };
 
             await providerService.createFacility(payload);
+
+            // Refresh global context
+            await refreshData();
+
             toast.success('Facility created! Now let\'s add some slots.');
             // After creating facility, go to slots management (or dashboard if simplest)
             navigate('/provider/dashboard');

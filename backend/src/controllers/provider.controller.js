@@ -489,7 +489,9 @@ const deleteSlot = asyncHandler(async (req, res, next) => {
 
 const bulkCreateSlotsByFacility = asyncHandler(async (req, res, next) => {
     const { facilityId } = req.params;
-    const { floor_number, vehicle_type, start_number, count } = req.body;
+    const { floor_number, vehicle_type, start_number, count, prefix } = req.body;
+
+    console.log('DEBUG bulkCreate:', { facilityId, floor_number, vehicle_type, start_number, count, prefix });
 
     // Verify ownership
     const facility = await prisma.parkingFacility.findUnique({
@@ -500,43 +502,53 @@ const bulkCreateSlotsByFacility = asyncHandler(async (req, res, next) => {
         return next(new AppError('Facility not found or access denied', 404));
     }
 
+    console.log('DEBUG: Facility found:', facility.id);
+
     // Find or create floor
     let floor = await prisma.floor.findFirst({
-        where: { facility_id: facilityId, floor_number }
+        where: { facility_id: facilityId, floor_number: parseInt(floor_number) }
     });
 
     if (!floor) {
+        console.log('DEBUG: Creating new floor');
         floor = await prisma.floor.create({
             data: {
                 facility_id: facilityId,
-                floor_number,
-                floor_name: `Floor ${floor_number}`,
-                total_capacity: count
+                floor_number: parseInt(floor_number),
+                floor_name: `Floor ${floor_number}`
             }
         });
     }
 
+    console.log('DEBUG: Floor:', floor.id);
+
     // Generate slot data
     const slots = [];
-    // Default prefix if not provided
-    const slotPrefix = req.body.prefix ? req.body.prefix.toUpperCase() : '';
+    const slotPrefix = prefix ? prefix.toUpperCase() : '';
 
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < parseInt(count); i++) {
         slots.push({
             floor_id: floor.id,
-            slot_number: `${slotPrefix}${start_number + i}`,
-            vehicle_type: vehicle_type.toUpperCase(), // ENFORCE UPPERCASE
+            slot_number: `${slotPrefix}${parseInt(start_number) + i}`,
+            vehicle_type: vehicle_type.toUpperCase(),
             status: 'FREE',
             is_active: true
         });
     }
 
-    const created = await prisma.parkingSlot.createMany({ data: slots });
+    console.log('DEBUG: Slots to create:', slots.length, 'Sample:', slots[0]);
+
+    // Use transaction with individual creates for SQLite compatibility
+    const createdSlots = await prisma.$transaction(
+        slots.map(slot => prisma.parkingSlot.create({ data: slot }))
+    );
+
+    console.log('DEBUG: Created:', createdSlots.length);
 
     res.status(201).json({
         status: 'success',
-        message: `${created.count} slots created`,
-        data: { floor_id: floor.id, created_count: created.count }
+        message: `${createdSlots.length} slots created`,
+        data: { floor_id: floor.id, created_count: createdSlots.length }
     });
 });
 

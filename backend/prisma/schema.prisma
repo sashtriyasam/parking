@@ -1,10 +1,14 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -16,14 +20,11 @@ model User {
   role          String        @default("CUSTOMER")
   created_at    DateTime      @default(now())
   updated_at    DateTime      @updatedAt
-
-  // Relations
   parking_facilities ParkingFacility[]
   tickets            Ticket[]
   monthly_passes     MonthlyPass[]
   vehicles           Vehicle[]
   favorites          Favorite[]
-
   @@map("users")
 }
 
@@ -37,22 +38,18 @@ model ParkingFacility {
   latitude        Decimal?
   longitude       Decimal?
   total_floors    Int           @default(1)
-  operating_hours String?
+  operating_hours String?       @db.Text
   is_active       Boolean       @default(true)
-  image_url       String?
+  image_url       String?       @db.Text
   contact_number  String?
-  description     String?
+  description     String?       @db.Text
   created_at      DateTime      @default(now())
   updated_at      DateTime      @updatedAt
-
-  // Relations
   floors          Floor[]
   pricing_rules   PricingRule[]
   monthly_passes  MonthlyPass[]
   tickets         Ticket[]
   favorites       Favorite[]
-
-
   @@map("parking_facilities")
 }
 
@@ -62,9 +59,7 @@ model Floor {
   facility     ParkingFacility @relation(fields: [facility_id], references: [id], onDelete: Cascade)
   floor_number Int
   floor_name   String?
-
   parking_slots ParkingSlot[]
-
   @@map("floors")
 }
 
@@ -78,9 +73,7 @@ model ParkingSlot {
   area_sqft    Decimal?
   is_active    Boolean     @default(true)
   reservation_expiry DateTime?
-
   tickets Ticket[]
-
   @@map("parking_slots")
 }
 
@@ -100,16 +93,14 @@ model Ticket {
   extra_charges  Decimal?
   total_fee      Decimal?
   status         String          @default("ACTIVE")
-  payment_status String?         @default("PENDING") // PENDING, PAID, REFUNDED
-  payment_method String?         // CARD, UPI, PAY_AT_EXIT, PASS
-  payment_id     String?         // Provider payment ID
-  qr_code        String?         // Cached QR data or URL
+  payment_status String?         @default("PENDING")
+  payment_method String?
+  payment_id     String?
+  qr_code        String?         @db.Text
   created_at     DateTime        @default(now())
   updated_at     DateTime        @updatedAt
-
   @@map("tickets")
 }
-
 
 model MonthlyPass {
   id             String          @id @default(uuid())
@@ -126,10 +117,8 @@ model MonthlyPass {
   payment_status String?         @default("PAID")
   created_at     DateTime        @default(now())
   updated_at     DateTime        @updatedAt
-
   @@map("monthly_passes")
 }
-
 
 model PricingRule {
   id                 String          @id @default(uuid())
@@ -139,17 +128,8 @@ model PricingRule {
   hourly_rate        Decimal
   daily_max          Decimal?
   monthly_pass_price Decimal?
-
   @@map("pricing_rules")
 }
-
-// Enums converted to String for SQLite compatibility
-// Valid values:
-// - Role: CUSTOMER, PROVIDER, ADMIN
-// - VehicleType: BIKE, SCOOTER, CAR, TRUCK
-// - SlotStatus: FREE, OCCUPIED, RESERVED, MAINTENANCE
-// - TicketStatus: ACTIVE, COMPLETED, CANCELLED
-// - PassStatus: ACTIVE, EXPIRED
 
 model Vehicle {
   id             String      @id @default(uuid())
@@ -157,9 +137,8 @@ model Vehicle {
   user           User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
   vehicle_number String
   vehicle_type   String
-  nickname       String?     // e.g., "My Car"
+  nickname       String?
   created_at     DateTime    @default(now())
-
   @@map("vehicles")
 }
 
@@ -170,7 +149,6 @@ model Favorite {
   facility_id String
   facility    ParkingFacility @relation(fields: [facility_id], references: [id], onDelete: Cascade)
   created_at  DateTime        @default(now())
-
   @@unique([user_id, facility_id])
   @@map("favorites")
 }

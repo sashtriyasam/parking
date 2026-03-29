@@ -35,9 +35,9 @@ export const customerService = {
     async getAvailableSlots(
         facilityId: string,
         params?: { floor_id?: string; vehicle_type?: string }
-    ): Promise<Record<string, ParkingSlot[]>> {
-        const response = await apiClient.get<ApiResponse<Record<string, ParkingSlot[]>>>(
-            `/parking/${facilityId}/available-slots`,
+    ): Promise<any[]> {
+        const response = await apiClient.get<ApiResponse<any[]>>(
+            `/customer/facility/${facilityId}/slots`,
             { params }
         );
         return response.data.data;
@@ -117,6 +117,14 @@ export const customerService = {
 
     async deleteVehicle(vehicleId: string): Promise<void> {
         await apiClient.delete(`/customer/vehicles/${vehicleId}`);
+    },
+
+    async verifyVehicleRC(vehicleId: string, regNo: string): Promise<Vehicle> {
+        const response = await apiClient.post<any>('/verification/verify-rc', {
+            vehicleId,
+            regNo
+        });
+        return response.data.vehicle;
     },
 
     // Favorites

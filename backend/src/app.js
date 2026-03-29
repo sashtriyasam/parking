@@ -11,6 +11,8 @@ const customerRoutes = require('./routes/customer.routes');
 const errorHandler = require('./middleware/errorHandler');
 const AppError = require('./utils/AppError');
 const setupSwagger = require('./config/swagger'); // Import Swagger
+const prisma = require('./config/db');
+const { version } = require('../package.json');
 
 const app = express();
 
@@ -20,6 +22,7 @@ const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
     process.env.FRONTEND_URL,
+    process.env.MOBILE_APP_URL,
 ].filter(Boolean);
 
 app.use(cors({
@@ -48,12 +51,29 @@ app.use('/api/v1/bookings', bookingRoutes);
 app.use('/api/v1/provider', providerRoutes);
 app.use('/api/v1/customer', customerRoutes);
 
+const verificationRoutes = require('./routes/verificationRoutes');
+app.use('/api/v1/verification', verificationRoutes);
+
 // Documentation
 setupSwagger(app);
 
 // Health Check
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok', message: 'Server is running' });
+app.get('/health', async (req, res) => {
+    let dbStatus = 'disconnected';
+    try {
+        await prisma.$queryRaw`SELECT 1`;
+        dbStatus = 'connected';
+    } catch (err) {
+        dbStatus = 'disconnected';
+    }
+
+    res.status(200).json({
+        status: 'ok',
+        environment: process.env.NODE_ENV || 'development',
+        database: dbStatus,
+        timestamp: new Date().toISOString(),
+        version,
+    });
 });
 
 // 404 Handler

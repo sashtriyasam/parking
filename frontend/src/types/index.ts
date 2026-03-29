@@ -20,17 +20,20 @@ export interface Facility {
   city: string;
   latitude: number;
   longitude: number;
-  images: string[];
-  description: string;
-  rating: number;
-  reviewCount: number;
-  totalSlots: number;
-  availableSlots: number;
-  floors: number;
-  operatingHours: string;
-  amenities: string[];
-  providerId: string;
-  verified: boolean;
+  images?: string[];
+  image_url?: string;
+  description?: string;
+  rating?: number;
+  reviewCount?: number;
+  totalSlots?: number;
+  availableSlots?: number;
+  floors?: number;
+  operatingHours?: string;
+  operating_hours?: string;
+  amenities?: string[];
+  providerId?: string;
+  provider_id?: string;
+  verified?: boolean;
 }
 
 export interface ParkingSlot {
@@ -73,6 +76,8 @@ export interface Vehicle {
   vehicleType: VehicleType;
   nickname?: string;
   isDefault: boolean;
+  is_verified?: boolean;
+  rc_details?: string;
 }
 
 export interface MonthlyPass {

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapPin, Star, Clock, Phone, Heart, ChevronLeft, Shield, Zap, Car as CarIcon, Share2, Info } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/ta
 import { Badge } from '@/app/components/ui/badge';
 import { SlotGrid } from '@/app/components/SlotGrid';
 import { useApp } from '@/context/AppContext';
+import { customerService } from '@/services/customer.service';
 import { mockPricing, mockReviews } from '@/data/mockData';
 import type { VehicleType } from '@/types';
 import { toast } from 'sonner';
@@ -14,16 +15,43 @@ import { toast } from 'sonner';
 export function FacilityDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getFacilityById, slots, isAuthenticated } = useApp();
+  const { getFacilityById, isAuthenticated } = useApp();
 
   const facility = getFacilityById(id!);
-  const facilitySlots = slots[id!] || [];
-  const pricing = mockPricing[id!] || mockPricing['facility-1'];
-  const reviews = mockReviews.filter(r => r.facilityId === id);
+  const pricing = mockPricing?.[id!] || mockPricing?.['facility-1'] || [];
+  const reviews = (mockReviews || []).filter(r => r.facilityId === id);
 
   const [selectedFloor, setSelectedFloor] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [selectedVehicleType, setSelectedVehicleType] = useState<VehicleType>('car');
+  const [facilitySlots, setFacilitySlots] = useState<any[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(true);
+
+  // Fetch slots from API on mount
+  useEffect(() => {
+    const fetchSlots = async () => {
+      if (!id) return;
+      try {
+        setSlotsLoading(true);
+        const slotsData = await customerService.getAvailableSlots(id);
+        // slotsData is { "Floor 1": [...], "Floor 2": [...] }
+        // Flatten into array with floor info
+        const allSlots: any[] = [];
+        Object.entries(slotsData).forEach(([floorName, slots]) => {
+          (slots as any[]).forEach(slot => {
+            allSlots.push({ ...slot, floorName, floor: parseInt(floorName.replace(/\D/g, '')) || 0 });
+          });
+        });
+        setFacilitySlots(allSlots);
+      } catch (error) {
+        console.error('Failed to load slots:', error);
+        setFacilitySlots([]);
+      } finally {
+        setSlotsLoading(false);
+      }
+    };
+    fetchSlots();
+  }, [id]);
 
   const floorsSlots = useMemo(() => {
     return facilitySlots.filter(slot => slot.floor === selectedFloor);
@@ -81,7 +109,7 @@ export function FacilityDetails() {
       {/* HERO IMAGE */}
       <div className="relative h-[40vh] md:h-[50vh] w-full">
         <img
-          src={facility.images[0]}
+          src={facility.images?.[0] || facility.image_url || '/placeholder-parking.jpg'}
           alt={facility.name}
           className="w-full h-full object-cover"
         />
@@ -123,7 +151,7 @@ export function FacilityDetails() {
             <section>
               <h3 className="font-bold text-lg mb-4">Amenities</h3>
               <div className="grid grid-cols-2 gap-3">
-                {facility.amenities.map(amenity => (
+                {(facility.amenities || []).length > 0 ? facility.amenities.map(amenity => (
                   <div key={amenity} className="flex items-center p-3 bg-gray-50 rounded-xl">
                     {amenity.includes('CCTV') && <Shield className="w-5 h-5 text-indigo-600 mr-3" />}
                     {amenity.includes('EV') && <Zap className="w-5 h-5 text-indigo-600 mr-3" />}
@@ -133,7 +161,9 @@ export function FacilityDetails() {
                     )}
                     <span className="font-medium text-sm">{amenity}</span>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-gray-500 text-sm col-span-2">No amenities listed</p>
+                )}
               </div>
             </section>
 
@@ -148,8 +178,8 @@ export function FacilityDetails() {
                     key={floor}
                     onClick={() => setSelectedFloor(floor)}
                     className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${selectedFloor === floor
-                        ? 'bg-primary text-white shadow-md'
-                        : 'bg-white border border-gray-200 text-gray-600'
+                      ? 'bg-primary text-white shadow-md'
+                      : 'bg-white border border-gray-200 text-gray-600'
                       }`}
                   >
                     {floor === 0 ? 'Ground Floor' : `Floor ${floor}`}

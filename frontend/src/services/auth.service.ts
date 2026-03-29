@@ -22,4 +22,9 @@ export const authService = {
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
     },
+
+    async switchRole(): Promise<AuthResponse> {
+        const response = await apiClient.post<AuthResponse>('/auth/switch-role');
+        return response.data;
+    },
 };

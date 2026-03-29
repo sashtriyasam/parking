@@ -16,6 +16,7 @@ import { ProviderSlotManagement } from '@/app/components/pages/ProviderSlotManag
 import { ProviderBookings } from '@/app/components/pages/ProviderBookings';
 import { ProviderVehicleChecker } from '@/app/components/pages/ProviderVehicleChecker';
 import { ProviderOnboarding } from '@/app/components/pages/ProviderOnboarding';
+import { ProviderProfile } from '@/app/components/pages/ProviderProfile';
 import { Toaster } from '@/app/components/ui/sonner';
 import type { ReactNode } from 'react';
 
@@ -146,6 +147,14 @@ function AppContent() {
             element={
               <ProtectedRoute requiredRole="provider">
                 <Navigation /><ProviderVehicleChecker />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/provider/profile"
+            element={
+              <ProtectedRoute requiredRole="provider">
+                <Navigation /><ProviderProfile />
               </ProtectedRoute>
             }
           />
