@@ -44,19 +44,19 @@ export function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account Settings</Text>
         <Card style={styles.menuCard}>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/settings/personal-info')}>
             <Ionicons name="person-outline" size={24} color={colors.textSecondary} />
             <Text style={styles.menuText}>Personal Information</Text>
             <Ionicons name="chevron-forward" size={20} color={colors.border} />
           </TouchableOpacity>
           <View style={styles.divider} />
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Coming Soon', 'Notification settings will be available in the next update.')}>
             <Ionicons name="notifications-outline" size={24} color={colors.textSecondary} />
             <Text style={styles.menuText}>Notifications</Text>
             <Ionicons name="chevron-forward" size={20} color={colors.border} />
           </TouchableOpacity>
           <View style={styles.divider} />
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert('Coming Soon', 'Privacy settings will be available in the next update.')}>
             <Ionicons name="shield-checkmark-outline" size={24} color={colors.textSecondary} />
             <Text style={styles.menuText}>Privacy & Security</Text>
             <Ionicons name="chevron-forward" size={20} color={colors.border} />
@@ -67,13 +67,13 @@ export function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Help & Support</Text>
         <Card style={styles.menuCard}>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/support/faq')}>
             <Ionicons name="help-circle-outline" size={24} color={colors.textSecondary} />
             <Text style={styles.menuText}>FAQ</Text>
             <Ionicons name="chevron-forward" size={20} color={colors.border} />
           </TouchableOpacity>
           <View style={styles.divider} />
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/support/contact')}>
             <Ionicons name="chatbubbles-outline" size={24} color={colors.textSecondary} />
             <Text style={styles.menuText}>Contact Support</Text>
             <Ionicons name="chevron-forward" size={20} color={colors.border} />

@@ -10,8 +10,8 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
-import { post } from '../../services/api';
+import { colors } from '../../../constants/colors';
+import { post } from '../../../services/api';
 import { router } from 'expo-router';
 
 const { width } = Dimensions.get('window');

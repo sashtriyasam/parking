@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { get } from '../../services/api';
-import { Card } from '../../components/ui/Card';
-import { colors } from '../../constants/colors';
-import { EmptyState } from '../../components/EmptyState';
-import { useAuthStore } from '../../store/authStore';
+import { get } from '../../../services/api';
+import { Card } from '../../../components/ui/Card';
+import { colors } from '../../../constants/colors';
+import { EmptyState } from '../../../components/EmptyState';
+import { useAuthStore } from '../../../store/authStore';
 import { useRouter } from 'expo-router';
-import { useSocket } from '../../hooks/useSocket';
+import { useSocket } from '../../../hooks/useSocket';
 
 export default function ProviderDashboard() {
   const [stats, setStats] = useState({

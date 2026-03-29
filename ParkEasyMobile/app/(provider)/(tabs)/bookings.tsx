@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
-import { get } from '../../services/api';
-import { Card } from '../../components/ui/Card';
-import { colors } from '../../constants/colors';
-import { EmptyState } from '../../components/EmptyState';
+import { get } from '../../../services/api';
+import { Card } from '../../../components/ui/Card';
+import { colors } from '../../../constants/colors';
+import { EmptyState } from '../../../components/EmptyState';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ProviderBookings() {
