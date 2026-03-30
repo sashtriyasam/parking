@@ -128,6 +128,7 @@ export default function AddFacility() {
         city: formData.city,
         latitude: parseFloat(formData.latitude),
         longitude: parseFloat(formData.longitude),
+        total_floors: 1, // Defaulting to 1 for new facilities
         total_slots: parseInt(formData.total_slots, 10),
         operating_hours: formData.operating_hours,
         description: formData.description,

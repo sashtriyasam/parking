@@ -105,6 +105,15 @@ export default function ProviderDashboard() {
           totalRevenue: d.revenue?.month || 0,
         });
         setLastUpdate(new Date());
+      } else {
+        // Handle empty but successful response
+        setStats({
+          activeFacilities: facilitiesRes.data?.data?.length || 0,
+          activeBookings: 0,
+          todayRevenue: 0,
+          totalRevenue: 0,
+        });
+        setLastUpdate(new Date());
       }
       
       if (facilitiesRes.data?.data) {

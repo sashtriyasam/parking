@@ -6,8 +6,10 @@ const geocodingService = require('../services/geocoding.service');
 // --- Facilities ---
 
 const createFacility = asyncHandler(async (req, res, next) => {
-    const { name, address, city, latitude, longitude, total_floors, operating_hours, image_url } = req.body;
+    const { name, address, city, latitude, longitude, total_floors, operating_hours, description, image_url, is_active } = req.body;
     const provider_id = req.user.id;
+
+    console.log(`[Provider ${provider_id}] Creating facility: ${name}`);
 
     // Auto-geocode if lat/lng not provided
     let finalLatitude = latitude;
@@ -27,10 +29,12 @@ const createFacility = asyncHandler(async (req, res, next) => {
             name,
             address,
             city,
-            latitude: finalLatitude,
-            longitude: finalLongitude,
-            total_floors: parseInt(total_floors) || 1,
+            latitude: finalLatitude ? parseFloat(finalLatitude) : null,
+            longitude: finalLongitude ? parseFloat(finalLongitude) : null,
+            total_floors: parseInt(total_floors, 10) || 1,
             operating_hours,
+            description,
+            is_active: is_active !== undefined ? is_active : true,
             image_url
         },
     });
