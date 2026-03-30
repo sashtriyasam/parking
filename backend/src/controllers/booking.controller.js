@@ -99,9 +99,9 @@ const endBooking = asyncHandler(async (req, res, next) => {
     const io = req.app.get('io');
     if (io) {
         io.to(`facility_${ticket.slot.floor.facility.id}`).emit('slot_updated', {
-            slotId: ticket.slot_id,
+            slot_id: ticket.slot_id,
             status: 'FREE',
-            facilityId: ticket.slot.floor.facility.id
+            facility_id: ticket.slot.floor.facility.id
         });
     }
 
@@ -273,9 +273,10 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
     // Emit socket event for real-time update
     const io = req.app.get('io');
     if (io) {
-        io.to(`facility:${slot.floor.facility.id}`).emit('slotUpdate', {
-            slotId: slot_id,
+        io.to(`facility_${slot.floor.facility.id}`).emit('slot_updated', {
+            slot_id: slot_id,
             status: 'OCCUPIED',
+            facility_id: slot.floor.facility.id
         });
     }
 

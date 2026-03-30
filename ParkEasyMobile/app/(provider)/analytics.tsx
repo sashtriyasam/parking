@@ -15,18 +15,15 @@ export default function AnalyticsScreen() {
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        const res = await get('/provider/analytics'); // Ensure backend has this or mock it
+        const res = await get('/provider/analytics');
         setData(res.data.data);
       } catch (e) {
-        // Mock data if endpoint fails
+        console.error('Error fetching analytics', e);
+        // Fallback to empty state but with proper structure
         setData({
-          revenue: [450, 600, 800, 1200, 1500, 1800, 2100],
-          occupancy: [20, 45, 60, 85, 90, 75, 40],
-          vehicles: [
-            { name: 'Cars', population: 65, color: colors.warning, legendFontColor: colors.textSecondary, legendFontSize: 12 },
-            { name: 'Bikes', population: 25, color: colors.primary, legendFontColor: colors.textSecondary, legendFontSize: 12 },
-            { name: 'Trucks', population: 10, color: colors.danger, legendFontColor: colors.textSecondary, legendFontSize: 12 },
-          ]
+          revenue: [0, 0, 0, 0],
+          occupancy: [0, 0, 0],
+          vehicles: []
         });
       } finally {
         setLoading(false);

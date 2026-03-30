@@ -11,6 +11,7 @@ router.use(restrictTo('PROVIDER', 'ADMIN', 'provider'));
 
 
 // Analytics & Dashboard
+router.get('/analytics', providerController.getAnalytics);
 router.get('/dashboard/stats', providerController.getStats);
 router.get('/dashboard/revenue', providerController.getRevenueData);
 router.get('/dashboard/occupancy', providerController.getOccupancyData);
