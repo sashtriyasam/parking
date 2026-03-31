@@ -60,8 +60,7 @@
           "fallbackToCacheTimeout": 3000,
           "enabled": true
         }
-      ],
-      "react-native-razorpay"
+      ]
     ],
     "runtimeVersion": {
       "policy": "appVersion"
