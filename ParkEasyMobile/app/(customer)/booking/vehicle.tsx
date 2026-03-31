@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderStyle: 'dashed',
+    borderStyle: Platform.OS === 'android' ? 'solid' : 'dashed',
     alignItems: 'center',
     gap: 8,
   },

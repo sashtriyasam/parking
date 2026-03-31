@@ -1,9 +1,28 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import React, { useState, useEffect, useCallback, ComponentProps } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  ActivityIndicator,
+  TouchableOpacity,
+  Dimensions,
+  Platform,
+  StatusBar
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import Animated, { FadeInDown, FadeInRight, FadeInUp, Layout } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  FadeInRight,
+  FadeInUp,
+  Layout,
+  ZoomIn,
+  SlideInUp
+} from 'react-native-reanimated';
 import { get } from '../../../services/api';
 import { GlassCard } from '../../../components/ui/GlassCard';
 import { colors } from '../../../constants/colors';
@@ -13,64 +32,83 @@ import { useRouter } from 'expo-router';
 import { useSocket } from '../../../hooks/useSocket';
 import Svg, { Path, Circle, G, Text as SvgText, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+
+interface Facility {
+  id: string;
+  name: string;
+  address?: string;
+  total_slots?: number;
+  [key: string]: any;
+}
+
+interface Booking {
+  id: string;
+  customer?: {
+    full_name: string;
+  };
+  facility?: {
+    name: string;
+  };
+  slot?: {
+    slot_number: string | number;
+  };
+  total_fee?: number;
+  entry_time: string;
+  [key: string]: any;
+}
 
 const OccupancyGauge = ({ value, total }: { value: number, total: number }) => {
   const percentage = total > 0 ? (value / total) * 100 : 0;
-  const radius = 85;
-  const strokeWidth = 14;
-  const center = 100;
+  const radius = 70;
+  const strokeWidth = 10;
+  const center = 80;
   const circumference = 2 * Math.PI * radius;
-  const halfCircumference = circumference / 2;
-  const strokeDashoffset = halfCircumference - (percentage / 100) * halfCircumference;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
   return (
     <View style={gaugeStyles.container}>
-      <Svg width="220" height="130" viewBox="0 0 200 120">
-        <Defs>
-          <SvgGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <Stop offset="0%" stopColor={colors.primary} />
-            <Stop offset="100%" stopColor={colors.primaryDark} />
-          </SvgGradient>
-        </Defs>
-        <G rotation="-180" origin="100, 100">
-          <Path
-            d={`M ${center - radius} ${center} A ${radius} ${radius} 0 0 1 ${center + radius} ${center}`}
-            stroke={colors.border + '40'}
-            strokeWidth={strokeWidth}
-            fill="none"
-            strokeLinecap="round"
-          />
-          <Path
-            d={`M ${center - radius} ${center} A ${radius} ${radius} 0 0 1 ${center + radius} ${center}`}
-            stroke="url(#gaugeGradient)"
-            strokeWidth={strokeWidth}
-            fill="none"
-            strokeDasharray={`${halfCircumference} ${halfCircumference}`}
-            strokeDashoffset={strokeDashoffset}
-            strokeLinecap="round"
-          />
-        </G>
+      <Svg width="160" height="160" viewBox="0 0 160 160">
+        <Circle
+          cx={center}
+          cy={center}
+          r={radius}
+          stroke="rgba(255,255,255,0.05)"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <Circle
+          cx={center}
+          cy={center}
+          r={radius}
+          stroke={colors.primary}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${center} ${center})`}
+        />
         <SvgText
-          x="100"
+          x="80"
           y="85"
           textAnchor="middle"
-          fontSize="32"
-          fontWeight="900"
-          fill={colors.textPrimary}
+          fontSize="28"
+          fontWeight="700"
+          fill="white"
         >
           {Math.round(percentage)}%
         </SvgText>
         <SvgText
-          x="100"
-          y="110"
+          x="80"
+          y="105"
           textAnchor="middle"
           fontSize="10"
-          fontWeight="800"
-          fill={colors.textMuted}
-          letterSpacing="1"
+          fontWeight="600"
+          fill="rgba(255,255,255,0.4)"
+          letterSpacing={1}
         >
-          CAPACITY USED
+          OCCUPANCY
         </SvgText>
       </Svg>
     </View>
@@ -80,7 +118,7 @@ const OccupancyGauge = ({ value, total }: { value: number, total: number }) => {
 const gaugeStyles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    marginTop: 10,
+    justifyContent: 'center',
   }
 });
 
@@ -93,11 +131,11 @@ export default function ProviderDashboard() {
     todayRevenue: 0,
     totalRevenue: 0,
   });
-  const [recentBookings, setRecentBookings] = useState<any[]>([]);
+  const [recentBookings, setRecentBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [facilities, setFacilities] = useState<any[]>([]);
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+
 
   const fetchDashboardData = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -115,17 +153,8 @@ export default function ProviderDashboard() {
           todayRevenue: d.revenue?.today || 0,
           totalRevenue: d.revenue?.month || 0,
         });
-        setLastUpdate(new Date());
-      } else {
-        setStats({
-          activeFacilities: facilitiesRes.data?.data?.length || 0,
-          activeBookings: 0,
-          todayRevenue: 0,
-          totalRevenue: 0,
-        });
-        setLastUpdate(new Date());
       }
-      
+
       if (facilitiesRes.data?.data) {
         setFacilities(facilitiesRes.data.data);
       }
@@ -163,7 +192,6 @@ export default function ProviderDashboard() {
         }
         return { ...prev, activeBookings: newActiveBookings };
       });
-      setLastUpdate(new Date());
     };
 
     socket.on('slot_updated', handleSlotUpdate);
@@ -184,12 +212,6 @@ export default function ProviderDashboard() {
     return 'Good Evening';
   };
 
-  const formatTime = (dateStr: string) => {
-    if (!dateStr) return '--:--';
-    const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? '--:--' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
   if (loading && !refreshing) {
     return (
       <View style={styles.center}>
@@ -201,394 +223,426 @@ export default function ProviderDashboard() {
   const totalSlots = facilities.reduce((acc, f) => acc + (f.total_slots || 0), 0) || 1;
 
   return (
-    <View style={styles.mainContainer}>
-      <ScrollView 
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+
+      <View style={styles.bgWrapper}>
+        <LinearGradient
+          colors={['#0f1219', '#080a0f']}
+          style={StyleSheet.absoluteFill}
+        />
+      </View>
+
+      <Animated.View entering={FadeIn.duration(800)} style={styles.header}>
+        <View style={styles.headerContent}>
+          <View style={styles.profileBox}>
+            <Text style={styles.greetingText}>{getGreeting()},</Text>
+            <Text style={styles.userName}>{user?.full_name?.split(' ')[0] || 'Partner'}</Text>
+          </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={() => router.push('/(provider)/scan')}
+              style={styles.headerIconBtn}
+            >
+              <BlurView intensity={20} tint="dark" style={styles.iconBlur}>
+                <Ionicons name="qr-code-outline" size={22} color="white" />
+              </BlurView>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Animated.View>
+
+      <ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        {/* Dynamic Header */}
-        <LinearGradient
-          colors={[colors.primary, colors.primaryDark]}
-          style={styles.header}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.headerTop}>
-            <Animated.View entering={FadeInDown.duration(800)}>
-              <Text style={styles.greeting}>{getGreeting()},</Text>
-              <Text style={styles.userName}>{user?.full_name?.split(' ')[0] || 'Partner'}</Text>
-            </Animated.View>
-            <TouchableOpacity 
-              onPress={() => router.push('/(provider)/scan')}
-              style={styles.scanBtn}
-            >
-              <BlurView intensity={30} tint="light" style={styles.scanIconBox}>
-                <Ionicons name="qr-code-outline" size={24} color="white" />
-              </BlurView>
-            </TouchableOpacity>
-          </View>
-
-          <GlassCard style={styles.mainGaugeCard} intensity={25}>
-            <OccupancyGauge value={stats.activeBookings} total={totalSlots} />
-            <View style={styles.gaugeMetrics}>
-              <View style={styles.metricItem}>
-                <Text style={styles.metricValue}>{stats.activeBookings}</Text>
-                <Text style={styles.metricLabel}>ACTIVE</Text>
-              </View>
-              <View style={styles.metricDivider} />
-              <View style={styles.metricItem}>
-                <Text style={styles.metricValue}>{Math.max(0, totalSlots - stats.activeBookings)}</Text>
-                <Text style={styles.metricLabel}>FREE</Text>
-              </View>
-              <View style={styles.metricDivider} />
-              <View style={styles.metricItem}>
-                <View style={[styles.statusDot, { backgroundColor: isConnected ? colors.success : colors.textMuted }]} />
-                <Text style={styles.metricLabel}>{isConnected ? 'LIVE' : 'IDLE'}</Text>
+        <Animated.View entering={FadeInUp.delay(200).duration(600)}>
+          <BlurView intensity={25} tint="dark" style={styles.mainInsightCard}>
+            <View style={styles.insightHeader}>
+              <Text style={styles.insightTitle}>Live Overview</Text>
+              <View style={styles.liveIndicator}>
+                <View style={[styles.liveDot, { backgroundColor: isConnected ? colors.primary : '#ff3b30' }]} />
+                <Text style={styles.liveText}>{isConnected ? 'Connected' : 'Offline'}</Text>
               </View>
             </View>
-          </GlassCard>
-        </LinearGradient>
 
-        <View style={styles.content}>
-          <View style={styles.statsRow}>
-            <Animated.View entering={FadeInRight.delay(200)} style={styles.halfStat}>
-              <GlassCard style={styles.statBox} intensity={10}>
-                <View style={[styles.statIconBox, { backgroundColor: colors.info + '15' }]}>
-                  <Ionicons name="business" size={24} color={colors.info} />
+            <View style={styles.insightContent}>
+              <OccupancyGauge value={stats.activeBookings} total={totalSlots} />
+
+              <View style={styles.insightStats}>
+                <View style={styles.insightStatItem}>
+                  <Text style={styles.insightStatVal}>{stats.activeBookings}</Text>
+                  <Text style={styles.insightStatLabel}>Booked</Text>
                 </View>
-                <Text style={styles.statMainValue}>{stats.activeFacilities}</Text>
-                <Text style={styles.statSubLabel}>FACILITIES</Text>
-              </GlassCard>
-            </Animated.View>
-
-            <Animated.View entering={FadeInRight.delay(400)} style={styles.halfStat}>
-              <GlassCard style={styles.statBox} intensity={10}>
-                <View style={[styles.statIconBox, { backgroundColor: colors.success + '15' }]}>
-                  <Ionicons name="cash" size={24} color={colors.success} />
+                <View style={styles.insightStatDivider} />
+                <View style={styles.insightStatItem}>
+                  <Text style={styles.insightStatVal}>{Math.max(0, totalSlots - stats.activeBookings)}</Text>
+                  <Text style={styles.insightStatLabel}>Available</Text>
                 </View>
-                <Text style={styles.statMainValue}>₹{stats.todayRevenue}</Text>
-                <Text style={styles.statSubLabel}>REVENUE TODAY</Text>
-              </GlassCard>
-            </Animated.View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Command Center</Text>
-            <View style={styles.actionsGrid}>
-              <ActionButton 
-                icon="add-circle" 
-                label="New Facility" 
-                bg="#FF6B6B"
-                onPress={() => router.push('/(provider)/add-facility')} 
-              />
-              <ActionButton 
-                icon="list" 
-                label="Facilities" 
-                bg="#4D96FF"
-                onPress={() => router.push('/(provider)/facilities')} 
-              />
-              <ActionButton 
-                icon="wallet" 
-                label="Payouts" 
-                bg="#6BCB77"
-                onPress={() => router.push('/(provider)/earnings')} 
-              />
-              <ActionButton 
-                icon="analytics" 
-                label="Insights" 
-                bg="#FFD93D"
-                onPress={() => router.push('/(provider)/bookings')} 
-              />
+              </View>
             </View>
-          </View>
+          </BlurView>
+        </Animated.View>
 
-          <View style={[styles.section, { marginBottom: 40 }]}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Real-time Activity</Text>
-              <TouchableOpacity onPress={() => router.push('/(provider)/bookings')}>
-                <Text style={styles.viewMore}>View All</Text>
-              </TouchableOpacity>
-            </View>
-            
-            {recentBookings.length > 0 ? (
-              recentBookings.map((booking, index) => (
-                <Animated.View key={booking.id} entering={FadeInUp.delay(index * 100)}>
-                  <GlassCard style={styles.activityCard} intensity={5}>
-                    <View style={styles.activityInfo}>
-                      <View style={styles.customerAvatar}>
-                        <Text style={styles.avatarText}>{booking.customer?.full_name?.charAt(0) || 'G'}</Text>
-                      </View>
-                      <View style={styles.activityDetails}>
-                        <Text style={styles.custName}>{booking.customer?.full_name || 'Guest'}</Text>
-                        <Text style={styles.activityFac}>
-                          {(booking.facility?.name || 'Facility')} • {booking.slot?.slot_number || 'Spot —'}
-                        </Text>
-                      </View>
-                      <View style={styles.activityPricing}>
-                        <Text style={styles.activityAmount}>+₹{booking.total_fee || booking.base_fee || 0}</Text>
-                        <Text style={styles.activityTime}>
-                          {formatTime(booking.entry_time)}
-                        </Text>
-                      </View>
-                    </View>
-                  </GlassCard>
-                </Animated.View>
-              ))
-            ) : (
-              <EmptyState
-                icon="flash-outline"
-                title="Silence in the Hub"
-                subtitle="Live bookings will appear here instantly."
-              />
+        {/* Global Financial Node Stats */}
+        <View style={styles.quickStatsRow}>
+          <Animated.View entering={FadeInDown.delay(300)} style={styles.statCol}>
+            <BlurView intensity={20} tint="dark" style={styles.miniStatCard}>
+              <Text style={styles.miniStatLabel}>Today's Revenue</Text>
+              <Text style={styles.miniStatVal}>₹{stats.todayRevenue}</Text>
+            </BlurView>
+          </Animated.View>
+          <Animated.View entering={FadeInDown.delay(400)} style={styles.statCol}>
+            <BlurView intensity={20} tint="dark" style={styles.miniStatCard}>
+              <Text style={styles.miniStatLabel}>Active Facilities</Text>
+              <Text style={styles.miniStatVal}>{stats.activeFacilities}</Text>
+            </BlurView>
+          </Animated.View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Management</Text>
+          <View style={styles.actionGrid}>
+            <ActionCard
+              icon="add-outline"
+              label="Add Facility"
+              onPress={() => router.push('/(provider)/add-facility')}
+            />
+            <ActionCard
+              icon="business-outline"
+              label="Facilities"
+              onPress={() => router.push('/(provider)/facilities')}
+            />
+            <ActionCard
+              icon="wallet-outline"
+              label="Earnings"
+              onPress={() => router.push('/(provider)/earnings')}
+            />
+            <ActionCard
+              icon="pie-chart-outline"
+              label="Analytics"
+              onPress={() => router.push('/(provider)/analytics')}
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            {isConnected && (
+              <View style={styles.liveBadge}>
+                <View style={[styles.liveDot, { backgroundColor: colors.primary }]} />
+                <Text style={styles.liveText}>LIVE</Text>
+              </View>
             )}
           </View>
+
+          {recentBookings.length > 0 ? (
+            recentBookings.map((booking, index) => (
+              <Animated.View key={booking.id} entering={FadeInDown.delay(index * 100 + 500)}>
+                <BlurView intensity={15} tint="dark" style={styles.activityCard}>
+                  <View style={styles.activityIcon}>
+                    <Ionicons name="car-outline" size={20} color={colors.primary} />
+                  </View>
+                  <View style={styles.activityInfo}>
+                    <Text style={styles.activityUser}>{booking.customer?.full_name || 'Guest User'}</Text>
+                    <Text style={styles.activityMeta}>
+                      {booking.facility?.name} • Slot {booking.slot?.slot_number}
+                    </Text>
+                  </View>
+                  <View style={styles.activityEnd}>
+                    <Text style={styles.activityPrice}>+₹{booking.total_fee || 0}</Text>
+                    <Text style={styles.activityTime}>
+                      {new Date(booking.entry_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                  </View>
+                </BlurView>
+              </Animated.View>
+            ))
+          ) : (
+            <EmptyState
+              icon="calendar-outline"
+              title="No Recent Activity"
+              subtitle="Bookings will appear here as they happen."
+            />
+          )}
         </View>
       </ScrollView>
     </View>
   );
 }
 
-function ActionButton({ icon, label, onPress, bg }: any) {
+interface ActionCardProps {
+  icon: ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  onPress: () => void;
+}
+
+function ActionCard({ icon, label, onPress }: ActionCardProps) {
   return (
-    <TouchableOpacity style={styles.actionBtn} onPress={onPress} activeOpacity={0.8}>
-      <View style={[styles.actionIconOuter, { backgroundColor: bg + '15' }]}>
-        <Ionicons name={icon} size={28} color={bg} />
-      </View>
-      <Text style={styles.actionText}>{label}</Text>
+    <TouchableOpacity style={styles.actionCardWrapper} onPress={onPress}>
+      <BlurView intensity={20} tint="dark" style={styles.actionCard}>
+        <View style={styles.actionIconContainer}>
+          <Ionicons name={icon} size={24} color={colors.primary} />
+        </View>
+        <Text style={styles.actionLabel}>{label}</Text>
+      </BlurView>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  mainContainer: {
+  container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#080a0f',
+  },
+  bgWrapper: {
+    ...StyleSheet.absoluteFillObject,
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: '#080a0f',
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 80 : 60,
-    paddingHorizontal: 24,
-    paddingBottom: 60,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
+    backgroundColor: 'rgba(8, 10, 15, 0.8)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
-  headerTop: {
+  headerContent: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 15,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 32,
   },
-  greeting: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.7)',
-    textTransform: 'uppercase',
-    letterSpacing: 2,
+  profileBox: {
+    flexDirection: 'column',
+  },
+  greetingText: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontWeight: '500',
   },
   userName: {
-    fontSize: 32,
-    fontWeight: '900',
+    fontSize: 22,
     color: 'white',
-    letterSpacing: -1,
+    fontWeight: '700',
+    marginTop: 2,
   },
-  scanBtn: {
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIconBtn: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  iconBlur: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 120,
+  },
+  mainInsightCard: {
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  insightHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  insightTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+  },
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 6,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  liveText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  insightContent: {
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  insightStats: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'center',
+    marginTop: 20,
+    gap: 40,
+  },
+  insightStatItem: {
+    alignItems: 'center',
+  },
+  insightStatVal: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: 'white',
+  },
+  insightStatLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.4)',
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  insightStatDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  quickStatsRow: {
+    flexDirection: 'row',
+    gap: 15,
+    marginBottom: 25,
+  },
+  statCol: {
+    flex: 1,
+  },
+  miniStatCard: {
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    overflow: 'hidden',
+  },
+  miniStatLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.4)',
+    marginBottom: 6,
+  },
+  miniStatVal: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: 'white',
+  },
+  section: {
+    marginBottom: 25,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingHorizontal: 4,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: 'white',
+  },
+  actionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  actionCardWrapper: {
+    width: (width - 52) / 2,
     borderRadius: 20,
     overflow: 'hidden',
   },
-  scanIconBox: {
-    width: 60,
-    height: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  mainGaugeCard: {
-    padding: 24,
-    borderRadius: 32,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  gaugeMetrics: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-    gap: 20,
-  },
-  metricItem: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 6,
-  },
-  metricValue: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: 'white',
-  },
-  metricLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: 'rgba(255,255,255,0.6)',
-    letterSpacing: 1,
-  },
-  metricDivider: {
-    width: 1,
-    height: 12,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  content: {
-    paddingHorizontal: 24,
-    marginTop: -40,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 32,
-  },
-  halfStat: {
-    flex: 1,
-  },
-  statBox: {
-    padding: 20,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  statIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  statMainValue: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: colors.textPrimary,
-  },
-  statSubLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: colors.textMuted,
-    letterSpacing: 1,
-    marginTop: 2,
-  },
-  section: {
-    marginBottom: 32,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    marginBottom: 16,
-  },
-  viewMore: {
-    color: colors.primary,
-    fontWeight: '800',
-    fontSize: 12,
-  },
-  actionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  actionBtn: {
-    flex: 1,
-    minWidth: (width / 2) - 40,
-    backgroundColor: colors.surface,
-    padding: 24,
-    borderRadius: 28,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...colors.shadows.sm,
-  },
-  actionIconOuter: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  actionText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  activityCard: {
+  actionCard: {
     padding: 16,
-    borderRadius: 24,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  activityInfo: {
-    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
-  customerAvatar: {
+  actionIconContainer: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primaryLight,
+    borderRadius: 14,
+    backgroundColor: 'rgba(28, 116, 233, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginBottom: 12,
   },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: colors.primary,
-  },
-  activityDetails: {
-    flex: 1,
-  },
-  custName: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  activityFac: {
+  actionLabel: {
     fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
     fontWeight: '600',
+    color: 'white',
   },
-  activityPricing: {
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  activityCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.04)',
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  activityIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  activityUser: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: 'white',
+  },
+  activityMeta: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.4)',
+    marginTop: 2,
+  },
+  activityEnd: {
     alignItems: 'flex-end',
   },
-  activityAmount: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: colors.success,
+  activityPrice: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#34d399',
   },
   activityTime: {
     fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '700',
-    marginTop: 4,
+    color: 'rgba(255, 255, 255, 0.3)',
+    marginTop: 2,
   },
 });

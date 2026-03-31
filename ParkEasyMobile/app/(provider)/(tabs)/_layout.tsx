@@ -12,24 +12,22 @@ export default function ProviderTabLayout() {
           bottom: 25,
           left: 20,
           right: 20,
-          elevation: 5,
-          backgroundColor: 'rgba(255, 255, 255, 0.9)', // Glass effect
-          borderRadius: 24,
-          height: 64,
-          paddingBottom: 10,
-          paddingTop: 8,
-          borderTopColor: 'transparent',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.1,
-          shadowRadius: 15,
+          elevation: 0,
+          backgroundColor: colors.tabBarBg, 
+          borderRadius: 22,
+          height: 68,
+          paddingBottom: 12,
+          paddingTop: 12,
+          borderTopWidth: 0,
+          borderWidth: 1,
+          borderColor: colors.tabBarBorder,
         },
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
+        tabBarInactiveTintColor: colors.tabBarInactive,
         tabBarLabelStyle: {
           fontSize: 10,
-          fontWeight: '600',
-          marginBottom: 4,
+          fontWeight: '700',
+          marginTop: 2,
         },
       }}
     >
@@ -37,35 +35,45 @@ export default function ProviderTabLayout() {
         name="index"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? "stats-chart" : "stats-chart-outline"} size={22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? "stats-chart" : "stats-chart-outline"} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="facilities"
         options={{
           title: 'Facilities',
-          tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? "business" : "business-outline"} size={22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? "business" : "business-outline"} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="scan"
         options={{
-          title: 'Scan',
-          tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? "qr-code" : "qr-code-outline"} size={22} color={color} />,
+          title: 'Scanner',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? "barcode" : "barcode-outline"} size={24} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="bookings"
         options={{
-          title: 'History',
-          tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? "list" : "list-outline"} size={22} color={color} />,
+          title: 'Activity',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? "journal" : "journal-outline"} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? "person" : "person-outline"} size={22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? "person-circle" : "person-circle-outline"} size={24} color={color} />
+          ),
         }}
       />
     </Tabs>

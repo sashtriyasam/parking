@@ -1,18 +1,37 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, ActivityIndicator, Alert, Switch, Animated } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+  Alert,
+  Switch,
+  Dimensions,
+  StatusBar,
+  Platform,
+  useWindowDimensions
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { get, post, put } from '../../../../services/api';
 import { colors } from '../../../../constants/colors';
-import { Card } from '../../../../components/ui/Card';
-import { SlotGrid } from '../../../../components/SlotGrid';
-import { ParkingFacility, ParkingSlot, Booking } from '../../../../types';
+import { ParkingFacility, ParkingSlot, Booking, PricingRule } from '../../../../types';
 import { useLiveSlots } from '../../../../hooks/useLiveSlots';
 import { useSocket } from '../../../../hooks/useSocket';
+import { useToast } from '../../../../components/Toast';
+
+
 
 type TabType = 'overview' | 'slots' | 'bookings' | 'pricing';
 
 export default function FacilityManagement() {
+  const { width } = useWindowDimensions();
+  const { showToast } = useToast();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -21,15 +40,11 @@ export default function FacilityManagement() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  
+
   const { slots: liveSlots, isConnected, highlightedSlotId } = useLiveSlots(id || '', initialSlots);
   const { socket } = useSocket();
 
-  // Booking notification state
-  const [notification, setNotification] = useState<string | null>(null);
-  const slideAnim = useRef(new Animated.Value(-100)).current;
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await get(`/provider/facilities/${id}`);
@@ -44,10 +59,21 @@ export default function FacilityManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  const fetchBookings = useCallback(async () => {
+    try {
+      const res = await get(`/provider/facilities/${id}/bookings`);
+      if (res.data?.data) {
+        setBookings(res.data.data.activeBookings || []);
+      }
+    } catch (e) {
+      console.error('Error refreshing bookings', e);
+    }
   }, [id]);
 
   useEffect(() => {
@@ -55,12 +81,7 @@ export default function FacilityManagement() {
 
     const onSlotUpdated = (payload: { slotId: string, status: string, facilityId: string }) => {
       if (payload.facilityId === id && payload.status === 'OCCUPIED') {
-        const slot = liveSlots.find(s => s.id === payload.slotId);
-        if (slot) {
-          showNotification(`Slot ${slot.slot_number} just got booked!`);
-          // Refresh bookings list to show the new one
-          fetchBookings();
-        }
+        fetchBookings();
       }
     };
 
@@ -68,35 +89,7 @@ export default function FacilityManagement() {
     return () => {
       socket.off('slot_updated', onSlotUpdated);
     };
-  }, [socket, id, liveSlots]);
-
-  const fetchBookings = async () => {
-    try {
-      const res = await get(`/provider/facilities/${id}`);
-      if (res.data?.data) {
-        setBookings(res.data.data.activeBookings || []);
-      }
-    } catch (e) {
-      console.error('Error refreshing bookings', e);
-    }
-  };
-
-  const showNotification = (message: string) => {
-    setNotification(message);
-    Animated.sequence([
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.delay(4000),
-      Animated.timing(slideAnim, {
-        toValue: -100,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-    ]).start(() => setNotification(null));
-  };
+  }, [socket, id, fetchBookings]);
 
   const handleToggleStatus = async () => {
     if (!facility) return;
@@ -115,14 +108,14 @@ export default function FacilityManagement() {
       'Are you sure you want to mark this vehicle as exited?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Confirm', 
+        {
+          text: 'Confirm',
           onPress: async () => {
             setActionLoading(true);
             try {
               await post(`/provider/bookings/${bookingId}/exit`);
-              Alert.alert('Success', 'Vehicle marked as exited');
-              fetchData(); // Refresh data
+              showToast('Exit processed successfully.', 'success');
+              fetchData();
             } catch (error) {
               Alert.alert('Error', 'Failed to process exit');
             } finally {
@@ -136,8 +129,8 @@ export default function FacilityManagement() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.loadingHost}>
+        <ActivityIndicator size="small" color="white" />
       </View>
     );
   }
@@ -145,45 +138,50 @@ export default function FacilityManagement() {
   if (!facility) return null;
 
   const renderOverview = () => (
-    <ScrollView style={styles.tabContent}>
-      <Card style={styles.infoCard}>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Status</Text>
-          <View style={styles.statusRow}>
-            <Text style={[styles.statusText, { color: facility.is_active ? colors.success : colors.danger }]}>
-              {facility.is_active ? 'Active' : 'Inactive'}
+    <ScrollView
+      style={styles.tabScroll}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.tabContent}
+    >
+      <BlurView intensity={20} tint="dark" style={styles.glassCard}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Status</Text>
+          <View style={styles.statusToggle}>
+            <Text style={[styles.statusLabel, { color: facility.is_active ? '#34d399' : '#ff4b4b' }]}>
+              {facility.is_active ? 'Online' : 'Offline'}
             </Text>
             <Switch
               value={facility.is_active}
               onValueChange={handleToggleStatus}
-              trackColor={{ false: colors.border, true: colors.primaryLight }}
-              thumbColor={facility.is_active ? colors.primary : colors.textMuted}
+              trackColor={{ false: '#333', true: 'rgba(52, 211, 153, 0.3)' }}
+              thumbColor={facility.is_active ? '#34d399' : '#999'}
             />
           </View>
         </View>
-        <View style={styles.divider} />
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Address</Text>
-          <Text style={styles.infoValue}>{facility.address}, {facility.city}</Text>
+        <View style={styles.cardDivider} />
+        <View style={styles.infoGrid}>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoKey}>Location</Text>
+            <Text style={styles.infoVal}>{facility.address}, {facility.city}</Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoKey}>Hours</Text>
+            <Text style={styles.infoVal}>{facility.operating_hours}</Text>
+          </View>
         </View>
-        <View style={styles.divider} />
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Operating Hours</Text>
-          <Text style={styles.infoValue}>{facility.operating_hours}</Text>
-        </View>
-      </Card>
+      </BlurView>
 
-      <Card style={styles.descriptionCard}>
-        <Text style={styles.sectionTitle}>Description</Text>
-        <Text style={styles.descriptionText}>{facility.description || 'No description provided.'}</Text>
-      </Card>
+      <BlurView intensity={15} tint="dark" style={styles.glassCard}>
+        <Text style={styles.cardTitle}>Description</Text>
+        <Text style={styles.descriptionTxt}>{facility.description || 'No description provided.'}</Text>
+      </BlurView>
 
-      <TouchableOpacity 
-        style={styles.editButton}
+      <TouchableOpacity
+        style={styles.editBtn}
         onPress={() => router.push(`/(provider)/facility/${id}/edit`)}
       >
-        <Ionicons name="create-outline" size={20} color={colors.surface} />
-        <Text style={styles.editButtonText}>Edit Facility Details</Text>
+        <Ionicons name="create-outline" size={20} color="#080a0f" />
+        <Text style={styles.editBtnText}>Edit Facility Settings</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -192,26 +190,55 @@ export default function FacilityManagement() {
     const freeSlots = liveSlots.filter(s => s.status === 'free').length;
     return (
       <View style={styles.tabContent}>
-        <View style={styles.slotStats}>
-          <View style={styles.slotStatItem}>
-            <Text style={styles.slotStatValue}>{liveSlots.length}</Text>
-            <Text style={styles.slotStatLabel}>Total</Text>
+        <View style={styles.slotOverview}>
+          <View style={styles.slotStat}>
+            <Text style={styles.statVal}>{liveSlots.length}</Text>
+            <Text style={styles.statLbl}>Total</Text>
           </View>
-          <View style={styles.slotStatItem}>
-            <Text style={[styles.slotStatValue, { color: colors.success }]}>{freeSlots}</Text>
-            <Text style={styles.slotStatLabel}>Available</Text>
+          <View style={styles.vLine} />
+          <View style={styles.slotStat}>
+            <Text style={[styles.statVal, { color: '#34d399' }]}>{freeSlots}</Text>
+            <Text style={styles.statLbl}>Available</Text>
           </View>
-          <View style={styles.slotStatItem}>
-            <Text style={[styles.slotStatValue, { color: colors.danger }]}>{liveSlots.length - freeSlots}</Text>
-            <Text style={styles.slotStatLabel}>Occupied</Text>
+          <View style={styles.vLine} />
+          <View style={styles.slotStat}>
+            <Text style={[styles.statVal, { color: '#ff4b4b' }]}>{liveSlots.length - freeSlots}</Text>
+            <Text style={styles.statLbl}>Occupied</Text>
           </View>
         </View>
-        <SlotGrid 
-          slots={liveSlots} 
-          onSlotPress={(slot: ParkingSlot) => Alert.alert('Slot Details', `Slot ${slot.slot_number}\nType: ${slot.vehicle_type.toUpperCase()}\nStatus: ${slot.status.toUpperCase()}`)}
-          selectedSlotId={null}
-          highlightedSlotId={highlightedSlotId}
-        />
+
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.slotsGridContainer}>
+            {liveSlots.map((slot) => (
+              <TouchableOpacity
+                key={slot.id}
+                style={[
+                  styles.slotSquare,
+                  {
+                    width: (width - 70) / 4,
+                    height: (width - 70) / 4,
+                    backgroundColor: slot.status === 'free' ? 'rgba(52, 211, 153, 0.1)' : 'rgba(255, 75, 75, 0.1)'
+                  },
+                  slot.id === highlightedSlotId && { borderColor: '#fff', borderWidth: 2 }
+                ]}
+                onPress={() => Alert.alert('Slot ' + slot.slot_number, `Type: ${slot.vehicle_type}\nStatus: ${slot.status}`)}
+              >
+                <Text style={[styles.slotNum, { color: slot.status === 'free' ? '#34d399' : '#ff4b4b' }]}>
+                  {slot.slot_number}
+                </Text>
+                <Ionicons
+                  name={
+                    slot.vehicle_type === 'car' || slot.vehicle_type === 'truck'
+                      ? 'car'
+                      : 'bicycle'
+                  }
+                  size={12}
+                  color={slot.status === 'free' ? '#34d399' : '#ff4b4b'}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
       </View>
     );
   };
@@ -220,115 +247,117 @@ export default function FacilityManagement() {
     <FlatList
       data={bookings}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.bookingList}
+      contentContainerStyle={styles.listContainer}
       renderItem={({ item }) => (
-        <Card style={styles.bookingCard}>
-          <View style={styles.bookingHeader}>
+        <BlurView intensity={15} tint="dark" style={styles.bookingItem}>
+          <View style={styles.bookingTop}>
             <View>
-              <Text style={styles.vehicleNumber}>{item.vehicle_number}</Text>
-              <Text style={styles.slotInfo}>Slot: {item.slot_id} • {item.vehicle_type.toUpperCase()}</Text>
+              <Text style={styles.vehicleNo}>{item.vehicle_number}</Text>
+              <Text style={styles.bookingSub}>Slot {item.slot_id} • {item.vehicle_type.toUpperCase()}</Text>
             </View>
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusBadgeText}>{item.status}</Text>
+            <View style={styles.liveTagDetail}>
+              <View style={styles.liveDotSmall} />
+              <Text style={styles.liveTxtDetail}>Active</Text>
             </View>
           </View>
-          <View style={styles.divider} />
-          <View style={styles.bookingFooter}>
+          <View style={styles.cardDivider} />
+          <View style={styles.bookingBottom}>
             <View>
-              <Text style={styles.timeLabel}>Entry Time</Text>
-              <Text style={styles.timeValue}>{new Date(item.entry_time).toLocaleTimeString()}</Text>
+              <Text style={styles.timeLbl}>In Since</Text>
+              <Text style={styles.timeVal}>{new Date(item.entry_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
             </View>
-            <TouchableOpacity 
-              style={styles.exitButton}
+            <TouchableOpacity
+              style={styles.actionBtnSmall}
               onPress={() => handleMarkExit(item.id)}
               disabled={actionLoading}
             >
-              <Text style={styles.exitButtonText}>Mark Exit</Text>
+              <Text style={styles.actionBtnTextSmall}>Mark Exit</Text>
             </TouchableOpacity>
           </View>
-        </Card>
+        </BlurView>
       )}
       ListEmptyComponent={
-        <View style={styles.emptyContainer}>
-          <Ionicons name="list-outline" size={48} color={colors.textMuted} />
-          <Text style={styles.emptyText}>No active bookings at the moment</Text>
+        <View style={styles.emptyHost}>
+          <Ionicons name="document-text-outline" size={48} color="rgba(255,255,255,0.1)" />
+          <Text style={styles.emptyTxt}>No active sessions</Text>
         </View>
       }
     />
   );
 
   const renderPricing = () => (
-    <ScrollView style={styles.tabContent}>
-      <Card style={styles.pricingCard}>
-        <View style={styles.pricingHeader}>
-          <Text style={styles.pricingHeaderCell}>Vehicle</Text>
-          <Text style={styles.pricingHeaderCell}>Hourly</Text>
-          <Text style={styles.pricingHeaderCell}>Daily Max</Text>
+    <ScrollView style={styles.tabScroll} contentContainerStyle={styles.tabContent}>
+      <BlurView intensity={15} tint="dark" style={styles.priceCard}>
+        <View style={styles.tableHeader}>
+          <Text style={styles.tableHead}>Vehicle</Text>
+          <Text style={styles.tableHead}>Hourly</Text>
+          <Text style={styles.tableHead}>Daily</Text>
         </View>
-        <View style={styles.divider} />
-        {/* Mocking pricing data as it's often a separate relation */}
-        {['bike', 'scooter', 'car', 'truck'].map((type) => (
-          <View key={type} style={styles.pricingRow}>
-            <Text style={styles.pricingCell}>{type.toUpperCase()}</Text>
-            <Text style={styles.pricingCell}>₹{type === 'car' ? 50 : 20}</Text>
-            <Text style={styles.pricingCell}>₹{type === 'car' ? 500 : 200}</Text>
+        <View style={styles.cardDivider} />
+        {(facility.pricing_rules || []).map((rate: PricingRule) => (
+          <View key={rate.id || rate.vehicle_type} style={styles.tableRow}>
+            <Text style={styles.tableKey}>{rate.vehicle_type.toUpperCase()}</Text>
+            <Text style={styles.tableVal}>₹{rate.hourly_rate}</Text>
+            <Text style={styles.tableVal}>₹{rate.daily_max || '--'}</Text>
           </View>
         ))}
-      </Card>
-      <Text style={styles.helperText}>* Monthly pass prices are managed via provider portal currently.</Text>
+      </BlurView>
+      <Text style={styles.helperTxt}>Rates can be adjusted in settings.</Text>
     </ScrollView>
   );
 
   return (
     <View style={styles.container}>
-      <View style={styles.topNav}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.facilityName} numberOfLines={1}>{facility.name}</Text>
-      </View>
+      <StatusBar barStyle="light-content" />
+      <LinearGradient colors={['#0f1219', '#080a0f']} style={StyleSheet.absoluteFill} />
 
-      <View style={styles.tabsBar}>
-        {(['overview', 'slots', 'bookings', 'pricing'] as TabType[]).map((tab) => (
-          <TouchableOpacity 
-            key={tab}
-            style={[styles.tabItem, activeTab === tab && styles.activeTabItem]}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </Text>
+      <View style={styles.topHeader}>
+        <View style={styles.navRow}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <BlurView intensity={20} tint="dark" style={styles.iconBox}>
+              <Ionicons name="chevron-back" size={24} color="white" />
+            </BlurView>
           </TouchableOpacity>
-        ))}
+          <View style={styles.titleInfo}>
+            <Text style={styles.navSubtitle}>Facility Control</Text>
+            <Text style={styles.navTitle} numberOfLines={1}>{facility.name}</Text>
+          </View>
+          <View style={[styles.liveBadge, { backgroundColor: isConnected ? 'rgba(52, 211, 153, 0.1)' : 'rgba(255,255,255,0.05)' }]}>
+            <View style={[styles.liveDot, { backgroundColor: isConnected ? '#34d399' : '#999' }]} />
+            <Text style={[styles.liveText, { color: isConnected ? '#34d399' : '#999' }]}>{isConnected ? 'Live' : 'Syncing'}</Text>
+          </View>
+        </View>
+
+        <View style={styles.tabsContainer}>
+          {(['overview', 'slots', 'bookings', 'pricing'] as TabType[]).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tabBtn, activeTab === tab && styles.tabBtnActive]}
+              onPress={() => setActiveTab(tab)}
+            >
+              <Text style={[styles.tabBtnText, activeTab === tab && styles.tabBtnTextActive]}>
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </Text>
+              {activeTab === tab && <View style={styles.activeIndicator} />}
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
-      <View style={styles.content}>
+      <View style={styles.mainContent}>
         {activeTab === 'overview' && renderOverview()}
         {activeTab === 'slots' && renderSlots()}
         {activeTab === 'bookings' && renderBookings()}
         {activeTab === 'pricing' && renderPricing()}
       </View>
 
-      {notification && (
-        <Animated.View style={[styles.notification, { transform: [{ translateY: slideAnim }] }]}>
-          <View style={styles.notificationContent}>
-            <Ionicons name="notifications" size={20} color={colors.surface} />
-            <Text style={styles.notificationText}>{notification}</Text>
-          </View>
-        </Animated.View>
-      )}
-
-      <TouchableOpacity 
-        style={styles.scanButton}
+      <TouchableOpacity
+        style={styles.fabScan}
         onPress={() => router.push(`/(provider)/(tabs)/scan?facilityId=${id}`)}
       >
-        <Ionicons name="qr-code-outline" size={24} color={colors.surface} />
-        <Text style={styles.scanButtonText}>Scan & Checkout</Text>
+        <Ionicons name="qr-code" size={24} color="#080a0f" />
+        <Text style={styles.fabText}>Scan & Exit</Text>
       </TouchableOpacity>
-
-      <View style={[styles.statusBadgeGlobal, { backgroundColor: isConnected ? colors.success : colors.textMuted }]}>
-        <Text style={styles.statusBadgeTextGlobal}>{isConnected ? 'LIVE' : 'OFFLINE'}</Text>
-      </View>
     </View>
   );
 }
@@ -336,312 +365,366 @@ export default function FacilityManagement() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#080a0f',
   },
-  center: {
+  loadingHost: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#080a0f',
   },
-  topNav: {
+  topHeader: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    backgroundColor: 'rgba(8, 10, 15, 0.9)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  navRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    paddingTop: 48,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: 20,
+    paddingBottom: 15,
   },
   backButton: {
-    marginRight: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  facilityName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+  iconBox: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleInfo: {
     flex: 1,
+    marginLeft: 15,
   },
-  tabsBar: {
+  navTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: 'white',
+  },
+  navSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+    marginBottom: 2,
+  },
+  liveBadge: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
-  tabItem: {
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  liveText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 10,
+  },
+  tabBtn: {
     flex: 1,
     paddingVertical: 14,
     alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
   },
-  activeTabItem: {
-    borderBottomColor: colors.primary,
+  tabBtnActive: {
+
   },
-  tabText: {
+  tabBtnText: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.5)',
   },
-  activeTabText: {
-    color: colors.primary,
+  tabBtnTextActive: {
+    color: 'white',
     fontWeight: '700',
   },
-  content: {
+  activeIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    width: 20,
+    height: 3,
+    backgroundColor: 'white',
+    borderRadius: 3,
+  },
+  mainContent: {
+    flex: 1,
+  },
+  tabScroll: {
     flex: 1,
   },
   tabContent: {
-    padding: 16,
+    padding: 20,
+    paddingBottom: 100,
   },
-  infoCard: {
-    padding: 16,
-    marginBottom: 16,
+  glassCard: {
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
+    marginBottom: 20,
   },
-  infoRow: {
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
-  },
-  infoLabel: {
-    color: colors.textSecondary,
-    fontSize: 14,
-  },
-  infoValue: {
-    color: colors.textPrimary,
-    fontWeight: '600',
-    fontSize: 14,
-    maxWidth: '60%',
-    textAlign: 'right',
-  },
-  statusRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
-  statusText: {
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 4,
-  },
-  descriptionCard: {
-    padding: 16,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-    marginBottom: 8,
-  },
-  descriptionText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-  editButton: {
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    padding: 16,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 40,
-  },
-  editButtonText: {
-    color: colors.surface,
+  cardTitle: {
     fontSize: 16,
     fontWeight: '700',
+    color: 'white',
   },
-  slotStats: {
+  statusToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  statusLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    marginVertical: 15,
+  },
+  infoGrid: {
+    gap: 15,
+  },
+  infoItem: {
+
+  },
+  infoKey: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.4)',
+    marginBottom: 4,
+  },
+  infoVal: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: 'white',
+    lineHeight: 22,
+  },
+  descriptionTxt: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
+    lineHeight: 22,
+    marginTop: 10,
+  },
+  editBtn: {
+    backgroundColor: 'white',
+    flexDirection: 'row',
+    padding: 16,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 10,
+  },
+  editBtnText: {
+    color: '#080a0f',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  slotOverview: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  slotStatItem: {
     alignItems: 'center',
+    padding: 20,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  slotStat: {
     flex: 1,
+    alignItems: 'center',
   },
-  slotStatValue: {
+  statVal: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+    fontWeight: '700',
+    color: 'white',
   },
-  slotStatLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 2,
+  statLbl: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 4,
   },
-  bookingList: {
-    padding: 16,
+  vLine: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  bookingCard: {
-    padding: 16,
-    marginBottom: 12,
+  slotsGridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    paddingBottom: 100,
   },
-  bookingHeader: {
+  slotSquare: {
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  slotNum: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  listContainer: {
+    padding: 20,
+    paddingBottom: 120,
+  },
+  bookingItem: {
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    overflow: 'hidden',
+  },
+  bookingTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
   },
-  vehicleNumber: {
+  vehicleNo: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+    fontWeight: '700',
+    color: 'white',
   },
-  slotInfo: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2,
+  bookingSub: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 4,
   },
-  statusBadge: {
-    backgroundColor: colors.primaryLight,
+  liveTagDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 8,
   },
-  statusBadgeText: {
-    color: colors.primary,
+  liveDotSmall: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#34d399',
+  },
+  liveTxtDetail: {
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    color: '#34d399',
   },
-  bookingFooter: {
+  bookingBottom: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
   },
-  timeLabel: {
-    fontSize: 10,
-    color: colors.textMuted,
+  timeLbl: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.4)',
+    marginBottom: 2,
   },
-  timeValue: {
+  timeVal: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: 'white',
   },
-  exitButton: {
-    backgroundColor: colors.danger,
-    paddingHorizontal: 16,
+  actionBtnSmall: {
+    backgroundColor: '#ff4b4b',
+    paddingHorizontal: 15,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 10,
   },
-  exitButtonText: {
-    color: colors.surface,
-    fontSize: 14,
+  actionBtnTextSmall: {
+    color: 'white',
+    fontSize: 13,
     fontWeight: '700',
   },
-  emptyContainer: {
-    padding: 48,
+  emptyHost: {
+    padding: 60,
     alignItems: 'center',
   },
-  emptyText: {
-    marginTop: 16,
-    color: colors.textMuted,
-    textAlign: 'center',
+  emptyTxt: {
+    marginTop: 15,
+    color: 'rgba(255,255,255,0.2)',
+    fontSize: 15,
   },
-  pricingCard: {
-    padding: 16,
+  priceCard: {
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    overflow: 'hidden',
   },
-  pricingHeader: {
+  tableHeader: {
     flexDirection: 'row',
-    paddingVertical: 8,
+    paddingBottom: 10,
   },
-  pricingHeaderCell: {
+  tableHead: {
     flex: 1,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.4)',
   },
-  pricingRow: {
+  tableRow: {
     flexDirection: 'row',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingVertical: 15,
   },
-  pricingCell: {
+  tableKey: {
     flex: 1,
-    color: colors.textSecondary,
-  },
-  helperText: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 12,
-    fontStyle: 'italic',
-  },
-  notification: {
-    position: 'absolute',
-    top: 60,
-    left: 16,
-    right: 16,
-    zIndex: 1000,
-  },
-  notificationContent: {
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    gap: 12,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  notificationText: {
-    color: colors.surface,
-    fontWeight: 'bold',
     fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
+  },
+  tableVal: {
     flex: 1,
+    fontSize: 14,
+    color: 'white',
   },
-  statusBadgeGlobal: {
+  helperTxt: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.3)',
+    marginTop: 15,
+    fontStyle: 'italic',
+    paddingHorizontal: 10,
+  },
+  fabScan: {
     position: 'absolute',
-    bottom: 24,
-    right: 24,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  statusBadgeTextGlobal: {
-    color: colors.surface,
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  scanButton: {
-    position: 'absolute',
-    bottom: 80,
-    left: 24,
-    right: 24,
-    backgroundColor: colors.info,
+    bottom: 30,
+    left: 20,
+    right: 20,
+    backgroundColor: 'white',
     flexDirection: 'row',
-    padding: 16,
-    borderRadius: 16,
+    padding: 18,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
-    elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 10,
   },
-  scanButtonText: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: 'bold',
+  fabText: {
+    color: '#080a0f',
+    fontSize: 17,
+    fontWeight: '700',
   },
 });

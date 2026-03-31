@@ -3,23 +3,17 @@ import { Stack } from 'expo-router';
 export default function ProviderRootLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" />
       <Stack.Screen 
         name="add-facility" 
         options={{ 
-          title: 'Register Facility',
-          presentation: 'modal',
-          headerShown: false 
+          presentation: 'modal'
         }} 
       />
-      <Stack.Screen 
-        name="earnings" 
-        options={{ 
-          headerShown: true,
-          headerTitle: 'Earnings Report',
-          headerBackTitle: 'Back'
-        }} 
-      />
+      <Stack.Screen name="earnings" />
+      <Stack.Screen name="analytics" />
+      <Stack.Screen name="facility/[id]/index" />
+      <Stack.Screen name="facility/[id]/edit" />
     </Stack>
   );
 }

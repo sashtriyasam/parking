@@ -1,29 +1,79 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Dimensions,
+  ActivityIndicator,
+  TouchableOpacity,
+  Platform,
+  StatusBar
+} from 'react-native';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
-import { colors } from '../../constants/colors';
-import { Card } from '../../components/ui/Card';
-import { get } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import Animated, { FadeInUp, FadeInDown, ZoomIn } from 'react-native-reanimated';
+import { get } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
+interface AnalyticsData {
+  revenue: number[];
+  occupancy: number[];
+  vehicles: {
+    name: string;
+    population: number;
+    color: string;
+    legendFontColor: string;
+    legendFontSize: number;
+  }[];
+  revenueGrowth?: string;
+  avgRating?: string;
+}
+
 export default function AnalyticsScreen() {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [isLive, setIsLive] = useState(false);
+  const [isDemoData, setIsDemoData] = useState(false);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
         const res = await get('/provider/analytics');
-        setData(res.data.data);
+        const apiData = res.data.data;
+        
+        // Runtime validation of the data shape
+        const isValid = apiData && 
+                       Array.isArray(apiData.revenue) && 
+                       Array.isArray(apiData.occupancy) && 
+                       Array.isArray(apiData.vehicles);
+
+        if (!isValid) {
+          throw new Error('Invalid analytics data structure');
+        }
+
+        setData(apiData);
+        setIsLive(true);
+        setIsDemoData(false);
       } catch (e) {
         console.error('Error fetching analytics', e);
-        // Fallback to empty state but with proper structure
+        setIsLive(false);
+        setIsDemoData(true);
+        // Realistic fallback for demo/error
         setData({
-          revenue: [0, 0, 0, 0],
-          occupancy: [0, 0, 0],
-          vehicles: []
+          revenue: [1200, 1900, 1500, 2400, 2100, 3200, 2800],
+          occupancy: [40, 60, 85, 95, 75, 45, 30],
+          vehicles: [
+            { name: 'Cars', population: 65, color: '#34d399', legendFontColor: 'rgba(255,255,255,0.6)', legendFontSize: 11 },
+            { name: 'Bikes', population: 25, color: '#38bdf8', legendFontColor: 'rgba(255,255,255,0.6)', legendFontSize: 11 },
+            { name: 'Other', population: 10, color: '#818cf8', legendFontColor: 'rgba(255,255,255,0.6)', legendFontSize: 11 },
+          ],
+          revenueGrowth: '+12.5%',
+          avgRating: '4.9/5.0'
         });
       } finally {
         setLoading(false);
@@ -32,161 +82,331 @@ export default function AnalyticsScreen() {
     fetchAnalytics();
   }, []);
 
-  if (loading) {
+  if (loading || !data) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.loadingHost}>
+        <LinearGradient
+          colors={['#0f1219', '#080a0f']}
+          style={StyleSheet.absoluteFill}
+        />
+        <ActivityIndicator size="small" color="white" />
+        <Text style={styles.loadingText}>Loading insights...</Text>
       </View>
     );
   }
 
   const chartConfig = {
-    backgroundGradientFrom: colors.surface,
-    backgroundGradientTo: colors.surface,
-    color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`,
-    strokeWidth: 2,
-    barPercentage: 0.5,
-    useShadowColorFromDataset: false,
-    labelColor: () => colors.textSecondary,
+    backgroundColor: 'transparent',
+    backgroundGradientFrom: 'transparent',
+    backgroundGradientTo: 'transparent',
+    backgroundGradientFromOpacity: 0,
+    backgroundGradientToOpacity: 0,
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+    labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity * 0.4})`,
+    style: { borderRadius: 24 },
     propsForDots: {
-      r: "6",
-      strokeWidth: "2",
-      stroke: colors.primary
+      r: '4',
+      strokeWidth: '0',
+      fill: 'white',
+    },
+    propsForBackgroundLines: {
+      strokeDasharray: '0',
+      stroke: 'rgba(255, 255, 255, 0.05)',
+    },
+    propsForLabels: {
+      fontSize: 10,
+      fontWeight: '500',
     }
   };
 
+  const blueChartConfig = {
+    ...chartConfig,
+    color: (opacity = 1) => `rgba(56, 189, 248, ${opacity})`,
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <View style={styles.bgWrapper}>
+        <LinearGradient
+          colors={['#0f1219', '#080a0f']}
+          style={StyleSheet.absoluteFill}
+        />
+      </View>
+
       <View style={styles.header}>
-        <Text style={styles.title}>Facility Analytics</Text>
-        <Text style={styles.subtitle}>Insights and performance metrics</Text>
+        <View style={styles.headerContent}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <BlurView intensity={20} tint="dark" style={styles.iconBlur}>
+              <Ionicons name="chevron-back" size={24} color="white" />
+            </BlurView>
+          </TouchableOpacity>
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerSubtitle}>Insights</Text>
+            <Text style={styles.headerTitle}>Analytics Overview</Text>
+          </View>
+          {isLive && (
+            <View style={styles.liveBadge}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>Live</Text>
+            </View>
+          )}
+        </View>
       </View>
 
-      <Card style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Revenue Growth (Last 7 Days)</Text>
-        <LineChart
-          data={{
-            labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-            datasets: [{ data: data.revenue }]
-          }}
-          width={width - 32}
-          height={220}
-          chartConfig={chartConfig}
-          bezier
-          style={styles.chart}
-        />
-      </Card>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {isDemoData && (
+          <Animated.View entering={FadeInDown} style={styles.demoBanner}>
+            <Ionicons name="information-circle" size={16} color="rgba(255, 255, 255, 0.6)" />
+            <Text style={styles.demoText}>Showing offline demo insights</Text>
+          </Animated.View>
+        )}
 
-      <Card style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Peak Occupancy (%)</Text>
-        <BarChart
-          data={{
-            labels: ["8am", "10am", "12pm", "2pm", "4pm", "6pm", "8pm"],
-            datasets: [{ data: data.occupancy }]
-          }}
-          width={width - 32}
-          height={220}
-          chartConfig={chartConfig}
-          yAxisLabel=""
-          yAxisSuffix="%"
-          style={styles.chart}
-          verticalLabelRotation={0}
-        />
-      </Card>
+        <Animated.View entering={FadeInUp.delay(100)} style={styles.section}>
+          <Text style={styles.sectionTitle}>Revenue (Last 7 Days)</Text>
+          <BlurView intensity={15} tint="dark" style={styles.chartCard}>
+            <LineChart
+              data={{
+                labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+                datasets: [{ data: data?.revenue ?? [0, 0, 0, 0, 0, 0, 0] }]
+              }}
+              width={width - 50}
+              height={200}
+              chartConfig={chartConfig}
+              bezier
+              style={styles.chart}
+              withInnerLines={true}
+              withOuterLines={false}
+              withHorizontalLines={true}
+              withVerticalLines={false}
+            />
+          </BlurView>
+        </Animated.View>
 
-      <Card style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Vehicle Distribution</Text>
-        <PieChart
-          data={data.vehicles}
-          width={width - 32}
-          height={200}
-          chartConfig={chartConfig}
-          accessor="population"
-          backgroundColor="transparent"
-          paddingLeft="15"
-          absolute
-        />
-      </Card>
+        <View style={styles.summaryGrid}>
+          <Animated.View entering={ZoomIn.delay(300)} style={styles.summaryItem}>
+            <BlurView intensity={15} tint="dark" style={styles.statCard}>
+              <View style={styles.statIconBox}>
+                <Ionicons name="trending-up" size={16} color="#34d399" />
+              </View>
+              <Text style={styles.statLabel}>Revenue Growth</Text>
+              <Text style={[styles.statValue, { color: '#34d399' }]}>{data.revenueGrowth || '+0%'}</Text>
+            </BlurView>
+          </Animated.View>
+          <Animated.View entering={ZoomIn.delay(400)} style={styles.summaryItem}>
+            <BlurView intensity={15} tint="dark" style={styles.statCard}>
+              <View style={styles.statIconBox}>
+                <Ionicons name="star" size={16} color="#fbbf24" />
+              </View>
+              <Text style={styles.statLabel}>Avg. Rating</Text>
+              <Text style={[styles.statValue, { color: '#fbbf24' }]}>{data.avgRating || '0.0/5.0'}</Text>
+            </BlurView>
+          </Animated.View>
+        </View>
+        
+        <Animated.View entering={FadeInUp.delay(500)} style={styles.section}>
+          <Text style={styles.sectionTitle}>Occupancy Peaks</Text>
+          <BlurView intensity={15} tint="dark" style={styles.chartCard}>
+            <BarChart
+              data={{
+                labels: ["08:00", "12:00", "16:00", "20:00"],
+                datasets: [{ data: data.occupancy?.slice(0, 4) ?? [0, 0, 0, 0] }]
+              }}
+              width={width - 50}
+              height={180}
+              chartConfig={blueChartConfig}
+              yAxisLabel=""
+              yAxisSuffix="%"
+              style={styles.chart}
+              flatColor={true}
+              fromZero={true}
+              showBarTops={false}
+              withInnerLines={false}
+            />
+          </BlurView>
+        </Animated.View>
 
-      <View style={styles.summaryGrid}>
-        <Card style={styles.summaryItem}>
-          <Ionicons name="trending-up" size={24} color={colors.success} />
-          <Text style={styles.summaryValue}>+12.5%</Text>
-          <Text style={styles.summaryLabel}>Weekly Growth</Text>
-        </Card>
-        <Card style={styles.summaryItem}>
-          <Ionicons name="star" size={24} color={colors.warning} />
-          <Text style={styles.summaryValue}>4.8</Text>
-          <Text style={styles.summaryLabel}>Avg Rating</Text>
-        </Card>
-      </View>
+      <Animated.View entering={FadeInDown.delay(600)} style={[styles.section, { marginBottom: 40 }]}>
+        <Text style={styles.sectionTitle}>Vehicle Types</Text>
+        <BlurView intensity={15} tint="dark" style={styles.chartCard}>
+          <PieChart
+            data={(data.vehicles?.length ?? 0) > 0 ? data.vehicles : [
+              { name: 'No data', population: 100, color: 'rgba(255,255,255,0.05)', legendFontColor: 'rgba(255,255,255,0.4)', legendFontSize: 12 }
+            ]}
+            width={width - 50}
+            height={180}
+            chartConfig={chartConfig}
+            accessor="population"
+            backgroundColor="transparent"
+            paddingLeft="15"
+            absolute
+          />
+        </BlurView>
+      </Animated.View>
     </ScrollView>
+    </View >
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#080a0f',
   },
-  content: {
-    padding: 16,
-    paddingTop: 60,
+  bgWrapper: {
+    ...StyleSheet.absoluteFillObject,
   },
-  center: {
+  loadingHost: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: '#080a0f',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'white',
   },
   header: {
-    marginBottom: 24,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(8, 10, 15, 0.8)',
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  chartCard: {
-    padding: 16,
-    marginBottom: 16,
-    backgroundColor: colors.surface,
-    ...colors.shadows.md,
-    borderRadius: 20,
+  backBtn: {
+    borderRadius: 12,
     overflow: 'hidden',
   },
-  chartTitle: {
-    fontSize: 16,
+  iconBlur: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerInfo: {
+    flex: 1,
+    marginLeft: 15,
+  },
+  headerTitle: {
+    fontSize: 20,
     fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 16,
+    color: 'white',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+    marginBottom: 2,
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(52, 211, 153, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#34d399',
+  },
+  liveText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#34d399',
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingTop: 25,
+    paddingBottom: 40,
+  },
+  section: {
+    marginBottom: 25,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: 'white',
+    marginBottom: 15,
+    paddingHorizontal: 4,
+  },
+  chartCard: {
+    borderRadius: 24,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    overflow: 'hidden',
   },
   chart: {
-    marginVertical: 8,
-    borderRadius: 16,
+    marginLeft: -15,
   },
   summaryGrid: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 32,
+    gap: 15,
+    marginBottom: 25,
   },
   summaryItem: {
     flex: 1,
-    padding: 16,
+  },
+  statCard: {
+    padding: 20,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    overflow: 'hidden',
+  },
+  statIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    marginBottom: 12,
   },
-  summaryValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-  },
-  summaryLabel: {
+  statLabel: {
     fontSize: 12,
-    color: colors.textSecondary,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.4)',
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  demoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 20,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  demoText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontWeight: '500',
   }
 });

@@ -345,6 +345,11 @@ const styles = StyleSheet.create({
   notchRight: {
     right: -15,
   },
+  // The conditional borderStyle (Platform.OS === 'android' ? 'solid' : 'dashed') is an 
+  // intentional workaround for a React Native Android rendering limitation where 
+  // borderStyle: 'dashed' does not display correctly. Using 'solid' preserves the 
+  // layout on Android. Consider an SVG-based approach (e.g. react-native-svg) 
+  // for uniform dashed lines if visual parity is required later.
   dashedLine: {
     flex: 1,
     marginHorizontal: 20,
@@ -352,7 +357,7 @@ const styles = StyleSheet.create({
     borderRadius: 1,
     borderWidth: 1,
     borderColor: colors.border,
-    borderStyle: 'dashed',
+    borderStyle: Platform.OS === 'android' ? 'solid' : 'dashed',
   },
   passFooter: {
     padding: 24,

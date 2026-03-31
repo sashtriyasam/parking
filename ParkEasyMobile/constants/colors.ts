@@ -1,43 +1,78 @@
+const PRIMARY_GRADIENT = ['#1C74E9', '#5D2EEF'] as const;
+
+const baseColors = {
+  primary: '#1C74E9',
+  secondary: '#5D2EEF',
+  tertiary: '#00E5FF',
+  background: '#0b0e14',
+  surface: '#161a21',
+  textPrimary: '#ecedf6',
+  textSecondary: '#a9abb3',
+} as const;
+
 export const colors = {
-  // Vibrant Premium Palette
-  primary: '#2563EB',         // Royal Blue
-  primaryDark: '#1D4ED8',
-  primaryLight: '#EFF6FF',
-  secondary: '#7C3AED',       // Modern Violet
+  ...baseColors,
   
-  success: '#10B981',         // Emerald
-  danger: '#EF4444',          // Rose
-  error: '#EF4444',           // Alias for danger
-  warning: '#F59E0B',         // Amber
-  info: '#3B82F6',            // Sky
+  // Kinetic Ether Premium Palette
+  premium: {
+    background: baseColors.background,
+    primary: baseColors.primary,
+    secondary: baseColors.secondary,
+    tertiary: baseColors.tertiary,
+    surface: baseColors.surface,
+    surfaceLight: '#1c2028',
+    surfaceBright: '#282c36',
+    onSurface: baseColors.textPrimary,
+    onSurfaceVariant: baseColors.textSecondary,
+    glass: 'rgba(22, 26, 33, 0.6)',
+    glassBorder: 'rgba(255, 255, 255, 0.1)',
+    neonPulse: PRIMARY_GRADIENT,
+    glow: 'rgba(28, 116, 233, 0.15)',
+    quaternary: '#EC4899',
+    quinary: '#FF3B30',
+  },
+
+  // Vibrant Palette Additions
+  primaryDark: '#005bc1',
+  primaryLight: '#84adff',
+  success: '#10B981',         // Emerald Green
+  danger: '#ff716c',          // Soft Red
+  error: '#ff716c',           
+  warning: '#F59E0B',         
+  info: '#1C74E9',            
+  
+  // Neon Accents
+  // tertiary inherited from baseColors
   
   // Neutral Refinement
-  background: '#F8FAFC',      // Slate 50
-  surface: '#FFFFFF',
-  border: '#E2E8F0',          // Slate 200
-  textPrimary: '#0F172A',     // Slate 900
-  textSecondary: '#475569',   // Slate 600
-  textMuted: '#94A3B8',       // Slate 400
+  border: 'rgba(255, 255, 255, 0.1)',
+  textMuted: '#73757d',
   
   // Glassmorphism & Effects
-  glassSurface: 'rgba(255, 255, 255, 0.7)',
-  glassBorder: 'rgba(255, 255, 255, 0.3)',
-  overlay: 'rgba(0, 0, 0, 0.4)',
+  glassSurface: 'rgba(22, 26, 33, 0.7)',
+  glassBorder: 'rgba(255, 255, 255, 0.1)',
+  overlay: 'rgba(0, 0, 0, 0.6)',
+
+  // Tab Bar Theme
+  tabBarBg: 'rgba(15, 18, 25, 0.75)',
+  tabBarBorder: 'rgba(255, 255, 255, 0.08)',
+  tabBarInactive: 'rgba(255, 255, 255, 0.4)',
   
   gradients: {
-    primary: ['#2563EB', '#3B82F6'],
-    premium: ['#4F46E5', '#2563EB'], // Deep Indigo to Primary Blue
-    success: ['#10B981', '#34D399'],
+    primary: PRIMARY_GRADIENT,
+    premium: PRIMARY_GRADIENT,
+    success: ['#10B981', '#059669'],
     warning: ['#F59E0B', '#FBBF24'],
-    danger: ['#EF4444', '#F87171'],
-    glass: ['rgba(255, 255, 255, 0.8)', 'rgba(255, 255, 255, 0.4)'],
+    danger: ['#ff716c', '#d7383b'],
+    glass: ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.02)'],
+    dark: ['#0b0e14', '#161a21'],
   },
   
   shadows: {
-    sm: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
-    md: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 3 },
-    lg: { shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 6 },
-    premium: { shadowColor: '#2563EB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 8 },
+    sm: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2, elevation: 1 },
+    md: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 3 },
+    lg: { shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.4, shadowRadius: 20, elevation: 6 },
+    premium: { shadowColor: '#1C74E9', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 8 },
   }
 } as const;
 

@@ -1,24 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, TextInput, Alert, Platform, Dimensions } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  FlatList, 
+  TouchableOpacity, 
+  Modal, 
+  TextInput, 
+  Alert, 
+  Platform, 
+  Dimensions,
+  StatusBar,
+  KeyboardAvoidingView,
+  ScrollView
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, Layout } from 'react-native-reanimated';
+import Animated, { 
+  FadeInDown, 
+  Layout, 
+  SlideInUp, 
+  ZoomIn,
+  FadeIn
+} from 'react-native-reanimated';
 import { colors } from '../../constants/colors';
-import { GlassCard } from '../../components/ui/GlassCard';
-import { Button } from '../../components/ui/Button';
 import { Skeleton } from '../../components/ui/SkeletonLoader';
+import { EmptyState } from '../../components/EmptyState';
 import { get, post, del } from '../../services/api';
 import { Vehicle, VehicleType } from '../../types';
 
-const { width } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 const VEHICLE_TYPES: { type: VehicleType; icon: any; label: string }[] = [
-  { type: 'car', icon: 'car', label: 'Car' },
-  { type: 'bike', icon: 'bicycle', label: 'Bike' },
-  { type: 'scooter', icon: 'moped', label: 'Scooter' },
-  { type: 'truck', icon: 'bus', label: 'Other' },
+  { type: 'car', icon: 'car', label: 'CAR' },
+  { type: 'bike', icon: 'bicycle', label: 'BIKE' },
+  { type: 'scooter', icon: 'moped', label: 'SCOOTER' },
+  { type: 'truck', icon: 'bus', label: 'OTHER' },
 ];
+
+const INITIAL_VEHICLE_STATE = {
+  vehicle_number: '',
+  vehicle_type: 'car' as VehicleType,
+  nickname: '',
+};
 
 export default function VehiclesScreen() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -26,11 +51,12 @@ export default function VehiclesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [newVehicle, setNewVehicle] = useState({
-    vehicle_number: '',
-    vehicle_type: 'car' as VehicleType,
-    nickname: '',
-  });
+  const [newVehicle, setNewVehicle] = useState(INITIAL_VEHICLE_STATE);
+
+  const handleCloseModal = () => {
+    setModalVisible(false);
+    setNewVehicle(INITIAL_VEHICLE_STATE);
+  };
 
   const fetchVehicles = async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -53,18 +79,17 @@ export default function VehiclesScreen() {
 
   const handleAddVehicle = async () => {
     if (!newVehicle.vehicle_number) {
-      Alert.alert('Incomplete Info', 'Please provide a vehicle plate number.');
+      Alert.alert('LINKAGE FAILED', 'Please provide a valid vehicle plate identifier.');
       return;
     }
     
     setIsSubmitting(true);
     try {
       await post('/customer/vehicles', newVehicle);
-      setModalVisible(false);
-      setNewVehicle({ vehicle_number: '', vehicle_type: 'car', nickname: '' });
+      handleCloseModal();
       fetchVehicles(false);
     } catch (e: any) {
-      Alert.alert('Error', e.response?.data?.message || 'Failed to add vehicle. Please try again.');
+      Alert.alert('SYSTEM ERROR', e.response?.data?.message || 'Failed to sync vehicle data.');
     } finally {
       setIsSubmitting(false);
     }
@@ -72,19 +97,19 @@ export default function VehiclesScreen() {
 
   const handleDeleteVehicle = (id: string) => {
     Alert.alert(
-      'Remove Vehicle', 
-      'Are you sure you want to remove this vehicle from your account?', 
+      'DEACTIVATE NODE', 
+      'Confirm permanent removal of this vehicle signature?', 
       [
-        { text: 'Keep It', style: 'cancel' },
+        { text: 'CANCEL', style: 'cancel' },
         { 
-          text: 'Remove', 
+          text: 'REMOVE', 
           style: 'destructive', 
           onPress: async () => {
             try {
               await del(`/customer/vehicles/${id}`);
               fetchVehicles(false);
             } catch (e) {
-              Alert.alert('Error', 'Failed to remove vehicle.');
+              Alert.alert('ERROR', 'Deactivation failed.');
             }
           }
         }
@@ -94,16 +119,23 @@ export default function VehiclesScreen() {
 
   const renderVehicle = ({ item, index }: { item: Vehicle; index: number }) => (
     <Animated.View 
-      entering={FadeInDown.delay(index * 100).springify()}
+      entering={FadeInDown.delay(index * 100).springify().damping(12)}
       layout={Layout.springify()}
     >
-      <GlassCard style={styles.vehicleCard} intensity={40}>
-        <View style={[styles.vehicleIconBox, { backgroundColor: colors.primary + '15' }]}>
+      <BlurView intensity={20} tint="dark" style={styles.vehicleCard}>
+        <LinearGradient
+          colors={[colors.premium.primary + '10', 'transparent']}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+        <View style={styles.vehicleIconBox}>
           <Ionicons 
             name={(VEHICLE_TYPES.find(t => t.type === item.vehicle_type)?.icon || 'car') as any} 
-            size={28} 
-            color={colors.primary} 
+            size={24} 
+            color={colors.premium.primary} 
           />
+          <View style={styles.iconGlow} />
         </View>
         <View style={styles.vehicleDetails}>
           <Text style={styles.vehiclePlate}>{item.vehicle_number.toUpperCase()}</Text>
@@ -114,22 +146,37 @@ export default function VehiclesScreen() {
           style={styles.deleteBtn}
           activeOpacity={0.7}
         >
-          <Ionicons name="trash-outline" size={20} color={colors.danger} />
+          <Ionicons name="trash-outline" size={18} color="rgba(255, 107, 107, 0.6)" />
         </TouchableOpacity>
-      </GlassCard>
+      </BlurView>
     </Animated.View>
   );
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>My Garage</Text>
-        <Text style={styles.subtitle}>Save your vehicles for a faster booking experience</Text>
+      <StatusBar barStyle="light-content" />
+      
+      {/* Immersive Background */}
+      <View style={styles.bgWrapper}>
+        <LinearGradient
+          colors={['#080a0f', '#020617']}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={[styles.glowPoint, { top: '30%', right: '-20%', backgroundColor: colors.premium.secondary, opacity: 0.1 }]} />
       </View>
+
+      <Animated.View entering={SlideInUp.duration(600)} style={styles.header}>
+        <BlurView intensity={30} tint="dark" style={styles.headerContent}>
+          <View>
+            <Text style={styles.headerLabel}>CORE STORAGE</Text>
+            <Text style={styles.headerTitle}>SYSTEM GARAGE</Text>
+          </View>
+        </BlurView>
+      </Animated.View>
 
       {loading ? (
         <View style={styles.list}>
-          {[1, 2, 3].map(i => (
+          {[1, 2, 3, 4].map(i => (
             <Skeleton key={i} width="100%" height={90} borderRadius={24} style={{ marginBottom: 16 }} />
           ))}
         </View>
@@ -143,88 +190,133 @@ export default function VehiclesScreen() {
           onRefresh={() => fetchVehicles(false)}
           refreshing={refreshing}
           ListEmptyComponent={
-            <Animated.View entering={FadeInDown} style={styles.empty}>
-              <View style={styles.emptyIconCircle}>
-                <Ionicons name="car-outline" size={60} color={colors.textMuted} />
-              </View>
-              <Text style={styles.emptyText}>Your garage is empty</Text>
-              <Text style={styles.emptySub}>Add a vehicle to get started with seamless parking</Text>
+            <Animated.View entering={FadeIn.delay(400)}>
+              <EmptyState
+                icon="car-outline"
+                title="GARAGE EMPTY"
+                subtitle="Initialize your first vehicle node to begin proximity-based parking operations."
+                actionLabel="REGISTER NODE"
+                onAction={() => setModalVisible(true)}
+              />
             </Animated.View>
           }
         />
       )}
 
-      <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.fabContainer}>
-        <Button 
-          label="Add New Vehicle" 
-          onPress={() => setModalVisible(true)} 
-          variant="primary"
-          icon="add"
-          style={styles.addBtn}
-        />
-      </Animated.View>
+      {!modalVisible && (
+        <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.fabContainer}>
+          <TouchableOpacity 
+            style={styles.fabBtn} 
+            onPress={() => setModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={[colors.premium.primary, colors.premium.secondary]}
+              style={styles.fabGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Ionicons name="add" size={24} color="white" />
+              <Text style={styles.fabText}>REGISTER NEW NODE</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
-      <Modal visible={modalVisible} animationType="fade" transparent onRequestClose={() => setModalVisible(false)}>
-        <BlurView intensity={30} tint="dark" style={styles.modalOverlay}>
-          <Animated.View entering={FadeInDown.springify()} style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New Vehicle</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
-                <Ionicons name="close" size={24} color={colors.textPrimary} />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>PLATE NUMBER</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="MH12AB1234"
-                placeholderTextColor={colors.textMuted}
-                value={newVehicle.vehicle_number}
-                onChangeText={(text) => setNewVehicle({...newVehicle, vehicle_number: text.toUpperCase()})}
-                autoCapitalize="characters"
-              />
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>NICKNAME (OPTIONAL)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="My Awesome Car"
-                placeholderTextColor={colors.textMuted}
-                value={newVehicle.nickname}
-                onChangeText={(text) => setNewVehicle({...newVehicle, nickname: text})}
-              />
-            </View>
-
-            <Text style={styles.inputLabel}>VEHICLE TYPE</Text>
-            <View style={styles.typeGrid}>
-              {VEHICLE_TYPES.map((v) => (
-                <TouchableOpacity 
-                  key={v.type}
-                  style={[styles.typeOption, newVehicle.vehicle_type === v.type && styles.typeOptionActive]}
-                  onPress={() => setNewVehicle({...newVehicle, vehicle_type: v.type})}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons 
-                    name={v.icon} 
-                    size={22} 
-                    color={newVehicle.vehicle_type === v.type ? 'white' : colors.textSecondary} 
-                  />
-                  <Text style={[styles.typeLabel, newVehicle.vehicle_type === v.type && styles.typeLabelActive]}>
-                    {v.label}
-                  </Text>
+      <Modal visible={modalVisible} animationType="fade" transparent onRequestClose={handleCloseModal}>
+        <BlurView intensity={60} tint="dark" style={styles.modalOverlay}>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+            style={{ flex: 1, justifyContent: 'flex-end' }}
+          >
+            <Animated.View entering={SlideInUp.springify().damping(15)} style={styles.modalContent}>
+              <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+              
+              <View style={styles.modalHeader}>
+                <View>
+                  <Text style={styles.modalLabel}>NODE INITIALIZATION</Text>
+                  <Text style={styles.modalTitle}>LINK VEHICLE</Text>
+                </View>
+                <TouchableOpacity onPress={handleCloseModal} style={styles.closeBtn}>
+                  <Ionicons name="close" size={24} color="white" />
                 </TouchableOpacity>
-              ))}
-            </View>
+              </View>
+              
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>PLATE IDENTIFIER</Text>
+                  <BlurView intensity={10} tint="light" style={styles.inputWrapper}>
+                    <Ionicons name="barcode-outline" size={20} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="MH12AB1234"
+                      placeholderTextColor="rgba(255,255,255,0.2)"
+                      value={newVehicle.vehicle_number}
+                      onChangeText={(text) => setNewVehicle({...newVehicle, vehicle_number: text.toUpperCase()})}
+                      autoCapitalize="characters"
+                    />
+                  </BlurView>
+                </View>
+                
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>SYSTEM ALIAS (OPTIONAL)</Text>
+                  <BlurView intensity={10} tint="light" style={styles.inputWrapper}>
+                    <Ionicons name="bookmark-outline" size={20} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="e.g. INTERCEPTOR"
+                      placeholderTextColor="rgba(255,255,255,0.2)"
+                      value={newVehicle.nickname}
+                      onChangeText={(text) => setNewVehicle({...newVehicle, nickname: text})}
+                    />
+                  </BlurView>
+                </View>
 
-            <Button 
-              label={isSubmitting ? "Saving..." : "Save Vehicle"} 
-              onPress={handleAddVehicle} 
-              loading={isSubmitting}
-              style={styles.saveBtn}
-            />
-          </Animated.View>
+                <Text style={styles.inputLabel}>CHASSIS CLASSIFICATION</Text>
+                <View style={styles.typeGrid}>
+                  {VEHICLE_TYPES.map((v) => (
+                    <TouchableOpacity 
+                      key={v.type}
+                      style={[styles.typeOption, newVehicle.vehicle_type === v.type && styles.typeOptionActive]}
+                      onPress={() => setNewVehicle({...newVehicle, vehicle_type: v.type})}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons 
+                        name={v.icon} 
+                        size={20} 
+                        color={newVehicle.vehicle_type === v.type ? 'white' : 'rgba(255,255,255,0.3)'} 
+                      />
+                      <Text style={[styles.typeLabel, newVehicle.vehicle_type === v.type && styles.typeLabelActive]}>
+                        {v.label}
+                      </Text>
+                      {newVehicle.vehicle_type === v.type && (
+                        <Animated.View entering={ZoomIn} style={styles.typeOptionGlow} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TouchableOpacity 
+                  style={[styles.saveBtn, isSubmitting && styles.saveBtnDisabled]} 
+                  onPress={handleAddVehicle}
+                  disabled={isSubmitting}
+                >
+                  <LinearGradient
+                    colors={isSubmitting ? ['#1e293b', '#0f172a'] : [colors.premium.primary, colors.premium.secondary]}
+                    style={styles.saveBtnGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Text style={styles.saveBtnText}>
+                      {isSubmitting ? "SYNCING..." : "INITIALIZE NODE"}
+                    </Text>
+                    {!isSubmitting && <Ionicons name="arrow-forward" size={18} color="white" />}
+                  </LinearGradient>
+                </TouchableOpacity>
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            </Animated.View>
+          </KeyboardAvoidingView>
         </BlurView>
       </Modal>
     </View>
@@ -234,32 +326,50 @@ export default function VehiclesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#080a0f',
+  },
+  bgWrapper: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  glowPoint: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 80 : 60,
+    zIndex: 100,
+  },
+  headerContent: {
+    paddingTop: Platform.OS === 'ios' ? 70 : 50,
+    paddingBottom: 24,
     paddingHorizontal: 24,
-    paddingBottom: 32,
-    backgroundColor: 'white',
+    alignItems: 'center',
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
-    ...colors.shadows.sm,
+    overflow: 'hidden',
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
-  title: {
-    fontSize: 32,
+  headerLabel: {
+    fontSize: 9,
     fontWeight: '900',
-    color: colors.textPrimary,
-    letterSpacing: -1,
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 2,
+    textAlign: 'center',
   },
-  subtitle: {
+  headerTitle: {
     fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '500',
-    marginTop: 6,
-    lineHeight: 20,
+    fontWeight: '900',
+    color: 'white',
+    letterSpacing: 3,
+    marginTop: 4,
+    textAlign: 'center',
   },
   list: {
-    padding: 24,
+    padding: 20,
+    paddingTop: 30,
     paddingBottom: 150,
   },
   vehicleCard: {
@@ -267,17 +377,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     marginBottom: 16,
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.05)',
+    overflow: 'hidden',
   },
   vehicleIconBox: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.03)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+    position: 'relative',
+  },
+  iconGlow: {
+    position: 'absolute',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.premium.primary,
+    opacity: 0.15,
+    // iOS shadow for glow
+    shadowColor: colors.premium.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    // Android elevation
+    elevation: 2,
   },
   vehicleDetails: {
     flex: 1,
@@ -285,92 +413,90 @@ const styles = StyleSheet.create({
   vehiclePlate: {
     fontSize: 18,
     fontWeight: '900',
-    color: colors.textPrimary,
-    letterSpacing: 0.5,
+    color: 'white',
+    letterSpacing: 1,
   },
   vehicleType: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontWeight: '700',
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.4)',
+    fontWeight: '800',
     textTransform: 'uppercase',
     marginTop: 4,
+    letterSpacing: 1,
   },
   deleteBtn: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: colors.danger + '10',
+    backgroundColor: 'rgba(255, 107, 107, 0.05)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.1)',
   },
   fabContainer: {
     position: 'absolute',
     bottom: 40,
-    left: 24,
-    right: 24,
+    left: 20,
+    right: 20,
   },
-  addBtn: {
-    borderRadius: 20,
-    height: 60,
-    ...colors.shadows.md,
+  fabBtn: {
+    borderRadius: 22,
+    overflow: 'hidden',
+    height: 64,
   },
-  empty: {
+  fabGradient: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 80,
-    paddingHorizontal: 40,
+    gap: 12,
   },
-  emptyIconCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  emptyText: {
-    fontSize: 20,
+  fabText: {
+    color: 'white',
     fontWeight: '900',
-    color: colors.textPrimary,
-    marginBottom: 8,
-  },
-  emptySub: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    fontWeight: '500',
+    fontSize: 12,
+    letterSpacing: 2,
   },
   modalOverlay: {
     flex: 1,
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.8)',
   },
   modalContent: {
-    backgroundColor: 'white',
+    backgroundColor: '#080a0f',
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
     padding: 32,
-    paddingTop: 24,
-    ...colors.shadows.lg,
+    paddingTop: 32,
+    borderTopWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    maxHeight: height * 0.8,
+    overflow: 'hidden',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 32,
+    alignItems: 'flex-start',
+    marginBottom: 40,
+  },
+  modalLabel: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 2,
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: '900',
-    color: colors.textPrimary,
+    color: 'white',
     letterSpacing: -0.5,
+    marginTop: 4,
   },
   closeBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.background,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -378,52 +504,97 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   inputLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '900',
-    color: colors.textMuted,
+    color: 'rgba(255,255,255,0.3)',
     letterSpacing: 1.5,
-    marginBottom: 10,
+    marginBottom: 12,
     marginLeft: 4,
   },
-  input: {
-    backgroundColor: colors.primaryLight,
-    padding: 18,
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: 20,
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  inputIcon: {
+    marginLeft: 20,
+  },
+  input: {
+    flex: 1,
+    padding: 18,
+    paddingLeft: 12,
+    fontSize: 15,
+    fontWeight: '700',
+    color: 'white',
   },
   typeGrid: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 32,
+    marginBottom: 40,
   },
   typeOption: {
     flex: 1,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: colors.primaryLight,
+    height: 90,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.03)',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: 'rgba(255,255,255,0.05)',
+    position: 'relative',
+    overflow: 'hidden',
   },
   typeOptionActive: {
-    backgroundColor: colors.primary,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: colors.premium.primary + '50',
+  },
+  typeOptionGlow: {
+    position: 'absolute',
+    bottom: -10,
+    width: '100%',
+    height: 20,
+    backgroundColor: colors.premium.primary,
+    opacity: 0.2,
+    // iOS shadow for glow
+    shadowColor: colors.premium.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
+    // Android elevation
+    elevation: 3,
   },
   typeLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: colors.textSecondary,
+    fontSize: 8,
+    fontWeight: '900',
+    color: 'rgba(255,255,255,0.3)',
+    letterSpacing: 1,
   },
   typeLabelActive: {
     color: 'white',
   },
   saveBtn: {
-    height: 60,
-    borderRadius: 20,
+    borderRadius: 22,
+    overflow: 'hidden',
+    height: 64,
+  },
+  saveBtnDisabled: {
+    opacity: 0.6,
+  },
+  saveBtnGradient: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  saveBtnText: {
+    color: 'white',
+    fontWeight: '900',
+    fontSize: 13,
+    letterSpacing: 2,
   }
 });

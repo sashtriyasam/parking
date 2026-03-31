@@ -26,13 +26,26 @@ import Animated, {
   ZoomIn,
   SlideInUp
 } from 'react-native-reanimated';
-import { colors } from '../../../constants/colors';
 import { post } from '../../../services/api';
-import { GlassCard } from '../../../components/ui/GlassCard';
 import { useToast } from '../../../components/Toast';
 
 const { width, height } = Dimensions.get('window');
 const scanAreaSize = width * 0.75;
+
+const COLORS = {
+  background: 'black',
+  text: 'white',
+  success: '#34d399',
+  warn: '#fbbf24',
+  danger: '#f87171',
+  overlay: 'rgba(8, 10, 15, 0.4)',
+  muted: 'rgba(255, 255, 255, 0.6)',
+  subtext: 'rgba(255, 255, 255, 0.7)',
+  quiet: 'rgba(255, 255, 255, 0.4)',
+  subtle: 'rgba(255, 255, 255, 0.05)',
+  border: 'rgba(255, 255, 255, 0.1)',
+  black: '#000000',
+};
 
 export default function QRScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -52,8 +65,8 @@ export default function QRScannerScreen() {
     
     scanLineY.value = withRepeat(
       withSequence(
-        withTiming(scanAreaSize, { duration: 1500, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0, { duration: 1500, easing: Easing.inOut(Easing.quad) })
+        withTiming(scanAreaSize, { duration: 2000, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.quad) })
       ),
       -1,
       true
@@ -66,23 +79,30 @@ export default function QRScannerScreen() {
 
   const animatedLineStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: scanLineY.value }],
-    opacity: withTiming(scanned ? 0 : 1, { duration: 200 }),
+    opacity: withTiming(scanned ? 0 : 0.8, { duration: 200 }),
   }));
 
   if (!permission || !permission.granted) {
     return (
-      <View style={styles.center}>
-        <LinearGradient
-          colors={[colors.primary, colors.primaryDark]}
-          style={styles.permissionIcon}
-        >
-          <Ionicons name="camera" size={40} color="white" />
-        </LinearGradient>
-        <Text style={styles.permissionTitle}>Camera Access Required</Text>
-        <Text style={styles.permissionSub}>We need your permission to scan entry and exit QR codes at the gate.</Text>
-        <TouchableOpacity style={styles.grantBtn} onPress={requestPermission}>
-          <Text style={styles.grantBtnText}>Grant Access</Text>
-        </TouchableOpacity>
+      <View style={styles.permissionContainer}>
+        <View style={styles.bgWrapper}>
+          <LinearGradient
+            colors={['#0f1219', '#080a0f']}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
+        <Animated.View entering={ZoomIn} style={styles.permissionCard}>
+          <View style={styles.permissionIconContainer}>
+            <Ionicons name="camera" size={40} color={COLORS.text} />
+          </View>
+          <Text style={styles.permissionTitle}>Camera Access Required</Text>
+          <Text style={styles.permissionSub}>
+            Please grant camera access to scan customer checkout QR codes.
+          </Text>
+          <TouchableOpacity style={styles.grantBtn} onPress={requestPermission}>
+            <Text style={styles.grantBtnText}>Grant Permission</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     );
   }
@@ -106,13 +126,13 @@ export default function QRScannerScreen() {
       if (ticketData?.payment_status === 'PENDING') {
         setResult({
           status: 'warning',
-          message: `Check-out recorded, but PAYMENT PENDING. Collect ₹${ticketData.total_fee} cash.`,
+          message: `Payment Pending. Please collect ₹${ticketData.total_fee} from the customer.`,
           data: ticketData
         });
       } else {
         const successMsg = ticketData?.slot?.slot_number 
-          ? `Exit Authorized! Gate opened for slot ${ticketData.slot.slot_number}`
-          : 'Exit Authorized! Checkout complete.';
+          ? `Checkout verified for Slot ${ticketData.slot.slot_number}.`
+          : 'Checkout verified successfully.';
           
         setResult({
           status: 'success',
@@ -123,14 +143,14 @@ export default function QRScannerScreen() {
     } catch (error: any) {
       setResult({
         status: 'error',
-        message: error.response?.data?.message || 'Invalid or Expired QR Code.'
+        message: error.response?.data?.message || 'Invalid or expired QR code.'
       });
       Vibration.vibrate(200);
     } finally {
       setLoading(false);
       resetTimer.current = setTimeout(() => {
         handleReset();
-      }, 5000);
+      }, 10000);
     }
   };
 
@@ -139,14 +159,6 @@ export default function QRScannerScreen() {
     setResult(null);
     setLoading(false);
     if (resetTimer.current) clearTimeout(resetTimer.current);
-  };
-
-  const handleToggleFlashlight = () => {
-    setTorchEnabled(prev => !prev);
-  };
-
-  const handleOpenManualEntry = () => {
-    showToast('Manual Entry: Coming soon', 'info');
   };
 
   return (
@@ -158,97 +170,79 @@ export default function QRScannerScreen() {
         enableTorch={torchEnabled}
       >
         <View style={styles.overlay}>
-          {/* Header Bar */}
-          <BlurView intensity={20} tint="dark" style={styles.header}>
-            <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
-              <Ionicons name="close" size={24} color="white" />
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+              <BlurView intensity={30} tint="dark" style={styles.backBlur}>
+                <Ionicons name="chevron-back" size={24} color={COLORS.text} />
+              </BlurView>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>GATE SCANNER</Text>
-            <View style={{ width: 44 }} />
-          </BlurView>
+            
+            <View style={styles.headerInfo}>
+              <Text style={styles.headerText}>Exit Scanner</Text>
+              <Text style={styles.headerSubtext}>Scan checkout QR code</Text>
+            </View>
 
-          <View style={styles.scanContent}>
-            <View style={styles.finderWrapper}>
-              <View style={[styles.finder, result ? styles.finderInactive : null]}>
-                <View style={[styles.corner, styles.topLeft]} />
-                <View style={[styles.corner, styles.topRight]} />
-                <View style={[styles.corner, styles.bottomLeft]} />
-                <View style={[styles.corner, styles.bottomRight]} />
-                
+            <TouchableOpacity 
+              style={[styles.torchBtn, torchEnabled && styles.torchActive]} 
+              onPress={() => setTorchEnabled(!torchEnabled)}
+            >
+              <BlurView intensity={30} tint="dark" style={styles.backBlur}>
+                <Ionicons name={torchEnabled ? "flashlight" : "flashlight-outline"} size={22} color={COLORS.text} />
+              </BlurView>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.scanArea}>
+            <View style={styles.frameContainer}>
+              <View style={[styles.corner, styles.tl]} />
+              <View style={[styles.corner, styles.tr]} />
+              <View style={[styles.corner, styles.bl]} />
+              <View style={[styles.corner, styles.br]} />
+
+              {!scanned && (
                 <Animated.View style={[styles.scanLine, animatedLineStyle]} />
-                
-                {loading && (
-                  <View style={styles.loadingBox}>
-                    <ActivityIndicator size="large" color="white" />
-                    <Text style={styles.loadingText}>AUTHORIZING...</Text>
-                  </View>
-                )}
-              </View>
+              )}
+
+              {loading && (
+                <BlurView intensity={60} tint="dark" style={styles.stateOverlay}>
+                  <ActivityIndicator size="large" color={COLORS.text} />
+                  <Text style={styles.stateText}>Processing...</Text>
+                </BlurView>
+              )}
 
               {result && (
-                <Animated.View entering={ZoomIn.duration(400)} style={styles.resultContainer}>
-                  <GlassCard 
-                    style={[
-                      styles.resultCard, 
-                      result.status === 'success' ? styles.borderSuccess : 
-                      result.status === 'warning' ? styles.borderWarning : styles.borderError
-                    ]} 
-                    intensity={40}
-                  >
+                <Animated.View entering={ZoomIn} style={styles.stateOverlay}>
+                  <BlurView intensity={90} tint="dark" style={styles.resultCard}>
                     <View style={[
-                      styles.statusIconBox, 
-                      { backgroundColor: result.status === 'success' ? colors.success : 
-                        result.status === 'warning' ? colors.warning : colors.danger }
+                      styles.resultIcon, 
+                      { backgroundColor: result.status === 'success' ? COLORS.success : result.status === 'warning' ? COLORS.warn : COLORS.danger }
                     ]}>
                       <Ionicons 
                         name={result.status === 'success' ? 'checkmark' : result.status === 'warning' ? 'alert' : 'close'} 
-                        size={40} 
-                        color="white" 
+                        size={32} 
+                        color={COLORS.black} 
                       />
                     </View>
-                    <Text style={styles.resultStatusTitle}>
-                      {result.status === 'success' ? 'AUTHORIZED' : result.status === 'warning' ? 'ACTION REQ.' : 'DENIED'}
+                    <Text style={styles.resultTitle}>
+                      {result.status === 'success' ? 'Verified' : result.status === 'warning' ? 'Action Needed' : 'Error'}
                     </Text>
-                    <Text style={styles.resultMsg}>{result.message}</Text>
+                    <Text style={styles.resultBody}>{result.message}</Text>
                     
-                    <TouchableOpacity style={styles.resetDirect} onPress={handleReset}>
-                      <Text style={styles.resetDirectText}>READY FOR NEXT</Text>
+                    <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
+                      <Text style={styles.resetBtnText}>Scan Again</Text>
                     </TouchableOpacity>
-                  </GlassCard>
+                  </BlurView>
                 </Animated.View>
               )}
             </View>
-
-            {!result && (
-              <Animated.View entering={FadeIn.delay(500)} style={styles.hintBox}>
-                <Ionicons name="scan-circle" size={20} color="white" />
-                <Text style={styles.hintText}>Position QR code within frame</Text>
-              </Animated.View>
-            )}
           </View>
 
           <View style={styles.footer}>
-            <TouchableOpacity 
-              style={styles.flashlightBtn} 
-              activeOpacity={0.7}
-              onPress={handleToggleFlashlight}
-            >
-              <BlurView intensity={30} tint="light" style={[styles.flashIconBox, torchEnabled && { backgroundColor: 'rgba(255,255,255,0.4)' }]}>
-                <Ionicons name={torchEnabled ? "flashlight" : "flashlight-outline"} size={24} color="white" />
-              </BlurView>
-              <Text style={styles.footerLabel}>Flashlight</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.manualEntryBtn} 
-              activeOpacity={0.7}
-              onPress={handleOpenManualEntry}
-            >
-              <BlurView intensity={30} tint="light" style={styles.manualIconBox}>
-                <Ionicons name="keypad" size={24} color="white" />
-              </BlurView>
-              <Text style={styles.footerLabel}>Enter ID</Text>
-            </TouchableOpacity>
+            {!result && !loading && (
+              <Animated.View entering={FadeIn} style={styles.helpBox}>
+                <Text style={styles.helpText}>Center the QR code within the frame</Text>
+              </Animated.View>
+            )}
           </View>
         </View>
       </CameraView>
@@ -259,254 +253,201 @@ export default function QRScannerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: COLORS.background,
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: COLORS.overlay,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 20,
     paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  closeBtn: {
+  backBtn: {
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  backBlur: {
     width: 44,
     height: 44,
-    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 2,
+  headerInfo: {
+    alignItems: 'center',
   },
-  scanContent: {
+  headerText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  headerSubtext: {
+    fontSize: 12,
+    color: COLORS.muted,
+    marginTop: 2,
+  },
+  torchBtn: {
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  torchActive: {
+    backgroundColor: COLORS.success,
+  },
+  scanArea: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  finderWrapper: {
+  frameContainer: {
     width: scanAreaSize,
     height: scanAreaSize,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  finder: {
-    width: '100%',
-    height: '100%',
     position: 'relative',
-    borderRadius: 40,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  finderInactive: {
-    opacity: 0.2,
   },
   corner: {
     position: 'absolute',
-    width: 40,
-    height: 40,
-    borderColor: colors.primary,
-    borderWidth: 6,
-    zIndex: 10,
+    width: 30,
+    height: 30,
+    borderColor: COLORS.text,
+    borderWidth: 3,
   },
-  topLeft: { top: 0, left: 0, borderBottomWidth: 0, borderRightWidth: 0, borderTopLeftRadius: 30 },
-  topRight: { top: 0, right: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderTopRightRadius: 30 },
-  bottomLeft: { bottom: 0, left: 0, borderTopWidth: 0, borderRightWidth: 0, borderBottomLeftRadius: 30 },
-  bottomRight: { bottom: 0, right: 0, borderTopWidth: 0, borderLeftWidth: 0, borderBottomRightRadius: 30 },
-  
+  tl: { top: 0, left: 0, borderBottomWidth: 0, borderRightWidth: 0, borderTopLeftRadius: 12 },
+  tr: { top: 0, right: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderTopRightRadius: 12 },
+  bl: { bottom: 0, left: 0, borderTopWidth: 0, borderRightWidth: 0, borderBottomLeftRadius: 12 },
+  br: { bottom: 0, right: 0, borderTopWidth: 0, borderLeftWidth: 0, borderBottomRightRadius: 12 },
   scanLine: {
     width: '100%',
-    height: 4,
-    backgroundColor: colors.primary,
+    height: 2,
+    backgroundColor: COLORS.text,
     position: 'absolute',
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 15,
-      },
-      android: {
-        elevation: 20,
-      }
-    }),
+    shadowColor: COLORS.text,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 10,
   },
-  loadingBox: {
+  stateOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
+    borderRadius: 20,
+    overflow: 'hidden',
+    zIndex: 50,
   },
-  loadingText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  resultContainer: {
-    position: 'absolute',
-    width: width * 0.85,
-    zIndex: 100,
+  stateText: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 15,
   },
   resultCard: {
-    borderRadius: 32,
-    padding: 32,
+    width: '100%',
+    height: '100%',
+    padding: 24,
     alignItems: 'center',
-    borderWidth: 2,
+    justifyContent: 'center',
   },
-  statusIconBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  resultIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
-    elevation: 10,
-    shadowColor: 'black',
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
   },
-  resultStatusTitle: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: '900',
-    letterSpacing: 3,
-    marginBottom: 12,
+  resultTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 10,
   },
-  resultMsg: {
-    color: 'white',
+  resultBody: {
+    fontSize: 15,
+    color: COLORS.subtext,
     textAlign: 'center',
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '600',
-    opacity: 0.9,
-    marginBottom: 24,
+    lineHeight: 22,
+    marginBottom: 30,
   },
-  borderSuccess: { borderColor: colors.success },
-  borderWarning: { borderColor: colors.warning },
-  borderError: { borderColor: colors.danger },
-  
-  resetDirect: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  resetBtn: {
+    backgroundColor: COLORS.text,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 14,
   },
-  resetDirectText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 1,
+  resetBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.black,
   },
-  hintBox: {
-    flexDirection: 'row',
+  footer: {
+    paddingBottom: 80,
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  helpBox: {
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 20,
-    marginTop: 40,
-  },
-  hintText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 40,
-    paddingBottom: 80,
-  },
-  flashlightBtn: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  manualEntryBtn: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  flashIconBox: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    overflow: 'hidden',
+    borderColor: COLORS.border,
   },
-  manualIconBox: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    overflow: 'hidden',
+  helpText: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '500',
   },
-  footerLabel: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '800',
-    opacity: 0.7,
-  },
-  center: {
+  permissionContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
-    padding: 40,
+    justifyContent: 'center',
+    padding: 30,
   },
-  permissionIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  bgWrapper: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  permissionCard: {
+    width: '100%',
+    backgroundColor: COLORS.subtle,
+    borderRadius: 32,
+    padding: 40,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  permissionIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 25,
+    backgroundColor: COLORS.subtle,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 32,
-    elevation: 8,
+    marginBottom: 25,
   },
   permissionTitle: {
     fontSize: 24,
-    fontWeight: '900',
-    color: colors.textPrimary,
+    fontWeight: '700',
+    color: COLORS.text,
     marginBottom: 12,
-    textAlign: 'center',
   },
   permissionSub: {
-    fontSize: 16,
-    color: colors.textSecondary,
+    fontSize: 15,
+    color: COLORS.quiet,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 40,
+    lineHeight: 22,
+    marginBottom: 35,
   },
   grantBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 20,
     width: '100%',
+    backgroundColor: COLORS.text,
+    paddingVertical: 16,
+    borderRadius: 16,
     alignItems: 'center',
-    elevation: 4,
   },
   grantBtnText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '900',
-  }
+    color: COLORS.black,
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });

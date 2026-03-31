@@ -10,21 +10,24 @@ import {
   ScrollView, 
   Animated as RNAnimated, 
   Dimensions,
-  ActivityIndicator
+  ActivityIndicator,
+  Pressable,
+  Alert
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInUp, ZoomIn, FadeIn, interpolate, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useAuthStore } from '../../store/authStore';
 import { post } from '../../services/api';
 import { colors } from '../../constants/colors';
 import { useToast } from '../../components/Toast';
-import { GlassCard } from '../../components/ui/GlassCard';
 import { User } from '../../types';
 
 const { width, height } = Dimensions.get('window');
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -32,8 +35,10 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
   
   const shakeAnimation = useRef(new RNAnimated.Value(0)).current;
+  const loginProgress = useSharedValue(0);
 
   const { login } = useAuthStore();
   const { showToast } = useToast();
@@ -56,7 +61,7 @@ export default function LoginScreen() {
     }
 
     // BYPASS LOGIC
-    if (email === '1' && password === '1') {
+    if ((email === '1' && password === '1') || (email === 'customer' && password === 'admin')) {
       const mockUser: User = {
         id: 'mock-customer-id',
         full_name: 'Alex Rivera',
@@ -69,7 +74,7 @@ export default function LoginScreen() {
       return;
     }
 
-    if (email === '2' && password === '2') {
+    if ((email === '2' && password === '2') || (email === 'provider' && password === 'admin')) {
       const mockUser: User = {
         id: 'mock-provider-id',
         full_name: 'Sarah Chen',
@@ -78,12 +83,13 @@ export default function LoginScreen() {
         role: 'provider'
       };
       await login(mockUser, 'mock-token', 'mock-refresh');
-      router.replace('/(provider)');
+      router.replace('/(provider)/(tabs)');
       return;
     }
     
     setError('');
     setIsSubmitting(true);
+    loginProgress.value = withSpring(1);
     
     try {
       const response = await post('/auth/login', { email, password });
@@ -103,14 +109,11 @@ export default function LoginScreen() {
         if (mappedUser.role === 'customer') {
           router.replace('/(customer)');
         } else if (mappedUser.role === 'provider') {
-          router.replace('/(provider)');
+          router.replace('/(provider)/(tabs)');
         }
       }
     } catch (e: any) {
-      if (__DEV__) {
-        console.error('[LoginScreen] Auth failure details:', e.response?.data || e.message || e);
-      }
-      
+      loginProgress.value = withSpring(0);
       let msg = 'Unable to connect. Please check your network and try again.';
       const status = e.response?.status;
 
@@ -132,16 +135,31 @@ export default function LoginScreen() {
     }
   };
 
+  const btnScaleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(loginProgress.value, [0, 1], [1, 0.95]) }],
+    opacity: interpolate(loginProgress.value, [0, 1], [1, 0.8])
+  }));
+
   return (
     <View style={styles.container}>
-      {/* Immersive Background */}
+      {/* Immersive Kinetic Background */}
       <View style={styles.bgWrapper}>
         <LinearGradient
-          colors={[colors.primary, colors.primaryDark, '#000']}
+          colors={['#080a0f', '#0b0e14', '#161a21']}
           style={StyleSheet.absoluteFill}
         />
-        <View style={styles.bgCircle1} />
-        <View style={styles.bgCircle2} />
+        <Animated.View 
+          entering={FadeIn.delay(200).duration(2000)}
+          style={[styles.bgCircle, styles.circlePrimary]} 
+        />
+        <Animated.View 
+          entering={FadeIn.delay(500).duration(2000)}
+          style={[styles.bgCircle, styles.circleSecondary]} 
+        />
+        <Animated.View 
+          entering={FadeIn.delay(800).duration(2000)}
+          style={[styles.bgCircle, styles.circleTertiary]} 
+        />
       </View>
 
       <KeyboardAvoidingView 
@@ -153,117 +171,169 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled" 
           showsVerticalScrollIndicator={false}
         >
-          <Animated.View entering={FadeInUp.duration(1000).springify()} style={styles.brandContainer}>
-            <View style={styles.logoBox}>
-              <Ionicons name="navigate" size={40} color="white" />
+          <Animated.View entering={FadeInUp.duration(1000).springify()} style={styles.headerSection}>
+            <View style={styles.logoBadge}>
+              <Ionicons name="navigate" size={42} color={colors.premium.primary} />
+              <View style={styles.logoPulse} />
             </View>
-            <Text style={styles.brandTitle}>ParkEasy</Text>
-            <Text style={styles.brandTagline}>Smarter Parking for Modern Cities</Text>
+            <Text style={styles.brandName}>ParkEasy</Text>
+            <Text style={styles.brandSubtitle}>THE FUTURE OF URBAN MOBILITY</Text>
           </Animated.View>
 
-          <RNAnimated.View style={[styles.formWrapper, { transform: [{ translateX: shakeAnimation }] }]}>
-            <Animated.View entering={FadeInDown.delay(200).duration(800).springify()}>
-              <GlassCard style={styles.loginCard} intensity={25}>
-                <Text style={styles.cardTitle}>Sign In</Text>
+          <RNAnimated.View style={[styles.mainForm, { transform: [{ translateX: shakeAnimation }] }]}>
+            <Animated.View entering={FadeInDown.delay(300).duration(800).springify()}>
+              <BlurView intensity={40} tint="dark" style={styles.formCard}>
+                <Text style={styles.formTitle}>Authentication</Text>
                 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
-                  <View style={styles.inputBox}>
-                    <Ionicons name="mail-outline" size={20} color="rgba(255,255,255,0.5)" />
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>IDENTITY / EMAIL</Text>
+                  <View style={[
+                    styles.inputField,
+                    focusedField === 'email' && styles.inputFieldFocused
+                  ]}>
+                    <Ionicons 
+                      name="mail-unread-outline" 
+                      size={20} 
+                      color={focusedField === 'email' ? colors.premium.primary : colors.premium.onSurfaceVariant} 
+                    />
                     <TextInput
-                      style={styles.input}
-                      placeholder="Enter your email"
-                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      style={styles.textInput}
+                      placeholder="user@kinetic.ether"
+                      placeholderTextColor="rgba(255,255,255,0.2)"
                       keyboardType="email-address"
                       autoCapitalize="none"
+                      onFocus={() => setFocusedField('email')}
+                      onBlur={() => setFocusedField(null)}
                       value={email}
                       onChangeText={(text) => {
                         setEmail(text);
                         if (error) setError('');
                       }}
+                      accessibilityLabel="Email address"
+                      accessibilityHint="Enter your email address to sign in"
                     />
                   </View>
                 </View>
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>SECURE PASSWORD</Text>
-                  <View style={styles.inputBox}>
-                    <Ionicons name="lock-closed-outline" size={20} color="rgba(255,255,255,0.5)" />
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>SECURE ACCESS KEY</Text>
+                  <View style={[
+                    styles.inputField,
+                    focusedField === 'password' && styles.inputFieldFocused
+                  ]}>
+                    <Ionicons 
+                      name="shield-checkmark-outline" 
+                      size={20} 
+                      color={focusedField === 'password' ? colors.premium.primary : colors.premium.onSurfaceVariant} 
+                    />
                     <TextInput
-                      style={styles.input}
+                      style={styles.textInput}
                       placeholder="••••••••"
-                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      placeholderTextColor="rgba(255,255,255,0.2)"
                       secureTextEntry={!showPassword}
+                      onFocus={() => setFocusedField('password')}
+                      onBlur={() => setFocusedField(null)}
                       value={password}
                       onChangeText={(text) => {
                         setPassword(text);
                         if (error) setError('');
                       }}
+                      accessibilityLabel="Secure access key"
+                      accessibilityHint="Enter your password"
                     />
-                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                    <TouchableOpacity 
+                      onPress={() => setShowPassword(!showPassword)} 
+                      style={styles.eyeIcon}
+                      accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                      accessibilityHint="Toggles password visibility"
+                      accessibilityRole="button"
+                    >
                       <Ionicons 
                         name={showPassword ? "eye-off" : "eye"} 
                         size={20} 
-                        color="white" 
-                        style={{ opacity: 0.6 }}
+                        color={colors.premium.onSurfaceVariant} 
                       />
                     </TouchableOpacity>
                   </View>
                 </View>
 
                 {error ? (
-                  <Animated.View entering={ZoomIn} style={styles.errorContainer}>
-                    <Ionicons name="alert-circle" size={16} color={colors.danger} />
-                    <Text style={styles.errorText}>{error}</Text>
+                  <Animated.View entering={ZoomIn} style={styles.statusBox}>
+                    <Ionicons name="warning" size={16} color={colors.danger} />
+                    <Text style={styles.statusText}>{error}</Text>
                   </Animated.View>
                 ) : null}
 
-                <TouchableOpacity 
-                  style={styles.forgotBtn}
-                  onPress={() => showToast('Feature coming soon', 'info')}
-                >
-                  <Text style={styles.forgotText}>Forgot Password?</Text>
+                <TouchableOpacity style={styles.recoveryLink} activeOpacity={0.7}>
+                  <Text style={styles.recoveryText}>Loss access key?</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity 
-                  style={[styles.loginBtn, isSubmitting && styles.btnLoading]} 
+                <AnimatedPressable 
+                  style={[styles.primaryAction, btnScaleStyle]} 
                   onPress={handleLogin}
                   disabled={isSubmitting}
-                  activeOpacity={0.9}
                 >
                   <LinearGradient
-                    colors={[colors.primary, colors.primaryDark]}
+                    colors={colors.premium.neonPulse}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
-                    style={styles.btnGradient}
+                    style={styles.actionGradient}
                   >
                     {isSubmitting ? (
                       <ActivityIndicator color="white" />
                     ) : (
                       <>
-                        <Text style={styles.loginBtnText}>Proceed to Dashboard</Text>
-                        <Ionicons name="arrow-forward" size={18} color="white" />
+                        <Text style={styles.actionLabel}>ESTABLISH CONNECTION</Text>
+                        <Ionicons name="chevron-forward" size={18} color="white" />
                       </>
                     )}
                   </LinearGradient>
-                </TouchableOpacity>
-              </GlassCard>
+                </AnimatedPressable>
+              </BlurView>
             </Animated.View>
           </RNAnimated.View>
 
-          <Animated.View entering={FadeInUp.delay(600)} style={styles.footer}>
-            <Text style={styles.footerText}>New to ParkEasy?</Text>
+          {/* Social Authentication */}
+          <Animated.View entering={FadeInDown.delay(500)} style={styles.socialFlow}>
+            <View style={styles.dividerBox}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerLabel}>OR CONTINUE WITH ENVIRONMENT</Text>
+              <View style={styles.dividerLine} />
+            </View>
+            
+            <View style={styles.socialButtons}>
+              <TouchableOpacity
+                style={styles.socialCircle}
+                onPress={() => Alert.alert('Coming Soon', 'Google authentication is currently being integrated.')}
+              >
+                <Ionicons name="logo-google" size={24} color="#ecedf6" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.socialCircle}
+                onPress={() => Alert.alert('Coming Soon', 'Apple authentication is currently being integrated.')}
+              >
+                <Ionicons name="logo-apple" size={26} color="#ecedf6" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.socialCircle}
+                onPress={() => Alert.alert('Biometrics Coming Soon', 'Fingerprint and FaceID initialization is coming in the next update.')}
+              >
+                <Ionicons name="finger-print" size={24} color={colors.premium.primary} />
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+
+          <Animated.View entering={FadeInUp.delay(700)} style={styles.authSwitch}>
+            <Text style={styles.switchText}>Need an access node?</Text>
             <Link href="/(auth)/signup" asChild>
               <TouchableOpacity>
-                <Text style={styles.signupLink}>Create Account</Text>
+                <Text style={styles.switchLink}>Initialize Account</Text>
               </TouchableOpacity>
             </Link>
           </Animated.View>
           
-          <Animated.View entering={FadeInUp.delay(800)} style={styles.devTag}>
-            <View style={styles.devPill}>
-              <Text style={styles.devTagText}>V2.4 STABLE RELEASE</Text>
-            </View>
+          <Animated.View entering={FadeInUp.delay(900)} style={styles.versionTag}>
+            <Text style={styles.versionText}>KINETIC CORE V3.0 // SECURE NODE</Text>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -274,203 +344,246 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#080a0f',
   },
   bgWrapper: {
     ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
   },
-  bgCircle1: {
+  bgCircle: {
     position: 'absolute',
-    top: -50,
-    right: -100,
+    borderRadius: 999,
+    opacity: 0.12,
+  },
+  circlePrimary: {
     width: 300,
     height: 300,
-    borderRadius: 150,
-    backgroundColor: colors.primary,
-    opacity: 0.15,
+    top: -50,
+    right: -50,
+    backgroundColor: colors.premium.primary,
   },
-  bgCircle2: {
-    position: 'absolute',
-    bottom: -150,
-    left: -100,
+  circleSecondary: {
     width: 400,
     height: 400,
-    borderRadius: 200,
-    backgroundColor: colors.primaryDark,
-    opacity: 0.1,
+    bottom: -100,
+    left: -150,
+    backgroundColor: colors.premium.secondary,
+  },
+  circleTertiary: {
+    width: 250,
+    height: 250,
+    top: height * 0.3,
+    left: -50,
+    backgroundColor: colors.premium.tertiary,
+    opacity: 0.08,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
     paddingBottom: 40,
   },
-  brandContainer: {
+  headerSection: {
     alignItems: 'center',
-    marginTop: height * 0.1,
-    marginBottom: 40,
+    marginTop: height * 0.08,
+    marginBottom: 32,
   },
-  logoBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+  logoBadge: {
+    width: 88,
+    height: 88,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.03)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(28, 116, 233, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
-  },
-  brandTitle: {
-    fontSize: 40,
-    fontWeight: '900',
-    color: 'white',
-    letterSpacing: -1.5,
-  },
-  brandTagline: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
-    fontWeight: '600',
-    marginTop: 4,
-    letterSpacing: 0.5,
-  },
-  formWrapper: {
-    width: '100%',
-  },
-  loginCard: {
-    borderRadius: 32,
-    padding: 32,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  cardTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: 'white',
-    marginBottom: 32,
-    textAlign: 'center',
-  },
-  inputGroup: {
     marginBottom: 24,
   },
-  inputLabel: {
+  logoPulse: {
+    position: 'absolute',
+    width: 70,
+    height: 70,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(28, 116, 233, 0.1)',
+  },
+  brandName: {
+    fontSize: 44,
+    fontWeight: '900',
+    color: '#fff',
+    letterSpacing: -2,
+  },
+  brandSubtitle: {
     fontSize: 10,
+    color: colors.premium.primary,
     fontWeight: '900',
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 1.5,
-    marginBottom: 10,
-    marginLeft: 4,
-  },
-  inputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    height: 56,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  input: {
-    flex: 1,
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 12,
-  },
-  eyeBtn: {
-    padding: 8,
-  },
-  forgotBtn: {
-    alignSelf: 'flex-end',
-    marginBottom: 24,
-  },
-  forgotText: {
-    color: colors.primaryLight,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  loginBtn: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    height: 60,
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.4,
-        shadowRadius: 15,
-      },
-      android: {
-        elevation: 8,
-      }
-    }),
-  },
-  btnLoading: {
+    marginTop: 6,
+    letterSpacing: 4,
     opacity: 0.8,
   },
-  btnGradient: {
+  mainForm: {
+    width: '100%',
+  },
+  formCard: {
+    borderRadius: 36,
+    padding: 32,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.5,
+    shadowRadius: 30,
+  },
+  formTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#fff',
+    marginBottom: 32,
+    textAlign: 'center',
+    letterSpacing: 1,
+  },
+  inputContainer: {
+    marginBottom: 26,
+  },
+  label: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: colors.premium.onSurfaceVariant,
+    letterSpacing: 2,
+    marginBottom: 12,
+    marginLeft: 4,
+  },
+  inputField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    height: 64,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  inputFieldFocused: {
+    borderColor: colors.premium.primary + '80',
+    backgroundColor: 'rgba(28, 116, 233, 0.05)',
+  },
+  textInput: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 14,
+  },
+  eyeIcon: {
+    padding: 10,
+  },
+  recoveryLink: {
+    alignSelf: 'flex-end',
+    marginBottom: 28,
+    marginRight: 4,
+  },
+  recoveryText: {
+    color: colors.premium.primary,
+    fontSize: 13,
+    fontWeight: '700',
+    opacity: 0.9,
+  },
+  primaryAction: {
+    borderRadius: 22,
+    overflow: 'hidden',
+    height: 64,
+  },
+  actionGradient: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
   },
-  loginBtnText: {
+  actionLabel: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '900',
+    letterSpacing: 1,
   },
-  errorContainer: {
+  statusBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.danger + '20',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-    gap: 8,
+    backgroundColor: colors.danger + '15',
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 24,
+    gap: 10,
     borderWidth: 1,
-    borderColor: colors.danger + '40',
+    borderColor: colors.danger + '30',
   },
-  errorText: {
+  statusText: {
     color: colors.danger,
     fontSize: 13,
     fontWeight: '700',
     flex: 1,
   },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  socialFlow: {
     marginTop: 40,
-    gap: 8,
   },
-  footerText: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  signupLink: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '800',
-    textDecorationLine: 'underline',
-  },
-  devTag: {
+  dividerBox: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 32,
+    marginBottom: 32,
+    paddingHorizontal: 10,
   },
-  devPill: {
+  dividerLine: {
+    flex: 1,
+    height: 1,
     backgroundColor: 'rgba(255,255,255,0.05)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
   },
-  devTagText: {
+  dividerLabel: {
+    marginHorizontal: 16,
     fontSize: 9,
     fontWeight: '900',
     color: 'rgba(255,255,255,0.3)',
     letterSpacing: 1.5,
+  },
+  socialButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 20,
+  },
+  socialCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authSwitch: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 48,
+    gap: 10,
+  },
+  switchText: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  switchLink: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '800',
+    textDecorationLine: 'underline',
+  },
+  versionTag: {
+    alignItems: 'center',
+    marginTop: 40,
+  },
+  versionText: {
+    fontSize: 8,
+    fontWeight: '900',
+    color: 'rgba(255,255,255,0.2)',
+    letterSpacing: 2,
   },
 });

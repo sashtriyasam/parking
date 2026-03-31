@@ -1,30 +1,35 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  RefreshControl, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Dimensions, 
+import {
+  View,
+  Text,
+  ScrollView,
+  RefreshControl,
+  StyleSheet,
+  TouchableOpacity,
+  Dimensions,
   Platform,
   ActivityIndicator,
-  StatusBar
+  StatusBar,
+  Pressable
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withRepeat, 
-  withTiming, 
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
   withSequence,
   interpolate,
   useAnimatedScrollHandler,
-  Extrapolate
+  Extrapolate,
+  FadeInDown,
+  FadeInUp,
+  FadeIn
 } from 'react-native-reanimated';
 import { ParkingFacilityCard } from '../../components/ParkingFacilityCard';
 import { get } from '../../services/api';
@@ -33,19 +38,20 @@ import { ParkingFacility } from '../../types';
 import { EmptyState } from '../../components/EmptyState';
 import { useAuthStore } from '../../store/authStore';
 import { mapAppearance } from '../../constants/mapAppearance';
-import { GlassCard } from '../../components/ui/GlassCard';
 import { Skeleton } from '../../components/ui/SkeletonLoader';
 
 const { width, height } = Dimensions.get('window');
-const HEADER_MAX_HEIGHT = 240;
-const HEADER_MIN_HEIGHT = 100;
+const HEADER_MAX_HEIGHT = 280;
+const HEADER_MIN_HEIGHT = 120;
 const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
+
+const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
   const mapRef = useRef<MapView>(null);
-  
+
   // Animations
   const scrollY = useSharedValue(0);
   const pulse = useSharedValue(1);
@@ -53,8 +59,8 @@ export default function HomeScreen() {
   useEffect(() => {
     pulse.value = withRepeat(
       withSequence(
-        withTiming(1.15, { duration: 1000 }),
-        withTiming(1, { duration: 1000 })
+        withTiming(1.2, { duration: 1500 }),
+        withTiming(1, { duration: 1500 })
       ),
       -1,
       true
@@ -64,38 +70,47 @@ export default function HomeScreen() {
   const scrollHandler = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
   });
-
   const headerStyle = useAnimatedStyle(() => {
-    const height = interpolate(
+    const h = interpolate(
       scrollY.value,
       [0, HEADER_SCROLL_DISTANCE],
       [HEADER_MAX_HEIGHT, HEADER_MIN_HEIGHT],
       Extrapolate.CLAMP
     );
-    return { height, borderBottomLeftRadius: interpolate(scrollY.value, [0, HEADER_SCROLL_DISTANCE], [40, 0], Extrapolate.CLAMP) };
+    return { height: h };
   });
 
   const headerTitleStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       scrollY.value,
-      [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
-      [1, 0.3, 0],
+      [0, HEADER_SCROLL_DISTANCE * 0.5],
+      [1, 0],
       Extrapolate.CLAMP
     );
     const scale = interpolate(
       scrollY.value,
       [0, HEADER_SCROLL_DISTANCE],
-      [1, 0.8],
+      [1, 0.9],
       Extrapolate.CLAMP
     );
     return { opacity, transform: [{ scale }] };
   });
 
+  const stickyHeaderStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      scrollY.value,
+      [HEADER_SCROLL_DISTANCE * 0.8, HEADER_SCROLL_DISTANCE],
+      [0, 1],
+      Extrapolate.CLAMP
+    );
+    return { opacity };
+  });
+
   const animatedMarkerStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulse.value }],
-    opacity: interpolate(pulse.value, [1, 1.15], [1, 0.8]),
+    opacity: interpolate(pulse.value, [1, 1.2], [1, 0.6]),
   }));
-  
+
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -106,12 +121,12 @@ export default function HomeScreen() {
   const fetchFacilities = async (lat?: number, lon?: number) => {
     try {
       setLoading(true);
-      const url = (lat && lon) 
-        ? `/parking/search?lat=${lat}&lon=${lon}&limit=10` 
+      const url = (lat && lon)
+        ? `/parking/search?lat=${lat}&lon=${lon}&limit=10`
         : `/parking/search?limit=10`;
       const res = await get(url);
       setNearbyFacilities(res.data.data);
-      
+
       const recentRes = await get('/customer/tickets');
       const tickets = recentRes.data.data || [];
       const recents: ParkingFacility[] = [];
@@ -139,11 +154,20 @@ export default function HomeScreen() {
     }
 
     try {
-      let loc = await Location.getCurrentPositionAsync({});
+      // Enforce a 5s timeout on location fetching to prevent hanging on slow GPS
+      const locationPromise = Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced
+      });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Location timeout')), 5000)
+      );
+
+      const loc = await Promise.race([locationPromise, timeoutPromise]) as Location.LocationObject;
       setLocation(loc);
       fetchFacilities(loc.coords.latitude, loc.coords.longitude);
     } catch (error) {
-       fetchFacilities();
+      console.warn('Location fetch failed or timed out:', error);
+      fetchFacilities();
     }
   };
 
@@ -173,16 +197,16 @@ export default function HomeScreen() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
+    if (hour < 12) return 'PHASE: MORNING';
+    if (hour < 17) return 'PHASE: AFTERNOON';
+    return 'PHASE: EVENING';
   };
 
   const categories = [
-    { title: 'Airport', icon: 'airplane', color: '#6366F1' },
-    { title: 'Mall', icon: 'cart', color: '#EC4899' },
-    { title: 'Office', icon: 'business', color: '#10B981' },
-    { title: 'Hospital', icon: 'medkit', color: '#EF4444' },
+    { title: 'Airport', icon: 'airplane', color: colors.premium.primary },
+    { title: 'Mall', icon: 'cart', color: colors.premium.secondary },
+    { title: 'Office', icon: 'business', color: colors.premium.tertiary },
+    { title: 'Hospital', icon: 'medkit', color: colors.premium.quinary },
   ];
 
   const renderMapView = () => (
@@ -209,61 +233,50 @@ export default function HomeScreen() {
               longitude: Number(facility.longitude),
             }}
           >
-            <Animated.View style={[styles.customMarker, animatedMarkerStyle]}>
-              <View style={styles.markerPriceContainer}>
-                <Text style={styles.markerCurrency}>₹</Text>
-                <Text style={styles.markerPrice}>{Math.round(Number(facility.pricing_rules[0]?.hourly_rate || 0))}</Text>
+            <View style={styles.customMarkerContainer}>
+              <Animated.View style={[styles.markerPulse, animatedMarkerStyle]} />
+              <View style={styles.markerInner}>
+                <Text style={styles.markerText}>{(facility.address || '').length > 30 ? (facility.address || '').substring(0, 30) + '...' : (facility.address || '')}</Text>
               </View>
-              <View style={styles.markerArrow} />
-            </Animated.View>
-            <Callout 
-              tooltip 
+            </View>
+            <Callout
+              tooltip
               onPress={() => router.push(`/(customer)/facility/${facility.id}`)}
-              style={styles.callout}
             >
-              <View style={styles.calloutContainer}>
+              <BlurView intensity={80} tint="dark" style={styles.calloutBlur}>
                 <Text style={styles.calloutTitle}>{facility.name}</Text>
-                <Text style={styles.calloutSubtitle}>{facility.address.substring(0, 30)}...</Text>
-                <View style={styles.calloutFooter}>
-                  <Text style={styles.calloutAction}>View Details</Text>
-                  <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+                <Text style={styles.calloutSubtitle}>{(facility.address || '').length > 30 ? (facility.address || '').substring(0, 30) + '...' : (facility.address || '')}</Text>
+                <View style={styles.calloutAction}>
+                  <Text style={styles.calloutActionText}>ACCESS FACILITY</Text>
+                  <Ionicons name="chevron-forward" size={14} color="white" />
                 </View>
-              </View>
+              </BlurView>
             </Callout>
           </Marker>
         ))}
       </MapView>
 
-      <TouchableOpacity 
-        style={styles.myLocationButton} 
-        onPress={centerOnLocation}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="locate" size={24} color={colors.primary} />
-      </TouchableOpacity>
-
-      <View style={styles.mapOverlayTop}>
-        <GlassCard 
-          style={styles.searchBarFloating}
-          onPress={() => router.push('/(customer)/search')}
-        >
-          <Ionicons name="search" size={20} color={colors.textSecondary} />
-          <Text style={styles.searchText}>Search for parking...</Text>
-        </GlassCard>
-      </View>
+      <BlurView intensity={30} tint="dark" style={styles.mapControls}>
+        <TouchableOpacity style={styles.mapBtn} onPress={centerOnLocation}>
+          <Ionicons name="locate" size={24} color="white" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.mapBtn} onPress={() => router.push('/(customer)/search')}>
+          <Ionicons name="search" size={24} color="white" />
+        </TouchableOpacity>
+      </BlurView>
 
       <View style={styles.mapOverlayBottom}>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.horizontalFacilities}
-          snapToInterval={width * 0.8 + 16}
+          snapToInterval={width * 0.8 + 20}
           decelerationRate="fast"
         >
           {nearbyFacilities.map((facility) => (
-            <ParkingFacilityCard 
-              key={facility.id} 
-              facility={facility} 
+            <ParkingFacilityCard
+              key={facility.id}
+              facility={facility}
               onPress={() => router.push(`/(customer)/facility/${facility.id}`)}
               style={styles.horizontalCard}
               distance={facility.distance}
@@ -278,84 +291,102 @@ export default function HomeScreen() {
     <View style={styles.listContainer}>
       <Animated.View style={[styles.header, headerStyle]}>
         <LinearGradient
-          colors={colors.gradients.premium}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          colors={['#0f172a', '#020617']}
           style={StyleSheet.absoluteFill}
         />
+
+        {/* Immersive Background Elements */}
+        <Animated.View style={[styles.bgCircle, styles.circlePrimary]} entering={FadeIn.duration(2000)} />
+
         <Animated.View style={[styles.headerContent, headerTitleStyle]}>
-          <Text style={styles.greeting}>{getGreeting()}, {user?.full_name?.split(' ')[0] || 'User'}</Text>
-          <Text style={styles.title}>Where are you{'\n'}parking today?</Text>
+          <Text style={styles.greetingHeader}>{getGreeting()}</Text>
+          <Text style={styles.userName}>Hello, {user?.full_name?.split(' ')[0] || 'Agent'}</Text>
+          <Text style={styles.mainHeadline}>Where shall we{'\n'}secure your node?</Text>
         </Animated.View>
-        
+
         <View style={styles.searchContainer}>
-          <GlassCard 
-            style={styles.searchBar}
-            onPress={() => router.push('/(customer)/search')}
-          >
-            <Ionicons name="search" size={20} color={colors.textPrimary} />
-            <Text style={styles.searchText}>Search for parking...</Text>
-          </GlassCard>
+          <BlurView intensity={30} tint="dark" style={styles.searchGlass}>
+            <Pressable
+              style={styles.searchInner}
+              onPress={() => router.push('/(customer)/search')}
+            >
+              <Ionicons name="search-outline" size={22} color="rgba(255,255,255,0.6)" />
+              <Text style={styles.searchPlaceholder}>Trace for nearby access points...</Text>
+              <LinearGradient
+                colors={colors.premium.neonPulse}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.searchPulse}
+              />
+            </Pressable>
+          </BlurView>
         </View>
+
+        {/* Sticky Header Mini Content */}
+        <AnimatedBlurView intensity={50} tint="dark" style={[styles.stickyHeader, stickyHeaderStyle]}>
+          <Text style={styles.stickyTitle}>DISCOVERY MODE</Text>
+        </AnimatedBlurView>
       </Animated.View>
 
-      <Animated.ScrollView 
+      <Animated.ScrollView
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.premium.primary} />}
       >
-        <View style={styles.categorySection}>
+        <Animated.View style={styles.categorySection} entering={FadeInDown.delay(200).duration(800)}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryList}>
             {categories.map((cat, idx) => (
               <TouchableOpacity key={idx} style={styles.categoryItem} activeOpacity={0.7}>
-                <View style={[styles.categoryIcon, { backgroundColor: cat.color + '15' }]}>
+                <BlurView intensity={20} tint="dark" style={styles.categoryGlass}>
                   <Ionicons name={cat.icon as any} size={24} color={cat.color} />
-                </View>
-                <Text style={styles.categoryTitle}>{cat.title}</Text>
+                </BlurView>
+                <Text style={styles.categoryLabel}>{cat.title}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
+        </Animated.View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Nearby Locations</Text>
-            <TouchableOpacity onPress={() => setViewMode('map')}>
-              <Text style={styles.seeAll}>Show Map</Text>
+            <Text style={styles.sectionTitle}>PROXIMITY NODES</Text>
+            <TouchableOpacity onPress={() => setViewMode('map')} style={styles.mapToggleRow}>
+              <Text style={styles.seeAllText}>VIEW RADAR</Text>
+              <Ionicons name="navigate-outline" size={16} color={colors.premium.primary} />
             </TouchableOpacity>
           </View>
-          
+
           {loading ? (
             <View style={styles.listContent}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 20 }}>
                 {[1, 2, 3].map((i) => (
-                  <View key={i} style={{ width: 290, gap: 12 }}>
-                    <Skeleton width={290} height={140} borderRadius={24} />
-                    <Skeleton width={200} height={20} />
-                    <Skeleton width={150} height={15} />
+                  <View key={i} style={{ width: 300, gap: 15 }}>
+                    <Skeleton width={300} height={160} borderRadius={28} />
+                    <Skeleton width={220} height={24} />
+                    <Skeleton width={160} height={16} />
                   </View>
                 ))}
               </ScrollView>
             </View>
           ) : nearbyFacilities.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.listContent}>
-              {nearbyFacilities.map((facility) => (
-                <ParkingFacilityCard 
-                  key={facility.id} 
-                  facility={facility} 
-                  onPress={() => router.push(`/(customer)/facility/${facility.id}`)}
-                  distance={facility.distance}
-                />
+              {nearbyFacilities.map((facility, idx) => (
+                <Animated.View key={facility.id} entering={FadeInDown.delay(300 + idx * 100).springify()}>
+                  <ParkingFacilityCard
+                    facility={facility}
+                    onPress={() => router.push(`/(customer)/facility/${facility.id}`)}
+                    distance={facility.distance}
+                  />
+                </Animated.View>
               ))}
             </ScrollView>
           ) : (
             <EmptyState
-              icon="location-outline"
-              title="None nearby"
-              subtitle="We couldn't find any facilities in your immediate area."
-              actionLabel="Search Everywhere"
+              icon="navigate-outline"
+              title="ZERO NODES DETECTED"
+              subtitle="Initialize a broader search sequence."
+              actionLabel="GLOBAL SEARCH"
               onAction={() => router.push('/(customer)/search')}
             />
           )}
@@ -363,56 +394,63 @@ export default function HomeScreen() {
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            <Text style={styles.sectionTitle}>RECENT PROTOCOLS</Text>
           </View>
-          
+
           {loading ? (
-             <View style={styles.listContent}>
-               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
-                 {[1, 2, 3].map((i) => (
-                   <View key={i} style={{ width: 290, gap: 12 }}>
-                     <Skeleton width={290} height={100} borderRadius={24} />
-                     <Skeleton width={180} height={18} />
-                   </View>
-                 ))}
-               </ScrollView>
-             </View>
+            <View style={styles.listContent}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 20 }}>
+                {[1, 2].map((i) => (
+                  <View key={i} style={{ width: 300, gap: 15 }}>
+                    <Skeleton width={300} height={120} borderRadius={24} />
+                    <Skeleton width={200} height={20} />
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
           ) : recentFacilities.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.listContent}>
               {recentFacilities.map((facility, index) => (
-                <ParkingFacilityCard 
-                  key={`${facility.id}-${index}`} 
-                  facility={facility} 
-                  onPress={() => router.push(`/(customer)/facility/${facility.id}`)}
-                />
+                <Animated.View key={`${facility.id}-${index}`} entering={FadeInDown.delay(500 + index * 100).springify()}>
+                  <ParkingFacilityCard
+                    facility={facility}
+                    onPress={() => router.push(`/(customer)/facility/${facility.id}`)}
+                  />
+                </Animated.View>
               ))}
             </ScrollView>
           ) : (
             <EmptyState
-              icon="time-outline"
-              title="No history"
-              subtitle="Your recently visited parking spots will show up here."
+              icon="timer-outline"
+              title="NO PREVIOUS LOGS"
+              subtitle="Start your first encryption session."
             />
           )}
         </View>
-        <View style={{ height: 100 }} />
+        <View style={{ height: 120 }} />
       </Animated.ScrollView>
     </View>
   );
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={viewMode === 'list' ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle="light-content" />
       {viewMode === 'list' ? renderListView() : renderMapView()}
-      
-      <TouchableOpacity 
-        style={styles.viewToggle}
-        onPress={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
-        activeOpacity={0.9}
-      >
-        <Ionicons name={viewMode === 'list' ? 'map' : 'list'} size={24} color="white" />
-        <Text style={styles.toggleText}>{viewMode === 'list' ? 'Map View' : 'List View'}</Text>
-      </TouchableOpacity>
+
+      <Animated.View style={styles.viewToggleContainer} entering={FadeInUp.delay(1000).springify()}>
+        <BlurView intensity={50} tint="dark" style={styles.toggleGlass}>
+          <TouchableOpacity
+            style={styles.toggleBtn}
+            onPress={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.toggleIconBox}>
+              <Ionicons name={viewMode === 'list' ? 'map-outline' : 'list-outline'} size={20} color="white" />
+            </View>
+            <Text style={styles.toggleLabel}>{viewMode === 'list' ? 'RADAR VIEW' : 'LIST VIEW'}</Text>
+          </TouchableOpacity>
+        </BlurView>
+      </Animated.View>
     </View>
   );
 }
@@ -420,7 +458,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#020617',
   },
   listContainer: {
     flex: 1,
@@ -436,121 +474,190 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 10,
+    zIndex: 100,
     overflow: 'hidden',
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
   },
   headerContent: {
-    paddingTop: 60,
-    paddingHorizontal: 24,
+    paddingTop: 70,
+    paddingHorizontal: 28,
   },
-  title: {
-    fontSize: 32,
+  greetingHeader: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: colors.premium.primary,
+    letterSpacing: 4,
+    marginBottom: 8,
+  },
+  userName: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.7)',
+    marginBottom: 4,
+  },
+  mainHeadline: {
+    fontSize: 34,
     fontWeight: '900',
     color: 'white',
-    lineHeight: 38,
+    lineHeight: 40,
     letterSpacing: -1,
   },
-  greeting: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: '700',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
+  bgCircle: {
+    position: 'absolute',
+    borderRadius: 999,
+    opacity: 0.15,
+  },
+  circlePrimary: {
+    width: 200,
+    height: 200,
+    top: -50,
+    right: -20,
+    backgroundColor: colors.premium.primary,
   },
   searchContainer: {
     position: 'absolute',
-    bottom: -25,
-    left: 24,
-    right: 24,
-    zIndex: 20,
+    bottom: 25,
+    left: 28,
+    right: 28,
   },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 20,
-    gap: 12,
-  },
-  searchBarFloating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
+  searchGlass: {
     borderRadius: 24,
-    width: width - 48,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  searchInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 18,
     gap: 12,
   },
-  searchText: {
-    color: colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '500',
+  searchPlaceholder: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  searchPulse: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    shadowColor: colors.premium.primary,
+    shadowRadius: 10,
+    shadowOpacity: 0.8,
+  },
+  stickyHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 120,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingBottom: 20,
+    zIndex: 200,
+  },
+  stickyTitle: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 4,
   },
   categorySection: {
-    marginTop: 20,
-    paddingHorizontal: 24,
+    marginTop: 10,
+    paddingHorizontal: 28,
   },
   categoryList: {
-    gap: 20,
+    gap: 24,
     paddingVertical: 10,
   },
   categoryItem: {
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
-  categoryIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
+  categoryGlass: {
+    width: 64,
+    height: 64,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
-  categoryTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textSecondary,
+  categoryLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.6)',
+    letterSpacing: 0.5,
   },
   section: {
-    marginTop: 32,
+    marginTop: 36,
   },
   sectionHeader: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
     marginBottom: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 12,
     fontWeight: '900',
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
+    color: 'white',
+    letterSpacing: 3,
+    opacity: 0.8,
   },
-  seeAll: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '700',
+  mapToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  seeAllText: {
+    fontSize: 10,
+    color: colors.premium.primary,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   listContent: {
-    paddingHorizontal: 24,
+    paddingLeft: 28,
     paddingBottom: 20,
+    gap: 20,
   },
-  viewToggle: {
+  viewToggleContainer: {
     position: 'absolute',
     bottom: 30,
     alignSelf: 'center',
+    zIndex: 1000,
+  },
+  toggleGlass: {
+    borderRadius: 32,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    ...colors.shadows.premium,
+  },
+  toggleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingVertical: 16,
-    paddingHorizontal: 28,
-    borderRadius: 35,
-    ...colors.shadows.premium,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
     gap: 12,
   },
-  toggleText: {
+  toggleIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.premium.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleLabel: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '900',
+    letterSpacing: 1,
   },
   mapContainer: {
     flex: 1,
@@ -559,108 +666,93 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  mapOverlayTop: {
+  mapControls: {
     position: 'absolute',
-    top: 60,
-    left: 24,
+    top: 70,
     right: 24,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  mapBtn: {
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   mapOverlayBottom: {
     position: 'absolute',
-    bottom: 120,
+    bottom: 110,
     left: 0,
     right: 0,
   },
   horizontalFacilities: {
-    paddingHorizontal: 24,
-    gap: 16,
+    paddingHorizontal: 28,
+    gap: 20,
   },
   horizontalCard: {
     width: width * 0.8,
     marginRight: 0,
   },
-  myLocationButton: {
-    position: 'absolute',
-    right: 20,
-    top: 140,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.surface,
+  customMarkerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    ...colors.shadows.md,
   },
-  customMarker: {
-    alignItems: 'center',
+  markerPulse: {
+    position: 'absolute',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.premium.primary,
   },
-  markerPriceContainer: {
-    backgroundColor: colors.primary,
+  markerInner: {
+    backgroundColor: colors.premium.primary,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: 18,
     borderWidth: 2,
     borderColor: 'white',
-    ...colors.shadows.md,
   },
-  markerCurrency: {
+  markerText: {
     color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
-    marginRight: 1,
-  },
-  markerPrice: {
-    color: 'white',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '900',
   },
-  markerArrow: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 8,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: colors.primary,
-    marginTop: -2,
-  },
-  callout: {
-    width: 220,
-  },
-  calloutContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    width: '100%',
-    ...colors.shadows.lg,
+  calloutBlur: {
+    borderRadius: 24,
+    padding: 20,
+    width: 240,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   calloutTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+    fontWeight: '900',
+    color: 'white',
+    marginBottom: 4,
   },
   calloutSubtitle: {
     fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  calloutFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    justifyContent: 'flex-end',
-    gap: 4,
+    color: 'rgba(255,255,255,0.6)',
+    marginBottom: 16,
+    lineHeight: 16,
   },
   calloutAction: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: '800',
-  }
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    padding: 12,
+    borderRadius: 14,
+  },
+  calloutActionText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
 });
-;
-
