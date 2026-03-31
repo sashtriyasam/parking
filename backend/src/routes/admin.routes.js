@@ -4,7 +4,7 @@ const { protect, restrictTo } = require('../middleware/auth');
 
 const rateLimit = require('express-rate-limit');
 const validate = require('../middleware/validate');
-const { roleUpdateSchema } = require('../validators/admin.validator');
+const { roleUpdateSchema, processWithdrawalSchema } = require('../validators/admin.validator');
 
 const router = express.Router();
 
@@ -30,6 +30,11 @@ router.patch(
 
 // Payout Management
 router.get('/withdrawals', adminController.getPendingWithdrawals);
-router.patch('/withdrawals/:withdrawalId', adminController.processWithdrawal);
+router.patch(
+    '/withdrawals/:withdrawalId', 
+    roleUpdateLimiter, 
+    validate(processWithdrawalSchema), 
+    adminController.processWithdrawal
+);
 
 module.exports = router;

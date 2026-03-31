@@ -99,6 +99,9 @@ CREATE TABLE "floors" (
     CONSTRAINT "floors_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateIndex
+CREATE UNIQUE INDEX "floors_facility_id_floor_number_key" ON "floors"("facility_id", "floor_number");
+
 -- CreateTable
 CREATE TABLE "parking_slots" (
     "id" TEXT NOT NULL,
@@ -113,19 +116,25 @@ CREATE TABLE "parking_slots" (
     CONSTRAINT "parking_slots_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateIndex
+CREATE UNIQUE INDEX "parking_slots_floor_id_slot_number_key" ON "parking_slots"("floor_id", "slot_number");
+
+-- CreateIndex
+CREATE INDEX "parking_slots_floor_id_status_idx" ON "parking_slots"("floor_id", "status");
+
 -- CreateTable
 CREATE TABLE "tickets" (
     "id" TEXT NOT NULL,
     "customer_id" TEXT NOT NULL,
     "facility_id" TEXT NOT NULL,
-    "slot_id" TEXT NOT NULL,
+    "slot_id" TEXT,
     "vehicle_number" TEXT NOT NULL,
     "vehicle_type" TEXT NOT NULL,
     "entry_time" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "exit_time" TIMESTAMP(3),
-    "base_fee" DECIMAL(65,30),
-    "extra_charges" DECIMAL(65,30),
-    "total_fee" DECIMAL(65,30),
+    "base_fee" DECIMAL(12,2),
+    "extra_charges" DECIMAL(12,2),
+    "total_fee" DECIMAL(12,2),
     "status" TEXT NOT NULL DEFAULT 'ACTIVE',
     "payment_status" TEXT DEFAULT 'PENDING',
     "payment_method" TEXT,
@@ -145,7 +154,7 @@ CREATE TABLE "monthly_passes" (
     "vehicle_type" TEXT NOT NULL,
     "start_date" TIMESTAMP(3) NOT NULL,
     "end_date" TIMESTAMP(3) NOT NULL,
-    "price" DECIMAL(65,30) NOT NULL,
+    "price" DECIMAL(12,2) NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'ACTIVE',
     "payment_id" TEXT,
     "payment_status" TEXT DEFAULT 'PAID',
@@ -160,9 +169,9 @@ CREATE TABLE "pricing_rules" (
     "id" TEXT NOT NULL,
     "facility_id" TEXT NOT NULL,
     "vehicle_type" TEXT NOT NULL,
-    "hourly_rate" DECIMAL(65,30) NOT NULL,
-    "daily_max" DECIMAL(65,30),
-    "monthly_pass_price" DECIMAL(65,30),
+    "hourly_rate" DECIMAL(12,2) NOT NULL,
+    "daily_max" DECIMAL(12,2),
+    "monthly_pass_price" DECIMAL(12,2),
 
     CONSTRAINT "pricing_rules_pkey" PRIMARY KEY ("id")
 );
@@ -241,7 +250,7 @@ ALTER TABLE "tickets" ADD CONSTRAINT "tickets_customer_id_fkey" FOREIGN KEY ("cu
 ALTER TABLE "tickets" ADD CONSTRAINT "tickets_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "parking_facilities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "tickets" ADD CONSTRAINT "tickets_slot_id_fkey" FOREIGN KEY ("slot_id") REFERENCES "parking_slots"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "tickets" ADD CONSTRAINT "tickets_slot_id_fkey" FOREIGN KEY ("slot_id") REFERENCES "parking_slots"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "monthly_passes" ADD CONSTRAINT "monthly_passes_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

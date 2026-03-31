@@ -27,25 +27,29 @@ model User {
   vehicles           Vehicle[]
   favorites          Favorite[]
   refresh_tokens     RefreshToken[]
-  withdrawals        Withdrawal[]
+  withdrawals        Withdrawal[] @relation("UserWithdrawals")
   settlements        Settlement[]
   @@map("users")
 }
 
 model Withdrawal {
-  id           String   @id @default(uuid())
-  user_id      String
-  user         User     @relation(fields: [user_id], references: [id])
-  amount       Decimal  @db.Decimal(12, 2)
-  status       String   @default("PENDING") // PENDING, APPROVED, COMPLETED, REJECTED
-  method       String   @default("UPI")     // UPI, BANK
-  account_info String?  @db.Text            // Encrypted or partial bank/UPI details
-  payout_id    String?  // External payment Gateway ID (e.g. Razorpay Fund Account ID)
-  error_msg    String?  @db.Text
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  id                  String   @id @default(uuid())
+  provider_id         String   @map("user_id") // Keep DB column as user_id but map to provider_id in Prisma
+  provider            User     @relation("UserWithdrawals", fields: [provider_id], references: [id], onDelete: Restrict)
+  amount              Decimal  @db.Decimal(12, 2)
+  currency            String   @default("INR")
+  status              String   @default("PENDING") // PENDING, APPROVED, COMPLETED, REJECTED
+  payout_method       String   @default("UPI")     // UPI, BANK
+  payout_details      String?  @db.Text            // Encrypted or partial bank/UPI details
+  destination_account String?                      // Optional specific destination account reference
+  payout_id           String?  // External payment Gateway ID (e.g. Razorpay Fund Account ID)
+  idempotency_key     String?  @unique
+  remarks             String?  @db.Text
+  error_msg           String?  @db.Text
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
 
-  @@index([user_id])
+  @@index([provider_id])
   @@index([status])
   @@map("withdrawals")
 }
@@ -53,7 +57,7 @@ model Withdrawal {
 model Settlement {
   id           String   @id @default(uuid())
   user_id      String
-  user         User     @relation(fields: [user_id], references: [id])
+  user         User     @relation(fields: [user_id], references: [id], onDelete: Restrict)
   amount       Decimal  @db.Decimal(12, 2)
   ticket_count Int
   status       String   @default("PENDING") // PENDING, SETTLED
@@ -120,6 +124,7 @@ model Floor {
   floor_number Int
   floor_name   String?
   parking_slots ParkingSlot[]
+  @@unique([facility_id, floor_number])
   @@map("floors")
 }
 
@@ -134,24 +139,26 @@ model ParkingSlot {
   is_active    Boolean     @default(true)
   reservation_expiry DateTime?
   tickets Ticket[]
+  @@unique([floor_id, slot_number])
+  @@index([floor_id, status])
   @@map("parking_slots")
 }
 
 model Ticket {
   id             String          @id @default(uuid())
   customer_id    String
-  customer       User            @relation(fields: [customer_id], references: [id])
+  customer       User            @relation(fields: [customer_id], references: [id], onDelete: Restrict)
   facility_id    String
   facility       ParkingFacility @relation(fields: [facility_id], references: [id])
-  slot_id        String
-  slot           ParkingSlot     @relation(fields: [slot_id], references: [id])
+  slot_id        String?
+  slot           ParkingSlot?     @relation(fields: [slot_id], references: [id], onDelete: SetNull)
   vehicle_number String
   vehicle_type   String
   entry_time     DateTime        @default(now())
   exit_time      DateTime?
-  base_fee       Decimal?
-  extra_charges  Decimal?
-  total_fee      Decimal?
+  base_fee       Decimal?        @db.Decimal(12, 2)
+  extra_charges  Decimal?        @db.Decimal(12, 2)
+  total_fee      Decimal?        @db.Decimal(12, 2)
   status         String          @default("ACTIVE")
   payment_status String?         @default("PENDING")
   payment_method String?
@@ -171,7 +178,7 @@ model MonthlyPass {
   vehicle_type   String
   start_date     DateTime
   end_date       DateTime
-  price          Decimal
+  price          Decimal         @db.Decimal(12, 2)
   status         String          @default("ACTIVE")
   payment_id     String?
   payment_status String?         @default("PAID")
@@ -185,9 +192,9 @@ model PricingRule {
   facility_id        String
   facility           ParkingFacility @relation(fields: [facility_id], references: [id], onDelete: Cascade)
   vehicle_type       String
-  hourly_rate        Decimal
-  daily_max          Decimal?
-  monthly_pass_price Decimal?
+  hourly_rate        Decimal         @db.Decimal(12, 2)
+  daily_max          Decimal?        @db.Decimal(12, 2)
+  monthly_pass_price Decimal?        @db.Decimal(12, 2)
   @@unique([facility_id, vehicle_type])
   @@map("pricing_rules")
 }

@@ -29,7 +29,7 @@ export default function EarningsScreen() {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  
+
   // Withdrawal Modal State
   const [showModal, setShowModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -55,11 +55,11 @@ export default function EarningsScreen() {
         setHistory(res.data.data.history || []);
         if (res.data.data.trend) {
           const { labels, data } = res.data.data.trend;
-          const isValidTrend = Array.isArray(labels) && 
-                               Array.isArray(data) && 
-                               labels.length > 0 &&
-                               labels.length === data.length &&
-                               data.every((val: any) => !isNaN(parseFloat(val)));
+          const isValidTrend = Array.isArray(labels) &&
+            Array.isArray(data) &&
+            labels.length > 0 &&
+            labels.length === data.length &&
+            data.every((val: any) => !isNaN(parseFloat(val)));
 
           if (isValidTrend) {
             setTrend({
@@ -105,9 +105,22 @@ export default function EarningsScreen() {
       return;
     }
 
-    if (payoutMethod === 'UPI' && !payoutDetails.upiId.includes('@')) {
-      Alert.alert("Invalid UPI ID", "Please enter a valid UPI ID (e.g., name@okaxis)");
-      return;
+    // Validation
+    if (payoutMethod === 'UPI') {
+      if (!payoutDetails.upiId || !payoutDetails.upiId.includes('@')) {
+        Alert.alert("Invalid UPI ID", "Please enter a valid UPI ID (e.g., name@okaxis)");
+        return;
+      }
+    } else if (payoutMethod === 'BANK') {
+      if (!payoutDetails.accNo || !/^\d{9,18}$/.test(payoutDetails.accNo)) {
+        Alert.alert("Invalid Account Number", "Please enter a valid bank account number (9-18 digits).");
+        return;
+      }
+      const ifscRegex = /^[A-Z]{4}[0-9A-Z]{7}$/;
+      if (!payoutDetails.ifsc || !ifscRegex.test(payoutDetails.ifsc)) {
+        Alert.alert("Invalid IFSC", "Please enter a valid 11-character IFSC code (e.g., SBIN0001234).");
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -115,13 +128,26 @@ export default function EarningsScreen() {
       const res = await post('/provider/withdrawals', {
         amount: amountNum,
         payout_method: payoutMethod,
-        payout_details: payoutMethod === 'UPI' ? { upi_id: payoutDetails.upiId } : { acc_no: payoutDetails.accNo, ifsc: payoutDetails.ifsc }
+        payout_details: payoutMethod === 'UPI' 
+          ? { upi_id: payoutDetails.upiId } 
+          : { acc_no: payoutDetails.accNo, ifsc: payoutDetails.ifsc }
       });
 
       if (res.data?.success) {
         Alert.alert("Request Submitted", "Your withdrawal request is being processed. It usually takes 2-4 hours.");
+        
+        // Reset form state
+        setWithdrawAmount('');
+        setPayoutDetails({
+          upiId: '',
+          accNo: '',
+          ifsc: '',
+        });
+        
         setShowModal(false);
         fetchEarnings(); // Refresh balance and history
+      } else {
+        Alert.alert("Error", res.data?.message || "Withdrawal request failed. Please try again.");
       }
     } catch (error: any) {
       Alert.alert("Error", error.response?.data?.message || "Failed to submit request");
@@ -169,8 +195,8 @@ export default function EarningsScreen() {
               <Text style={styles.balanceLabel}>WITHDRAWABLE BALANCE</Text>
               <Text style={styles.balanceValue}>₹{stats.withdrawable.toLocaleString()}</Text>
 
-              <TouchableOpacity 
-                style={styles.withdrawBtn} 
+              <TouchableOpacity
+                style={styles.withdrawBtn}
                 activeOpacity={0.8}
                 onPress={handleWithdraw}
               >
@@ -229,7 +255,7 @@ export default function EarningsScreen() {
               <Text style={styles.statLbl}>THIS MONTH</Text>
             </GlassCard>
           </Animated.View>
-          
+
           <Animated.View entering={FadeInDown.delay(200)} style={styles.halfTile}>
             <GlassCard style={styles.statTile} intensity={10}>
               <View style={[styles.statIcon, { backgroundColor: colors.info + '15' }]}>
@@ -253,10 +279,10 @@ export default function EarningsScreen() {
                     styles.settlementIconBox,
                     { backgroundColor: item.status === 'SUCCESS' ? colors.success + '15' : colors.warning + '15' }
                   ]}>
-                    <Ionicons 
-                      name={item.status === 'SUCCESS' ? 'checkmark-circle' : 'time'} 
-                      size={24} 
-                      color={item.status === 'SUCCESS' ? colors.success : colors.warning} 
+                    <Ionicons
+                      name={item.status === 'SUCCESS' ? 'checkmark-circle' : 'time'}
+                      size={24}
+                      color={item.status === 'SUCCESS' ? colors.success : colors.warning}
                     />
                   </View>
                   <View style={styles.settlementInfo}>
@@ -309,13 +335,13 @@ export default function EarningsScreen() {
             </View>
 
             <View style={styles.methodToggle}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.methodBtn, payoutMethod === 'UPI' && styles.methodBtnActive]}
                 onPress={() => setPayoutMethod('UPI')}
               >
                 <Text style={[styles.methodBtnText, payoutMethod === 'UPI' && styles.methodBtnTextActive]}>UPI</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.methodBtn, payoutMethod === 'BANK' && styles.methodBtnActive]}
                 onPress={() => setPayoutMethod('BANK')}
               >
@@ -329,7 +355,7 @@ export default function EarningsScreen() {
                 <TextInput
                   style={styles.textInput}
                   value={payoutDetails.upiId}
-                  onChangeText={(val) => setPayoutDetails({...payoutDetails, upiId: val})}
+                  onChangeText={(val) => setPayoutDetails({ ...payoutDetails, upiId: val })}
                   placeholder="username@bank"
                   autoCapitalize="none"
                   placeholderTextColor={colors.textMuted}
@@ -342,7 +368,7 @@ export default function EarningsScreen() {
                   <TextInput
                     style={styles.textInput}
                     value={payoutDetails.accNo}
-                    onChangeText={(val) => setPayoutDetails({...payoutDetails, accNo: val})}
+                    onChangeText={(val) => setPayoutDetails({ ...payoutDetails, accNo: val })}
                     keyboardType="numeric"
                     placeholder="Enter account number"
                     placeholderTextColor={colors.textMuted}
@@ -353,7 +379,7 @@ export default function EarningsScreen() {
                   <TextInput
                     style={styles.textInput}
                     value={payoutDetails.ifsc}
-                    onChangeText={(val) => setPayoutDetails({...payoutDetails, ifsc: val.toUpperCase()})}
+                    onChangeText={(val) => setPayoutDetails({ ...payoutDetails, ifsc: val.toUpperCase() })}
                     autoCapitalize="characters"
                     placeholder="e.g. SBIN0001234"
                     placeholderTextColor={colors.textMuted}
@@ -362,8 +388,8 @@ export default function EarningsScreen() {
               </>
             )}
 
-            <TouchableOpacity 
-              style={[styles.submitBtn, submitting && { opacity: 0.7 }]} 
+            <TouchableOpacity
+              style={[styles.submitBtn, submitting && { opacity: 0.7 }]}
               onPress={submitWithdrawal}
               disabled={submitting}
             >

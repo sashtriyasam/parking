@@ -939,6 +939,10 @@ const getEarnings = asyncHandler(async (req, res, next) => {
         select: { balance: true }
     });
 
+    if (!user) {
+        return next(new AppError('Provider account not found', 404));
+    }
+
     const pendingWithdrawalsAgg = await prisma.withdrawal.aggregate({
         where: { provider_id: providerId, status: 'PENDING' },
         _sum: { amount: true }
@@ -977,19 +981,23 @@ const requestWithdrawal = asyncHandler(async (req, res, next) => {
         return next(new AppError('Invalid withdrawal amount', 400));
     }
 
-    // 1. Check current balance
-    const user = await prisma.user.findUnique({
-        where: { id: providerId },
-        select: { balance: true }
-    });
-
-    if (user.balance < amount) {
-        return next(new AppError('Insufficient balance for withdrawal', 400));
-    }
-
     // 2. Atomic withdrawal creation and balance decrement
     const withdrawal = await prisma.$transaction(async (tx) => {
-        // A. Create withdrawal record
+        // A. Check current balance INSIDE transaction to prevent race conditions
+        const user = await tx.user.findUnique({
+            where: { id: providerId },
+            select: { balance: true }
+        });
+
+        if (!user) {
+            throw new AppError('Provider account not found', 404);
+        }
+
+        if (parseFloat(user.balance || 0) < amount) {
+            throw new AppError('Insufficient balance for withdrawal', 400);
+        }
+
+        // B. Create withdrawal record
         const w = await tx.withdrawal.create({
             data: {
                 provider_id: providerId,
@@ -1000,7 +1008,7 @@ const requestWithdrawal = asyncHandler(async (req, res, next) => {
             }
         });
 
-        // B. Decrement balance
+        // C. Decrement balance
         await tx.user.update({
             where: { id: providerId },
             data: {

@@ -87,19 +87,21 @@ const processWithdrawal = asyncHandler(async (req, res, next) => {
         return next(new AppError('Invalid status. Must be APPROVED or REJECTED', 400));
     }
 
-    const withdrawal = await prisma.withdrawal.findUnique({
-        where: { id: withdrawalId }
-    });
-
-    if (!withdrawal) {
-        return next(new AppError('Withdrawal request not found', 404));
-    }
-
-    if (withdrawal.status !== 'PENDING') {
-        return next(new AppError(`Withdrawal has already been ${withdrawal.status.toLowerCase()}`, 400));
-    }
-
     const updatedWithdrawal = await prisma.$transaction(async (tx) => {
+        // 1. Fetch and validate status inside transaction to prevent race conditions
+        const withdrawal = await tx.withdrawal.findUnique({
+            where: { id: withdrawalId }
+        });
+
+        if (!withdrawal) {
+            throw new AppError('Withdrawal request not found', 404);
+        }
+
+        if (withdrawal.status !== 'PENDING') {
+            throw new AppError('Withdrawal request not found or already processed', 400);
+        }
+
+        // 2. Update withdrawal status
         const w = await tx.withdrawal.update({
             where: { id: withdrawalId },
             data: {
@@ -109,7 +111,7 @@ const processWithdrawal = asyncHandler(async (req, res, next) => {
             }
         });
 
-        // If REJECTED, refund the balance to the provider
+        // 3. If REJECTED, refund the balance to the provider
         if (status === 'REJECTED') {
             await tx.user.update({
                 where: { id: withdrawal.provider_id },

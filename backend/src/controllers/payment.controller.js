@@ -2,6 +2,7 @@ const razorpayService = require('../services/payment.service');
 const bookingService = require('../services/booking.service');
 const prisma = require('../config/db');
 const logger = require('../utils/logger');
+const AppError = require('../utils/AppError');
 
 /**
  * Create a Razorpay order for a booking (Ticket)
@@ -84,7 +85,13 @@ exports.verifyPayment = async (req, res) => {
             select: { provider_id: true, name: true }
         });
 
-        if (!facility) throw new Error('Facility not found for ticket');
+        if (!facility) {
+            throw new AppError('Facility not found for ticket', 404);
+        }
+
+        if (!facility.provider_id) {
+            throw new AppError('Facility missing provider_id for ticket', 400);
+        }
 
         // 2. Calculate Fees (10% Platform Fee)
         const totalAmount = parseFloat(req.body.amount || 0); // Amount should be passed in request or fetched from ticket
@@ -139,9 +146,15 @@ exports.verifyPayment = async (req, res) => {
         });
     } catch (error) {
         logger.error('Error verifying payment:', error);
-        res.status(error.status || 500).json({
+        
+        const statusCode = error.statusCode || 500;
+        const message = error.isOperational 
+            ? error.message 
+            : 'Internal server error during verification';
+
+        res.status(statusCode).json({
             success: false,
-            message: error.message || 'Internal server error during verification'
+            message
         });
     }
 };
