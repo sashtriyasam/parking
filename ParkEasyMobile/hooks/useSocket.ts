@@ -9,8 +9,8 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 
 // Derive base URL from API URL by stripping /api/v1
-// TODO: Update EXPO_PUBLIC_API_URL in .env to point to new Koyeb URL after migration
-const BASE_API = process.env.EXPO_PUBLIC_API_URL || 'https://YOUR-APP.koyeb.app/api/v1';
+// TODO: Update EXPO_PUBLIC_API_URL in .env to point to Render URL after deployment
+const BASE_API = process.env.EXPO_PUBLIC_API_URL || 'https://parkeasy-backend.onrender.com/api/v1';
 const SOCKET_URL = BASE_API.replace(/\/api\/v1\/?$/, '');
 
 let socketInstance: Socket | null = null;

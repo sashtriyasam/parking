@@ -38,7 +38,7 @@ const allowedOrigins = [
     'http://localhost:3000',
     process.env.FRONTEND_URL,
     process.env.MOBILE_APP_URL,
-    process.env.KOYEB_APP_URL, // Add this
+    process.env.RENDER_APP_URL, // Add this
 ].filter(Boolean);
 
 app.use(cors({
