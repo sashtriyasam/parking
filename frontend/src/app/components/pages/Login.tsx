@@ -54,12 +54,25 @@ export function Login() {
       </div>
 
       <div className="max-w-md mx-auto w-full flex-1 flex flex-col justify-center pb-12">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          {isProvider ? 'Partner Login' : 'Welcome back'}
+        <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center justify-between">
+          <span>{isProvider ? 'Partner Login' : 'Welcome back'}</span>
+          <span className="text-[10px] font-normal text-gray-300">v1.7</span>
         </h1>
-        <p className="text-gray-500 mb-8">
+        <p className="text-gray-500 mb-6">
           {isProvider ? 'Manage your parking business' : 'Enter your details to continue'}
         </p>
+
+        {isProvider && (
+          <div className="mb-6 p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center gap-3 animate-in slide-in-from-top-2 duration-300">
+            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+              <span className="text-primary font-bold text-lg">P</span>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-primary">Partner Mode Active</p>
+              <p className="text-xs text-primary/70">Logging in to provider dashboard</p>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
@@ -130,6 +143,7 @@ export function Login() {
           <p className="text-gray-600 mb-4">
             {isProvider ? 'New to ParkEasy Partner?' : "Don't have an account?"}{' '}
             <button
+              type="button"
               onClick={() => navigate('/signup', { state: { isProvider } })}
               className="font-semibold text-primary hover:underline focus:outline-none"
             >

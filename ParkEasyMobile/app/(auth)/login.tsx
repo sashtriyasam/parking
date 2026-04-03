@@ -7,47 +7,50 @@ import {
   Platform,
   ScrollView,
   Dimensions,
-  Pressable,
   StatusBar,
   TouchableOpacity,
-  Alert
+  Alert,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated';
+import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
+
 import { useAuthStore } from '../../store/authStore';
 import { post } from '../../services/api';
-import { colors } from '../../constants/colors';
 import { useToast } from '../../components/Toast';
+import { useThemeColors } from '../../hooks/useThemeColors';
+import { useHaptics } from '../../hooks/useHaptics';
 import { User } from '../../types';
-import { GlassCard } from '../../components/ui/GlassCard';
-import { GlassInput } from '../../components/ui/GlassInput';
-import { GlassButton } from '../../components/ui/GlassButton';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
+import { ProfessionalCard } from '../../components/ui/ProfessionalCard';
+import { ProfessionalInput } from '../../components/ui/ProfessionalInput';
+import { ProfessionalButton } from '../../components/ui/ProfessionalButton';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 export default function LoginScreen() {
+  const colors = useThemeColors();
+  const haptics = useHaptics();
+  const router = useRouter();
+  const { login } = useAuthStore();
+  const { showToast } = useToast();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login } = useAuthStore();
-  const { showToast } = useToast();
-  const router = useRouter();
-
-  const handleForgotSignature = () => {
+  const handleForgotPassword = () => {
+    haptics.impactLight();
     Alert.alert(
-      "IDENTITY RECOVERY",
-      "Signature reset protocol is currently offline. Please contact internal support for node access.",
-      [{ text: "ACKNOWLEDGE", style: "default" }]
+      "Secure Access",
+      "Credential recovery tools are managed by our secondary security layer. Please contact your system administrator.",
+      [{ text: "Acknowledge", style: "default" }]
     );
   };
 
   const handleLogin = async () => {
     if (isSubmitting) return;
+    haptics.impactMedium();
 
     if (!email || !password) {
       showToast('CREDENTIALS REQUIRED', 'info');
@@ -60,10 +63,11 @@ export default function LoginScreen() {
         id: 'mock-customer-id',
         full_name: 'Alex Rivera',
         email: 'alex@parkeasy.premium',
-        phone_number: '9876543210',
+        phone_number: '',
         role: 'customer'
       };
       await login(mockUser, 'mock-token', 'mock-refresh');
+      haptics.notificationSuccess();
       router.replace('/(customer)');
       return;
     }
@@ -73,19 +77,18 @@ export default function LoginScreen() {
         id: 'mock-provider-id',
         full_name: 'Sarah Chen',
         email: 'sarah@parkeasy.partner',
-        phone_number: '9123456789',
+        phone_number: '',
         role: 'provider'
       };
       await login(mockUser, 'mock-token', 'mock-refresh');
+      haptics.notificationSuccess();
       router.replace('/(provider)/(tabs)');
       return;
     }
 
     setIsSubmitting(true);
-
     try {
       const response = await post('/auth/login', { email, password });
-
       if (response.data?.data) {
         const { user, accessToken, refreshToken } = response.data.data;
         const mappedUser: User = {
@@ -95,9 +98,8 @@ export default function LoginScreen() {
           phone_number: user.phone_number || '',
           role: user.role
         };
-
         await login(mappedUser, accessToken, refreshToken);
-
+        haptics.notificationSuccess();
         if (mappedUser.role === 'customer') {
           router.replace('/(customer)');
         } else if (mappedUser.role === 'provider') {
@@ -105,9 +107,10 @@ export default function LoginScreen() {
         }
       }
     } catch (e: any) {
-      let msg = 'SYNCHRONIZATION FAILURE';
+      haptics.notificationError();
+      let msg = 'AUTHENTICATION FAILED';
       if (e.response) {
-        msg = e.response.data?.message || 'INVALID SIGNATURE';
+        msg = e.response.data?.message || 'INVALID AUTHORIZATION';
       }
       showToast(msg, 'error');
     } finally {
@@ -115,24 +118,13 @@ export default function LoginScreen() {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    showToast('GOOGLE_ID_SYNC_OFFLINE', 'info');
-  };
-
-  const handleAppleSignIn = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    showToast('APPLE_ID_SYNC_OFFLINE', 'info');
-  };
-
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient colors={['#0A0F1E', '#161B2E']} style={StyleSheet.absoluteFill} />
-
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
+      
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -140,240 +132,111 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Animated.View entering={ZoomIn.delay(200).duration(800)} style={styles.header}>
-            <View style={styles.logoGlass}>
-              <View style={styles.logoGlow}>
-                <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
-              </View>
-              <BlurView intensity={40} tint="dark" style={styles.logoBlur}>
-                <Text style={styles.logoText}>P</Text>
-              </BlurView>
+            <View style={[styles.logoOutline, { borderColor: colors.border }]}>
+               <ProfessionalCard style={styles.logoCard} hasVibrancy={true}>
+                  <Text style={[styles.logoLetter, { color: colors.primary }]}>P</Text>
+               </ProfessionalCard>
             </View>
-            <Text style={styles.title}>RESTORE SESSION</Text>
-            <Text style={styles.subtitle}>PROTOCOL PHASE: IDENTITY VERIFICATION</Text>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>ParkEasy</Text>
+            <Text style={[styles.subtitle, { color: colors.textMuted }]}>PREMIUM PARKING ECOSYSTEM</Text>
           </Animated.View>
 
-          <Animated.View entering={FadeInUp.delay(400).duration(1000)}>
-            <GlassCard style={styles.card}>
-              <View style={styles.formLabel}>
-                <Ionicons name="finger-print-outline" size={14} color={colors.primary} />
-                <Text style={styles.formLabelText}>NODE ACCESS COORDINATES</Text>
+          <Animated.View entering={FadeInDown.delay(400).duration(1000)}>
+            <ProfessionalCard style={styles.card}>
+              <View style={styles.formHeader}>
+                <Ionicons name="lock-closed-outline" size={12} color={colors.primary} />
+                <Text style={[styles.formLabelText, { color: colors.textMuted }]}>SECURE ACCESS</Text>
               </View>
 
-              <GlassInput
-                label="IDENTITY (EMAIL)"
-                placeholder="USER_ID@PROTOCOL"
+              <ProfessionalInput
+                label="Email Address"
+                placeholder="identity@parkeasy.com"
                 icon="mail-outline"
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
-                keyboardType="email-address"
               />
 
-              <GlassInput
-                label="SECURE SIGNATURE (PASSWORD)"
+              <ProfessionalInput
+                label="Security Key"
                 placeholder="••••••••"
-                icon="lock-closed-outline"
+                icon="key-outline"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
               />
 
-              <Pressable style={styles.forgotPass} onPress={handleForgotSignature}>
-                <Text style={styles.forgotPassText}>FORGOT SIGNATURE?</Text>
-              </Pressable>
+              <TouchableOpacity style={styles.forgotPass} onPress={handleForgotPassword} activeOpacity={0.7}>
+                <Text style={[styles.forgotPassText, { color: colors.primary }]}>RECOVER ACCESS</Text>
+              </TouchableOpacity>
 
-              <GlassButton
-                label={isSubmitting ? "INITIALIZING..." : "VERIFY IDENTITY"}
+              <ProfessionalButton
+                label={isSubmitting ? "Authenticating..." : "Sign In"}
                 onPress={handleLogin}
                 variant="primary"
-                disabled={isSubmitting}
+                loading={isSubmitting}
                 style={styles.loginBtn}
               />
 
               <View style={styles.divider}>
-                <View style={styles.line} />
-                <Text style={styles.dividerText}>EXTERNAL NODES</Text>
-                <View style={styles.line} />
+                <View style={[styles.line, { backgroundColor: colors.border }]} />
+                <Text style={[styles.dividerText, { color: colors.textMuted }]}>ALTERNATIVE METHODS</Text>
+                <View style={[styles.line, { backgroundColor: colors.border }]} />
               </View>
 
               <View style={styles.socialRow}>
-                <TouchableOpacity style={styles.socialBtn} onPress={handleGoogleSignIn}>
-                  <BlurView intensity={10} tint="dark" style={styles.socialBlur}>
-                    <Ionicons name="logo-google" size={20} color="#FFF" />
-                    <Text style={styles.socialText}>GOOGLE</Text>
-                  </BlurView>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialBtn} onPress={handleAppleSignIn}>
-                  <BlurView intensity={10} tint="dark" style={styles.socialBlur}>
-                    <Ionicons name="logo-apple" size={20} color="#FFF" />
-                    <Text style={styles.socialText}>APPLE</Text>
-                  </BlurView>
-                </TouchableOpacity>
+                <SocialButton icon="logo-google" label="Google" onPress={() => haptics.impactLight()} colors={colors} />
+                <SocialButton icon="logo-apple" label="Apple" onPress={() => haptics.impactLight()} colors={colors} />
               </View>
-            </GlassCard>
+            </ProfessionalCard>
           </Animated.View>
 
-          <Animated.View entering={FadeInUp.delay(600).duration(1000)} style={styles.footer}>
-            <Text style={styles.footerText}>NEW TO THE GRID? </Text>
+          <View style={styles.footer}>
+            <Text style={[styles.footerText, { color: colors.textMuted }]}>NEW TO THE ECOSYSTEM? </Text>
             <Link href="/(auth)/signup" asChild>
-              <Pressable>
-                <Text style={styles.signUpLink}>INITIALIZE ACCOUNT</Text>
-              </Pressable>
+              <TouchableOpacity activeOpacity={0.7}>
+                <Text style={[styles.signUpLink, { color: colors.primary }]}>GENERATE ACCOUNT</Text>
+              </TouchableOpacity>
             </Link>
-          </Animated.View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
 }
 
+const SocialButton = ({ icon, label, onPress, colors }: any) => (
+  <TouchableOpacity style={styles.socialBtn} onPress={onPress} activeOpacity={0.7}>
+    <BlurView intensity={10} tint={colors.isDark ? 'dark' : 'light'} style={[styles.socialBlur, { borderColor: colors.border, borderWidth: 1, borderRadius: 20 }]}>
+      <Ionicons name={icon} size={18} color={colors.textPrimary} />
+      <Text style={[styles.socialText, { color: colors.textPrimary }]}>{label}</Text>
+    </BlurView>
+  </TouchableOpacity>
+);
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0F1E',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: height * 0.1,
-    paddingBottom: 40,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 48,
-  },
-  logoGlass: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    marginBottom: 24,
-    position: 'relative',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  logoBlur: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoText: {
-    color: '#FFF',
-    fontSize: 38,
-    fontWeight: '900',
-    letterSpacing: -1,
-  },
-  logoGlow: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.primary,
-    opacity: 0.2,
-  },
-  title: {
-    color: '#FFF',
-    fontSize: 24,
-    fontWeight: '900',
-    letterSpacing: 4,
-  },
-  subtitle: {
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 10,
-    fontWeight: '800',
-    marginTop: 8,
-    letterSpacing: 1,
-  },
-  card: {
-    padding: 24,
-  },
-  formLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 24,
-    opacity: 0.8,
-  },
-  formLabelText: {
-    color: '#FFF',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  forgotPass: {
-    alignSelf: 'flex-end',
-    marginBottom: 32,
-  },
-  forgotPassText: {
-    color: colors.primary,
-    fontWeight: '900',
-    fontSize: 10,
-    letterSpacing: 1,
-  },
-  loginBtn: {
-    marginBottom: 32,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  line: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  dividerText: {
-    color: 'rgba(255, 255, 255, 0.3)',
-    paddingHorizontal: 16,
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  socialRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  socialBtn: {
-    flex: 1,
-    height: 54,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  socialBlur: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  socialText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 40,
-    gap: 4,
-  },
-  footerText: {
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  signUpLink: {
-    color: colors.primary,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1,
-  }
+  container: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 28, paddingTop: height * 0.1, paddingBottom: 60 },
+  header: { alignItems: 'center', marginBottom: 48 },
+  logoOutline: { width: 88, height: 88, borderRadius: 28, padding: 1, marginBottom: 24 },
+  logoCard: { flex: 1, borderRadius: 26, justifyContent: 'center', alignItems: 'center', padding: 0 },
+  logoLetter: { fontSize: 44, fontWeight: '900', letterSpacing: -2 },
+  title: { fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
+  subtitle: { fontSize: 10, fontWeight: '900', marginTop: 10, letterSpacing: 2, opacity: 0.6 },
+  card: { padding: 32, borderRadius: 40 },
+  formHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 32 },
+  formLabelText: { fontSize: 10, fontWeight: '900', letterSpacing: 2 },
+  forgotPass: { alignSelf: 'flex-end', marginBottom: 32, paddingVertical: 4 },
+  forgotPassText: { fontWeight: '900', fontSize: 11, letterSpacing: 1 },
+  loginBtn: { height: 60, borderRadius: 20, marginBottom: 32 },
+  divider: { flexDirection: 'row', alignItems: 'center', marginBottom: 28 },
+  line: { flex: 1, height: 1, opacity: 0.1 },
+  dividerText: { paddingHorizontal: 16, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
+  socialRow: { flexDirection: 'row', gap: 12 },
+  socialBtn: { flex: 1, height: 56 },
+  socialBlur: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  socialText: { fontSize: 12, fontWeight: '700', letterSpacing: -0.2 },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 48, gap: 4 },
+  footerText: { fontSize: 11, fontWeight: '600', opacity: 0.8 },
+  signUpLink: { fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
 });

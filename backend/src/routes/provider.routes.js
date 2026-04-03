@@ -44,6 +44,7 @@ router.put('/facilities/:facilityId/pricing', providerController.updateFacilityP
 
 // Bookings
 router.get('/bookings', providerController.getAllBookings);
+router.post('/bookings/offline', providerController.createOfflineBooking);
 
 // Vehicle Checker
 router.get('/check-vehicle', providerController.checkVehicleByPlate);

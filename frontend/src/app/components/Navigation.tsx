@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { User, LogOut, LayoutDashboard, Search, Ticket, Home, Menu } from 'lucide-react';
+import { User, LogOut, LayoutDashboard, Search, Ticket, Home, Menu, ParkingSquare, Car } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Button } from '@/app/components/ui/button';
 import {
@@ -21,11 +21,20 @@ export function Navigation() {
   };
 
   const isActive = (path: string) => location.pathname.startsWith(path);
+  const isProvider = user?.role === 'provider';
 
-  // If not authenticated or on landing/auth pages, show simple top nav or nothing (handled by App.tsx logic usually, but here we safeguard)
-  // Actually App.tsx conditionally renders this. So we assume if this is rendered, we want the app nav.
+  // Navigation Config based on Role
+  const navConfig = isProvider ? {
+    home: '/provider/dashboard',
+    explore: { path: '/provider/facilities', label: 'My Spaces', icon: ParkingSquare },
+    bookings: { path: '/provider/bookings', label: 'Live Activity', icon: Car }
+  } : {
+    home: '/customer/search',
+    explore: { path: '/customer/search', label: 'Find Parking', icon: Search },
+    bookings: { path: '/customer/tickets', label: 'My Bookings', icon: Ticket }
+  };
 
-  if (!isAuthenticated && location.pathname === '/') return null; // Edge case safeguard
+  if (!isAuthenticated && location.pathname === '/') return null;
 
   const NavItem = ({ icon: Icon, label, path }: { icon: any, label: string, path: string }) => (
     <button
@@ -45,7 +54,7 @@ export function Navigation() {
       {/* DESKTOP TOP BAR */}
       <nav className="hidden md:block fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/customer/search" className="flex items-center space-x-2">
+          <Link to={navConfig.home} className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <span className="text-white font-black text-lg">P</span>
             </div>
@@ -53,8 +62,12 @@ export function Navigation() {
           </Link>
 
           <div className="flex items-center space-x-6">
-            <Link to="/customer/search" className={cn("text-sm font-medium transition-colors", isActive('/customer/search') ? "text-primary" : "text-gray-600 hover:text-gray-900")}>Find Parking</Link>
-            <Link to="/customer/tickets" className={cn("text-sm font-medium transition-colors", isActive('/customer/tickets') ? "text-primary" : "text-gray-600 hover:text-gray-900")}>My Bookings</Link>
+            <Link to={navConfig.explore.path} className={cn("text-sm font-medium transition-colors", isActive(navConfig.explore.path) ? "text-primary" : "text-gray-600 hover:text-gray-900")}>
+              {navConfig.explore.label}
+            </Link>
+            <Link to={navConfig.bookings.path} className={cn("text-sm font-medium transition-colors", isActive(navConfig.bookings.path) ? "text-primary" : "text-gray-600 hover:text-gray-900")}>
+              {navConfig.bookings.label}
+            </Link>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -98,9 +111,9 @@ export function Navigation() {
       {/* MOBILE BOTTOM TAB BAR */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 h-16 pb-safe">
         <div className="grid grid-cols-3 h-full">
-          <NavItem icon={Search} label="Explore" path="/customer/search" />
-          <NavItem icon={Ticket} label="Bookings" path="/customer/tickets" />
-          <NavItem icon={User} label="Account" path={user?.role === 'provider' ? "/provider/profile" : "/customer/profile"} />
+          <NavItem icon={navConfig.explore.icon} label={navConfig.explore.label} path={navConfig.explore.path} />
+          <NavItem icon={navConfig.bookings.icon} label={navConfig.bookings.label} path={navConfig.bookings.path} />
+          <NavItem icon={User} label="Account" path={isProvider ? "/provider/profile" : "/customer/profile"} />
         </div>
       </div>
     </>

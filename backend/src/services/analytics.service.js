@@ -44,13 +44,29 @@ const getDashboardStats = async (providerId) => {
         getRevenue(monthStart)
     ]);
 
-    // 3. Active Bookings
-    const activeBookings = await prisma.ticket.count({
-        where: {
-            slot: { floor: { facility_id: { in: facilityIds } } },
-            status: 'ACTIVE'
-        }
-    });
+    // 3. Active Bookings Breakdown
+    const [activeBookings, onlineBookings, offlineBookings] = await Promise.all([
+        prisma.ticket.count({
+            where: {
+                slot: { floor: { facility_id: { in: facilityIds } } },
+                status: 'ACTIVE'
+            }
+        }),
+        prisma.ticket.count({
+            where: {
+                slot: { floor: { facility_id: { in: facilityIds } } },
+                status: 'ACTIVE',
+                booking_type: 'ONLINE'
+            }
+        }),
+        prisma.ticket.count({
+            where: {
+                slot: { floor: { facility_id: { in: facilityIds } } },
+                status: 'ACTIVE',
+                booking_type: 'OFFLINE'
+            }
+        })
+    ]);
 
     // 4. Occupancy Rate
     // Total Slots
@@ -76,7 +92,9 @@ const getDashboardStats = async (providerId) => {
             month: revenueMonth
         },
         occupancy: Math.round(occupancyRate * 10) / 10,
-        active_bookings: activeBookings
+        active_bookings: activeBookings,
+        online_bookings: onlineBookings,
+        offline_bookings: offlineBookings
     };
 };
 

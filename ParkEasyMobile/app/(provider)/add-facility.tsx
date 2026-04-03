@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -17,17 +16,32 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import MapView, { Marker } from 'react-native-maps';
+import Animated, { 
+  FadeIn, 
+  FadeInUp, 
+  SlideInRight, 
+  FadeInDown
+} from 'react-native-reanimated';
 import * as Location from 'expo-location';
-import Animated, { FadeIn, FadeInUp, SlideInRight } from 'react-native-reanimated';
+
 import { post } from '../../services/api';
 import { useToast } from '../../components/Toast';
+import { useThemeColors } from '../../hooks/useThemeColors';
+import { useHaptics } from '../../hooks/useHaptics';
+import { ProfessionalCard } from '../../components/ui/ProfessionalCard';
+import { ProfessionalButton } from '../../components/ui/ProfessionalButton';
+import { ProfessionalInput } from '../../components/ui/ProfessionalInput';
 
-const { height } = Dimensions.get('window');
+import { MapView, Marker } from '../../components/MapPlaceholder';
+
+const { width, height } = Dimensions.get('window');
 
 export default function AddFacility() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const haptics = useHaptics();
   const { showToast } = useToast();
+
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [showMap, setShowMap] = useState(false);
@@ -54,6 +68,7 @@ export default function AddFacility() {
   const totalSteps = 3;
 
   const nextStep = () => {
+    haptics.impactLight();
     if (currentStep === 1) {
       if (!formData.name || !formData.total_slots) {
         showToast('Please fill in facility name and slots.', 'error');
@@ -69,9 +84,13 @@ export default function AddFacility() {
     setCurrentStep(prev => Math.min(prev + 1, totalSteps));
   };
 
-  const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+  const prevStep = () => {
+    haptics.impactLight();
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
 
   const handleVerifyLocation = async () => {
+    haptics.impactMedium();
     if (!formData.address) {
       showToast('Please enter an address first.', 'error');
       return;
@@ -90,6 +109,7 @@ export default function AddFacility() {
       const result = await Location.geocodeAsync(fullAddress);
 
       if (result.length > 0) {
+        haptics.notificationSuccess();
         const { latitude, longitude } = result[0];
         setFormData(prev => ({
           ...prev,
@@ -105,10 +125,12 @@ export default function AddFacility() {
         }));
         setShowMap(true);
       } else {
+        haptics.notificationError();
         showToast('Could not find location. Please check the address.', 'error');
       }
     } catch (error) {
       console.error('Geocoding error:', error);
+      haptics.notificationError();
       showToast('Error verifying location. Try manual entry.', 'error');
     } finally {
       setVerifying(false);
@@ -116,6 +138,7 @@ export default function AddFacility() {
   };
 
   const handleMapConfirm = (e: any) => {
+    haptics.impactLight();
     const { latitude, longitude } = e.nativeEvent.coordinate;
     setFormData(prev => ({
       ...prev,
@@ -125,6 +148,7 @@ export default function AddFacility() {
   };
 
   const handleSubmit = async () => {
+    haptics.impactMedium();
     setLoading(true);
     try {
       const payload = {
@@ -141,9 +165,11 @@ export default function AddFacility() {
       };
 
       await post('/provider/facilities', payload);
+      haptics.notificationSuccess();
       showToast('Facility added successfully.', 'success');
       router.back();
     } catch (error: any) {
+      haptics.notificationError();
       showToast(error.response?.data?.message || 'Failed to add facility', 'error');
     } finally {
       setLoading(false);
@@ -152,50 +178,43 @@ export default function AddFacility() {
 
   const getStepTitle = () => {
     if (currentStep === 1) return 'Basic Details';
-    if (currentStep === 2) return 'Location & Map';
+    if (currentStep === 2) return 'Location';
     return 'Final Review';
   };
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar barStyle="light-content" />
-      <View style={styles.bgWrapper}>
-        <LinearGradient
-          colors={['#0f1219', '#080a0f']}
-          style={StyleSheet.absoluteFill}
-        />
-      </View>
+      <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
+      
+      <Animated.View entering={FadeInDown.duration(600)} style={styles.header}>
+        <BlurView intensity={20} tint={colors.isDark ? 'dark' : 'light'} style={styles.headerContent}>
+          <View style={styles.headerTop}>
+            <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
+              <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+            </TouchableOpacity>
+            
+            <View style={styles.headerInfo}>
+              <Text style={[styles.headerLabel, { color: colors.textMuted }]}>NEW LOCATION • STEP {currentStep}</Text>
+              <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{getStepTitle()}</Text>
+            </View>
 
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <BlurView intensity={20} tint="dark" style={styles.iconBlur}>
-              <Ionicons name="chevron-back" size={24} color="white" />
-            </BlurView>
-          </TouchableOpacity>
-          <View style={styles.headerInfo}>
-            <Text style={styles.headerSubtitle}>New Location</Text>
-            <Text style={styles.headerTitle}>{getStepTitle()}</Text>
+            <View style={[styles.stepBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.stepBadgeText, { color: colors.textPrimary }]}>{currentStep}/{totalSteps}</Text>
+            </View>
           </View>
-          <View style={styles.stepBadge}>
-            <Text style={styles.stepBadgeText}>{currentStep} of {totalSteps}</Text>
+          <View style={[styles.progressBar, { backgroundColor: colors.border + '20' }]}>
+            <Animated.View
+              style={[
+                styles.progressFill,
+                { backgroundColor: colors.primary, width: `${(currentStep / totalSteps) * 100}%` }
+              ]}
+            />
           </View>
-        </View>
-      </View>
-
-      <View style={styles.progressBar}>
-        <View style={styles.progressTrack}>
-          <Animated.View
-            style={[
-              styles.progressFill,
-              { width: `${(currentStep / totalSteps) * 100}%` }
-            ]}
-          />
-        </View>
-      </View>
+        </BlurView>
+      </Animated.View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -203,528 +222,224 @@ export default function AddFacility() {
       >
         {currentStep === 1 && (
           <Animated.View entering={FadeInUp} style={styles.formContainer}>
-            <Text style={styles.formTitle}>General Information</Text>
-            <Text style={styles.formSubtitle}>Provide the essential details about your parking facility.</Text>
+            <Text style={[styles.stepHeading, { color: colors.textPrimary }]}>Facility Details</Text>
+            <Text style={[styles.stepSubheading, { color: colors.textSecondary }]}>Provide the baseline metrics for your new parking location.</Text>
 
-            <View style={styles.inputSection}>
-              <Text style={styles.label}>Facility Name</Text>
-              <BlurView intensity={10} tint="dark" style={styles.inputBox}>
-                <Ionicons name="business-outline" size={20} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={formData.name}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-                  placeholder="Example: Central Plaza Parking"
-                  placeholderTextColor="rgba(255,255,255,0.2)"
-                />
-              </BlurView>
-            </View>
+            <ProfessionalInput
+              label="FACILITY NAME"
+              value={formData.name}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
+              placeholder="e.g. Royal Plaza P1"
+              icon="business-outline"
+            />
 
             <View style={styles.row}>
-              <View style={[styles.inputSection, { flex: 1, marginRight: 15 }]}>
-                <Text style={styles.label}>Total Slots</Text>
-                <BlurView intensity={10} tint="dark" style={styles.inputBox}>
-                  <TextInput
-                    style={styles.input}
+               <View style={{ flex: 1 }}>
+                  <ProfessionalInput
+                    label="TOTAL SLOTS"
                     value={formData.total_slots}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, total_slots: text }))}
                     keyboardType="numeric"
                     placeholder="20"
-                    placeholderTextColor="rgba(255,255,255,0.2)"
+                    icon="grid-outline"
                   />
-                </BlurView>
-              </View>
-              <View style={[styles.inputSection, { flex: 1 }]}>
-                <Text style={styles.label}>Operating Hours</Text>
-                <BlurView intensity={10} tint="dark" style={styles.inputBox}>
-                  <TextInput
-                    style={styles.input}
+               </View>
+               <View style={{ width: 16 }} />
+               <View style={{ flex: 1 }}>
+                  <ProfessionalInput
+                    label="HOURS"
                     value={formData.operating_hours}
                     onChangeText={(text) => setFormData(prev => ({ ...prev, operating_hours: text }))}
                     placeholder="24/7"
-                    placeholderTextColor="rgba(255,255,255,0.2)"
+                    icon="time-outline"
                   />
-                </BlurView>
-              </View>
+               </View>
             </View>
           </Animated.View>
         )}
 
         {currentStep === 2 && (
           <Animated.View entering={SlideInRight} style={styles.formContainer}>
-            <Text style={styles.formTitle}>Location Details</Text>
-            <Text style={styles.formSubtitle}>Help users find your facility with accurate map coordinates.</Text>
+            <Text style={[styles.stepHeading, { color: colors.textPrimary }]}>Where is it located?</Text>
+            <Text style={[styles.stepSubheading, { color: colors.textSecondary }]}>Enter the address precisely to help drivers navigate seamlessly.</Text>
 
-            <View style={styles.inputSection}>
-              <Text style={styles.label}>Full Address</Text>
-              <BlurView intensity={10} tint="dark" style={[styles.inputBox, { height: 100, alignItems: 'flex-start', paddingTop: 12 }]}>
-                <TextInput
-                  style={[styles.input, { height: '100%', textAlignVertical: 'top' }]}
-                  value={formData.address}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, address: text }))}
-                  placeholder="Enter the complete building/street address"
-                  placeholderTextColor="rgba(255,255,255,0.2)"
-                  multiline
-                />
-              </BlurView>
-            </View>
+            <ProfessionalInput
+              label="FULL STREET ADDRESS"
+              value={formData.address}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, address: text }))}
+              placeholder="123 Park Lane, Sector 4..."
+              icon="location-outline"
+              multiline
+              style={{ height: 100 }}
+            />
 
-            <View style={styles.inputSection}>
-              <Text style={styles.label}>City</Text>
-              <BlurView intensity={10} tint="dark" style={styles.inputBox}>
-                <TextInput
-                  style={styles.input}
-                  value={formData.city}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, city: text }))}
-                  placeholder="Pune"
-                  placeholderTextColor="rgba(255,255,255,0.2)"
-                />
-              </BlurView>
-            </View>
+            <ProfessionalInput
+              label="CITY / REGION"
+              value={formData.city}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, city: text }))}
+              placeholder="Pune"
+              icon="map-outline"
+            />
 
-            <TouchableOpacity
-              style={styles.verifyBtn}
-              onPress={handleVerifyLocation}
-              disabled={verifying}
-            >
-              {verifying ? (
-                <ActivityIndicator size="small" color="black" />
-              ) : (
-                <>
-                  <Ionicons name="location-outline" size={20} color="black" />
-                  <Text style={styles.verifyBtnText}>Verify Location on Map</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            <ProfessionalButton
+               label={verifying ? "VERIFYING..." : "Verify on Map"}
+               onPress={handleVerifyLocation}
+               variant="primary"
+               style={{ marginTop: 24 }}
+               loading={verifying}
+            />
 
-            {formData.latitude && formData.longitude ? (
-              <BlurView intensity={15} tint="dark" style={styles.verifiedBox}>
-                <Ionicons name="checkmark-circle" size={18} color="#34d399" />
-                <Text style={styles.verifiedText}>Location Verified: {parseFloat(formData.latitude).toFixed(4)}, {parseFloat(formData.longitude).toFixed(4)}</Text>
-              </BlurView>
+            {formData.latitude ? (
+              <Animated.View entering={FadeInDown} style={[styles.verifiedStatus, { backgroundColor: colors.success + '10' }]}>
+                 <Ionicons name="checkmark-done-circle" size={18} color={colors.success} />
+                 <Text style={[styles.verifiedTxt, { color: colors.success }]}>Geocoding Active: {parseFloat(formData.latitude).toFixed(4)}, {parseFloat(formData.longitude).toFixed(4)}</Text>
+              </Animated.View>
             ) : null}
           </Animated.View>
         )}
 
         {currentStep === 3 && (
           <Animated.View entering={FadeIn} style={styles.formContainer}>
-            <Text style={styles.formTitle}>Final Review</Text>
-            <Text style={styles.formSubtitle}>Add a short description and review the registry entry.</Text>
+            <Text style={[styles.stepHeading, { color: colors.textPrimary }]}>Final Review</Text>
+            <Text style={[styles.stepSubheading, { color: colors.textSecondary }]}>Add a brief description and verify before going live.</Text>
 
-            <View style={styles.inputSection}>
-              <Text style={styles.label}>Facility Description</Text>
-              <BlurView intensity={10} tint="dark" style={[styles.inputBox, { height: 120, alignItems: 'flex-start', paddingTop: 12 }]}>
-                <TextInput
-                  style={[styles.input, { height: '100%', textAlignVertical: 'top' }]}
-                  value={formData.description}
-                  onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
-                  placeholder="Describe your facility, security, or special instructions..."
-                  placeholderTextColor="rgba(255,255,255,0.2)"
-                  multiline
-                />
-              </BlurView>
-            </View>
+            <ProfessionalInput
+              label="ABOUT THIS FACILITY"
+              value={formData.description}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
+              placeholder="Mention security features, EV charging, etc."
+              icon="document-text-outline"
+              multiline
+              style={{ height: 120 }}
+            />
 
-            <BlurView intensity={10} tint="dark" style={styles.summaryCard}>
-              <Text style={styles.summaryTitle}>Summary</Text>
-              <View style={styles.summaryDivider} />
-
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryKey}>Name</Text>
-                <Text style={styles.summaryVal}>{formData.name || 'Not provided'}</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryKey}>Capacity</Text>
-                <Text style={styles.summaryVal}>{formData.total_slots} Slots</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryKey}>City</Text>
-                <Text style={styles.summaryVal}>{formData.city}</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryKey}>Address</Text>
-                <Text style={styles.summaryVal} numberOfLines={1}>{formData.address || 'Not provided'}</Text>
-              </View>
-            </BlurView>
+            <ProfessionalCard style={styles.summaryCard} hasVibrancy={true}>
+               <Text style={[styles.summaryTitle, { color: colors.textPrimary }]}>Review Draft</Text>
+               <View style={[styles.divider, { backgroundColor: colors.border }]} />
+               
+               <View style={styles.summaryRow}>
+                  <Text style={[styles.sKey, { color: colors.textMuted }]}>Title</Text>
+                  <Text style={[styles.sVal, { color: colors.textPrimary }]}>{formData.name}</Text>
+               </View>
+               <View style={styles.summaryRow}>
+                  <Text style={[styles.sKey, { color: colors.textMuted }]}>Capacity</Text>
+                  <Text style={[styles.sVal, { color: colors.textPrimary }]}>{formData.total_slots} Slots</Text>
+               </View>
+               <View style={styles.summaryRow}>
+                  <Text style={[styles.sKey, { color: colors.textMuted }]}>Region</Text>
+                  <Text style={[styles.sVal, { color: colors.textPrimary }]}>{formData.city}</Text>
+               </View>
+            </ProfessionalCard>
           </Animated.View>
         )}
 
         <View style={styles.footer}>
-          {currentStep > 1 && (
-            <TouchableOpacity style={styles.secondaryBtn} onPress={prevStep}>
-              <Text style={styles.secondaryBtnText}>Back</Text>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            style={[styles.primaryBtn, currentStep === 1 && { flex: 1 }]}
-            onPress={currentStep < 3 ? nextStep : handleSubmit}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="black" />
-            ) : (
-              <Text style={styles.primaryBtnText}>
-                {currentStep < 3 ? 'Continue' : 'Add Facility'}
-              </Text>
-            )}
-          </TouchableOpacity>
+           {currentStep > 1 && (
+             <TouchableOpacity style={[styles.backBtnFooter, { backgroundColor: colors.surface }]} onPress={prevStep}>
+                <Text style={[styles.backBtnTxt, { color: colors.textSecondary }]}>Previous</Text>
+             </TouchableOpacity>
+           )}
+           <View style={{ flex: currentStep === 1 ? 0 : 1, width: currentStep === 1 ? 0 : 16 }} />
+           <ProfessionalButton
+              label={currentStep === 3 ? "Launch Facility" : "Continue"}
+              onPress={currentStep < 3 ? nextStep : handleSubmit}
+              variant="primary"
+              style={{ flex: 2 }}
+              loading={loading}
+           />
         </View>
       </ScrollView>
 
       {/* Map Verification Modal */}
       <Modal visible={showMap} animationType="slide" transparent>
-        <BlurView intensity={80} tint="dark" style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Confirm Location</Text>
-                <Text style={styles.modalSubtitle}>Drag the marker to the exact entrance</Text>
+        <BlurView intensity={100} tint={colors.isDark ? 'dark' : 'light'} style={styles.modalOverlay}>
+           <Animated.View entering={SlideInRight} style={[styles.modalContent, { backgroundColor: colors.background }]}>
+              <View style={styles.modalHeader}>
+                 <View>
+                    <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Confirm Pin</Text>
+                    <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>Drag the marker to the exact hotspot</Text>
+                 </View>
+                 <TouchableOpacity onPress={() => setShowMap(false)} style={styles.modalClose}>
+                    <Ionicons name="close" size={24} color={colors.textPrimary} />
+                 </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={() => setShowMap(false)} style={styles.modalCloseBtn}>
-                <Ionicons name="close" size={24} color="white" />
-              </TouchableOpacity>
-            </View>
 
-            <View style={styles.mapHost}>
-              <MapView
-                style={styles.map}
-                region={mapRegion}
-                onRegionChangeComplete={setMapRegion}
-                customMapStyle={darkMapStyle}
-              >
-                <Marker
-                  coordinate={{
-                    latitude: parseFloat(formData.latitude) || 18.5204,
-                    longitude: parseFloat(formData.longitude) || 73.8567
-                  }}
-                  draggable
-                  onDragEnd={handleMapConfirm}
-                >
-                  <View style={styles.markerContainer}>
-                    <View style={styles.markerCircle} />
-                  </View>
-                </Marker>
-              </MapView>
-            </View>
+              <View style={[styles.mapHost, { borderColor: colors.border }]}>
+                 {Platform.OS !== 'web' ? (
+                   <MapView
+                     style={styles.map}
+                     region={mapRegion}
+                     onRegionChangeComplete={setMapRegion}
+                   >
+                     <Marker
+                       coordinate={{
+                         latitude: parseFloat(formData.latitude) || 18.5204,
+                         longitude: parseFloat(formData.longitude) || 73.8567
+                       }}
+                       draggable
+                       onDragEnd={handleMapConfirm}
+                     />
+                   </MapView>
+                 ) : (
+                   <View style={styles.webPlaceholder}>
+                      <Text style={{ color: colors.textMuted }}>Map native preview only</Text>
+                   </View>
+                 )}
+              </View>
 
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.confirmMapBtn} onPress={() => setShowMap(false)}>
-                <Text style={styles.confirmMapText}>Lock Coordinates</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+              <ProfessionalButton
+                 label="Set This Location"
+                 onPress={() => setShowMap(false)}
+                 variant="primary"
+                 style={{ marginTop: 24 }}
+              />
+           </Animated.View>
         </BlurView>
       </Modal>
     </KeyboardAvoidingView>
   );
 }
 
-const darkMapStyle = [
-  { "elementType": "geometry", "stylers": [{ "color": "#080a0f" }] },
-  { "elementType": "labels.text.fill", "stylers": [{ "color": "#ffffff" }] },
-  { "elementType": "labels.text.stroke", "stylers": [{ "color": "#080a0f" }] },
-  { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#1e222b" }] }
-];
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#080a0f',
-  },
-  bgWrapper: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  header: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingHorizontal: 20,
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
-    backgroundColor: 'rgba(8, 10, 15, 0.8)',
-  },
+  container: { flex: 1 },
+  header: { zIndex: 100 },
   headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? 70 : 50,
+    borderBottomWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
-  backBtn: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  iconBlur: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerInfo: {
-    flex: 1,
-    marginLeft: 15,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: 'white',
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.5)',
-    marginBottom: 2,
-  },
-  stepBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  stepBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: 'white',
-  },
-  progressBar: {
-    height: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-  },
-  progressTrack: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: 'white',
-  },
-  scrollContent: {
-    padding: 24,
-    paddingTop: 30,
-    paddingBottom: 60,
-  },
-  formContainer: {
-    marginBottom: 30,
-  },
-  formTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: 'white',
-    marginBottom: 8,
-  },
-  formSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.4)',
-    lineHeight: 20,
-    marginBottom: 30,
-  },
-  inputSection: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.5)',
-    marginBottom: 10,
-    marginLeft: 4,
-  },
-  inputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    backgroundColor: 'rgba(255, 255, 255, 0.01)',
-    overflow: 'hidden',
-    minHeight: 56,
-  },
-  inputIcon: {
-    paddingLeft: 18,
-  },
-  input: {
-    flex: 1,
-    paddingHorizontal: 18,
-    fontSize: 15,
-    color: 'white',
-    fontWeight: '500',
-  },
-  row: {
-    flexDirection: 'row',
-  },
-  verifyBtn: {
-    backgroundColor: 'white',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    borderRadius: 18,
-    gap: 10,
-    marginTop: 5,
-  },
-  verifyBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: 'black',
-  },
-  verifiedBox: {
-    marginTop: 20,
-    padding: 15,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(52, 211, 153, 0.2)',
-    overflow: 'hidden',
-  },
-  verifiedText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#34d399',
-  },
-  summaryCard: {
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 24,
-    overflow: 'hidden',
-  },
-  summaryTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-    marginBottom: 15,
-  },
-  summaryDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    marginBottom: 20,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-    gap: 20,
-  },
-  summaryKey: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.4)',
-  },
-  summaryVal: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    color: 'white',
-    textAlign: 'right',
-  },
-  footer: {
-    flexDirection: 'row',
-    gap: 15,
-    paddingTop: 10,
-  },
-  secondaryBtn: {
-    flex: 1,
-    height: 60,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryBtnText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.6)',
-  },
-  primaryBtn: {
-    flex: 2,
-    height: 60,
-    borderRadius: 20,
-    backgroundColor: 'white',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: 'black',
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-  },
-  modalContent: {
-    backgroundColor: '#0f1219',
-    borderTopLeftRadius: 36,
-    borderTopRightRadius: 36,
-    height: height * 0.85,
-    borderTopWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    padding: 24,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: 'white',
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.4)',
-    marginTop: 2,
-  },
-  modalCloseBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mapHost: {
-    flex: 1,
-    borderRadius: 24,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  map: {
-    flex: 1,
-  },
-  markerContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 2,
-    borderColor: 'white',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markerCircle: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: 'white',
-  },
-  modalFooter: {
-    paddingTop: 24,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 0,
-  },
-  confirmMapBtn: {
-    backgroundColor: 'white',
-    paddingVertical: 18,
-    borderRadius: 18,
-    alignItems: 'center',
-  },
-  confirmMapText: {
-    color: 'black',
-    fontSize: 16,
-    fontWeight: '700',
-  }
+  headerTop: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 16 },
+  navBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  headerInfo: { flex: 1, marginLeft: 12 },
+  headerLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
+  headerTitle: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
+  stepBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1 },
+  stepBadgeText: { fontSize: 11, fontWeight: '800' },
+  progressBar: { height: 2, width: '100%' },
+  progressFill: { height: '100%' },
+  scrollContent: { padding: 24, paddingBottom: 100 },
+  formContainer: { marginBottom: 40 },
+  stepHeading: { fontSize: 28, fontWeight: '900', letterSpacing: -1, marginBottom: 8 },
+  stepSubheading: { fontSize: 15, lineHeight: 22, fontWeight: '600', marginBottom: 32 },
+  row: { flexDirection: 'row' },
+  verifiedStatus: { marginTop: 20, padding: 16, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  verifiedTxt: { fontSize: 12, fontWeight: '800' },
+  summaryCard: { borderRadius: 32, padding: 24, marginTop: 20 },
+  summaryTitle: { fontSize: 18, fontWeight: '900', marginBottom: 16 },
+  divider: { height: 1, marginBottom: 16, opacity: 0.2 },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  sKey: { fontSize: 14, fontWeight: '600' },
+  sVal: { fontSize: 14, fontWeight: '800' },
+  footer: { flexDirection: 'row', paddingTop: 20, paddingBottom: 40 },
+  backBtnFooter: { flex: 1, height: 60, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  backBtnTxt: { fontSize: 16, fontWeight: '800' },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+  modalContent: { borderTopLeftRadius: 40, borderTopRightRadius: 40, height: height * 0.85, padding: 24 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
+  modalTitle: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
+  modalSubtitle: { fontSize: 14, fontWeight: '600', marginTop: 4 },
+  modalClose: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  mapHost: { flex: 1, borderRadius: 32, overflow: 'hidden', borderWidth: 1 },
+  map: { flex: 1 },
+  webPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' }
 });

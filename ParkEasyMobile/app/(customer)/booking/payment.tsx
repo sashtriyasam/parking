@@ -2,19 +2,22 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, Layout } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
+
 import { useBookingFlowStore } from '../../../store/bookingFlowStore';
 import { post } from '../../../services/api';
-import { GlassCard } from '../../../components/ui/GlassCard';
-import { GlassButton } from '../../../components/ui/GlassButton';
-import { colors } from '../../../constants/colors';
+import { useThemeColors } from '../../../hooks/useThemeColors';
+import { useHaptics } from '../../../hooks/useHaptics';
 import { PaymentSheet } from '../../../components/PaymentSheet';
 import { useToast } from '../../../components/Toast';
-import { VehicleType } from '../../../types';
+import { ProfessionalCard } from '../../../components/ui/ProfessionalCard';
+import { ProfessionalButton } from '../../../components/ui/ProfessionalButton';
 
 export default function PaymentScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const haptics = useHaptics();
   const { showToast } = useToast();
   const {
     facility_id,
@@ -34,10 +37,10 @@ export default function PaymentScreen() {
   // Fallbacks if user navigated directly without data
   if (!facility_id || !selected_slot) {
     return (
-      <View style={styles.center}>
-        <Ionicons name="alert-circle" size={64} color={colors.danger} />
-        <Text style={styles.errorText}>Missing booking data. Please start again.</Text>
-        <GlassButton label="GO BACK HOME" onPress={() => router.replace('/(customer)/')} style={{ marginTop: 24 }} />
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <Ionicons name="alert-circle-outline" size={64} color={colors.primary} />
+        <Text style={[styles.errorText, { color: colors.textPrimary }]}>Session recovery failed. Please re-initiate your booking flow from discovery.</Text>
+        <ProfessionalButton label="Return to Home" onPress={() => router.replace('/(customer)/')} style={{ marginTop: 24, width: 220 }} />
       </View>
     );
   }
@@ -47,6 +50,7 @@ export default function PaymentScreen() {
 
   const handleProceedToPayment = async () => {
     setLoading(true);
+    haptics.impactMedium();
     try {
       const payload = {
         facility_id,
@@ -66,127 +70,132 @@ export default function PaymentScreen() {
 
     } catch (e: any) {
       console.error('Booking Creation Error', e);
-      showToast(e.response?.data?.message || 'Failed to initialize booking.', 'error');
+      showToast(e.response?.data?.message || 'Authorization failed. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const handlePaymentSuccess = () => {
+    haptics.notificationSuccess();
     router.replace('/(customer)/booking/success');
   };
 
   const durations = [1, 2, 4, 8, 12, 24];
-
   const bookingRef = useMemo(() => Math.random().toString(36).substring(7).toUpperCase(), []);
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
 
-      {/* Procedural Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color="#FFF" />
+        <TouchableOpacity 
+          style={styles.navBtn} 
+          onPress={() => {
+            haptics.impactLight();
+            router.back();
+          }}
+        >
+          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <View style={styles.progressContainer}>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: '66%' }]} />
-          </View>
-          <Text style={styles.progressLabel}>PROTOCOL PHASE 02: VALUATION</Text>
+        
+        <View style={styles.headerTitleBox}>
+           <Text style={[styles.headerLabel, { color: colors.textMuted }]}>RESERVATION • SUMMARY</Text>
+           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Complete Booking</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.duration(600).springify()}>
-          <Text style={styles.title}>REVIEW & CONFIGURE</Text>
-
-          <GlassCard style={styles.summaryCard}>
+          <ProfessionalCard style={styles.summaryCard} hasVibrancy={true}>
             <View style={styles.badgeRow}>
-              <View style={styles.summaryBadge}>
-                <Text style={styles.badgeText}>SECURE NODE</Text>
+              <View style={[styles.summaryBadge, { backgroundColor: colors.primary + '15' }]}>
+                <Text style={[styles.badgeText, { color: colors.primary }]}>SECURE SESSION</Text>
               </View>
-              <Text style={styles.timestamp}>REF: {bookingRef}</Text>
+              <Text style={[styles.timestamp, { color: colors.textMuted }]}>REF: {bookingRef}</Text>
             </View>
 
-            <Text style={styles.facilityName}>{facility_name}</Text>
+            <Text style={[styles.facilityName, { color: colors.textPrimary }]}>{facility_name}</Text>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             <View style={styles.grid}>
               <View style={styles.gridItem}>
-                <Text style={styles.label}>ACCESS POINT</Text>
-                <Text style={styles.value}>{selected_slot.slot_number}</Text>
+                <Text style={[styles.label, { color: colors.textMuted }]}>ALLOCATED SLOT</Text>
+                <Text style={[styles.value, { color: colors.textPrimary }]}>{selected_slot.slot_number}</Text>
               </View>
               <View style={styles.gridItem}>
-                <Text style={styles.label}>VEHICLE ID</Text>
-                <Text style={styles.value}>{vehicle_number}</Text>
+                <Text style={[styles.label, { color: colors.textMuted }]}>VEHICLE REG.</Text>
+                <Text style={[styles.value, { color: colors.textPrimary }]}>{vehicle_number}</Text>
               </View>
             </View>
-          </GlassCard>
+          </ProfessionalCard>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>TEMPORAL DURATION (HOURS)</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>DURATION PREFERENCE</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.durationScroll}>
               {durations.map((d) => (
                 <TouchableOpacity
                   key={d}
-                  style={[styles.durationPill, duration === d && styles.durationPillActive]}
-                  onPress={() => setDuration(d)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${d} hour${d > 1 ? 's' : ''}`}
-                  accessibilityState={{ selected: duration === d }}
+                  style={[
+                    styles.durationPill, 
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    duration === d && { backgroundColor: colors.primary, borderColor: colors.primary }
+                  ]}
+                  onPress={() => {
+                    haptics.impactLight();
+                    setDuration(d);
+                  }}
                 >
-                  <Text style={[styles.durationText, duration === d && styles.durationTextActive]}>{d}H</Text>
+                  <Text style={[styles.durationText, { color: colors.textMuted }, duration === d && { color: 'white' }]}>{d}H</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>VALUATION BREAKDOWN</Text>
-            <GlassCard style={styles.costCard}>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>FINANCIAL SUMMARY</Text>
+            <ProfessionalCard style={styles.costCard}>
               <View style={styles.costRow}>
-                <Text style={styles.costLabel}>Base Protocol Rate</Text>
-                <Text style={styles.costValue}>₹{Number(costPerHour).toFixed(2)}/hr</Text>
+                <Text style={[styles.costLabel, { color: colors.textSecondary }]}>Rate / Cycle</Text>
+                <Text style={[styles.costValue, { color: colors.textPrimary }]}>₹{Number(costPerHour).toFixed(2)}</Text>
               </View>
               <View style={styles.costRow}>
-                <Text style={styles.costLabel}>Multiplier (x{duration})</Text>
-                <Text style={styles.costValue}>₹{totalCost.toFixed(2)}</Text>
+                <Text style={[styles.costLabel, { color: colors.textSecondary }]}>Estimated Duration (x{duration})</Text>
+                <Text style={[styles.costValue, { color: colors.textPrimary }]}>₹{totalCost.toFixed(2)}</Text>
               </View>
               <View style={styles.costRow}>
-                <Text style={styles.costLabel}>Network Fee</Text>
-                <Text style={styles.costValue}>₹0.00</Text>
+                <Text style={[styles.costLabel, { color: colors.textSecondary }]}>Regulatory Fees</Text>
+                <Text style={[styles.costValue, { color: colors.textPrimary }]}>₹0.00</Text>
               </View>
-              <View style={styles.costDivider} />
+              
+              <View style={[styles.costDivider, { backgroundColor: colors.border }]} />
+              
               <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>TOTAL PAYOUT</Text>
-                <View style={styles.totalContainer}>
-                  <Text style={styles.totalValue}>₹{totalCost.toFixed(2)}</Text>
-                  <View style={styles.neonGlow}>
-                    <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
-                  </View>
-                </View>
+                <Text style={[styles.totalLabel, { color: colors.textPrimary }]}>TOTAL PAYABLE</Text>
+                <Text style={[styles.totalValue, { color: colors.primary }]}>₹{totalCost.toFixed(2)}</Text>
               </View>
-            </GlassCard>
+            </ProfessionalCard>
           </View>
 
           <View style={styles.infoSection}>
-            <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
-            <Text style={styles.infoText}>Biometric encryption & 256-bit SSL secured transaction.</Text>
+            <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
+            <Text style={[styles.infoText, { color: colors.textMuted }]}>Your payment data is tokenized and never stored on our servers.</Text>
           </View>
         </Animated.View>
         <View style={{ height: 160 }} />
       </ScrollView>
 
       <View style={styles.footer}>
-        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-        <GlassButton
-          label="INITIALIZE PROTOCOL"
-          onPress={handleProceedToPayment}
-          loading={loading}
-          variant="primary"
-        />
+        <BlurView intensity={30} tint={colors.isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+        <View style={[styles.footerInner, { borderTopColor: colors.border }]}>
+          <ProfessionalButton
+            label="Initialize Secure Payment"
+            onPress={handleProceedToPayment}
+            loading={loading}
+            variant="primary"
+          />
+        </View>
       </View>
 
       <PaymentSheet
@@ -205,254 +214,41 @@ export default function PaymentScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0F1E',
-  },
-  header: {
-    paddingTop: 60,
-    paddingHorizontal: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: 20,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  progressContainer: {
-    flex: 1,
-  },
-  progressTrack: {
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowRadius: 10,
-    shadowOpacity: 0.5,
-  },
-  progressLabel: {
-    fontSize: 9,
-    color: colors.primary,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  scrollContent: {
-    paddingVertical: 12,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#FFF',
-    paddingHorizontal: 24,
-    letterSpacing: -1,
-    marginBottom: 32,
-  },
-  summaryCard: {
-    marginHorizontal: 24,
-    padding: 24,
-    borderRadius: 32,
-    marginBottom: 32,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  summaryBadge: {
-    backgroundColor: colors.primary + '20',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-  },
-  badgeText: {
-    color: colors.primary,
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-  },
-  timestamp: {
-    color: 'rgba(255,255,255,0.2)',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  facilityName: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#FFF',
-    marginBottom: 20,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    marginBottom: 20,
-  },
-  grid: {
-    flexDirection: 'row',
-  },
-  gridItem: {
-    flex: 1,
-  },
-  label: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.3)',
-    fontWeight: '900',
-    letterSpacing: 1.5,
-    marginBottom: 4,
-  },
-  value: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#FFF',
-  },
-  section: {
-    marginBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: 'rgba(255,255,255,0.3)',
-    marginHorizontal: 24,
-    marginBottom: 16,
-    letterSpacing: 3,
-  },
-  durationScroll: {
-    paddingHorizontal: 24,
-    gap: 12,
-  },
-  durationPill: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    backgroundColor: 'rgba(255,255,255,0.02)',
-  },
-  durationPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowRadius: 15,
-    shadowOpacity: 0.4,
-  },
-  durationText: {
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  durationTextActive: {
-    color: '#FFF',
-  },
-  costCard: {
-    marginHorizontal: 24,
-    padding: 24,
-    borderRadius: 32,
-  },
-  costRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  costLabel: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  costValue: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  costDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    marginTop: 8,
-    marginBottom: 20,
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  totalLabel: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  totalContainer: {
-    position: 'relative',
-    alignItems: 'flex-end',
-  },
-  totalValue: {
-    color: colors.primary,
-    fontSize: 28,
-    fontWeight: '900',
-  },
-  neonGlow: {
-    position: 'absolute',
-    bottom: -10,
-    width: 60,
-    height: 20,
-    backgroundColor: colors.primaryGlow,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  infoSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 24,
-    marginTop: 8,
-  },
-  infoText: {
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 18,
-    flex: 1,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 120,
-    paddingHorizontal: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
-    justifyContent: 'center',
-    overflow: 'hidden',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#0A0F1E',
-    padding: 40,
-  },
-  errorText: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '900',
-    textAlign: 'center',
-    marginTop: 20,
-  }
+  container: { flex: 1 },
+  header: { paddingTop: 60, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
+  navBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  headerTitleBox: { flex: 1 },
+  headerLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
+  headerTitle: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
+  scrollContent: { paddingVertical: 12 },
+  summaryCard: { marginHorizontal: 24, padding: 24, borderRadius: 32, marginBottom: 32 },
+  badgeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  summaryBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  badgeText: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  timestamp: { fontSize: 10, fontWeight: '700', opacity: 0.7 },
+  facilityName: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5, marginBottom: 24 },
+  divider: { height: 0.5, marginBottom: 24, opacity: 0.5 },
+  grid: { flexDirection: 'row' },
+  gridItem: { flex: 1 },
+  label: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, marginBottom: 6 },
+  value: { fontSize: 20, fontWeight: '900' },
+  section: { marginBottom: 32 },
+  sectionTitle: { fontSize: 10, fontWeight: '900', marginHorizontal: 28, marginBottom: 16, letterSpacing: 2 },
+  durationScroll: { paddingHorizontal: 24, gap: 12 },
+  durationPill: { width: 62, height: 62, borderRadius: 31, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+  durationText: { fontSize: 15, fontWeight: '900' },
+  costCard: { marginHorizontal: 24, padding: 24, borderRadius: 32 },
+  costRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
+  costLabel: { fontSize: 14, fontWeight: '600', opacity: 0.9 },
+  costValue: { fontSize: 14, fontWeight: '900' },
+  costDivider: { height: 0.5, marginTop: 10, marginBottom: 20, opacity: 0.3 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  totalLabel: { fontSize: 12, fontWeight: '900', letterSpacing: 2 },
+  totalValue: { fontSize: 32, fontWeight: '900', letterSpacing: -1 },
+  infoSection: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 28, marginTop: 8 },
+  infoText: { fontSize: 12, fontWeight: '600', lineHeight: 18, flex: 1, opacity: 0.8 },
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 120 },
+  footerInner: { flex: 1, paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 20, justifyContent: 'center', borderTopWidth: 0.5 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
+  errorText: { fontSize: 18, fontWeight: '900', textAlign: 'center', marginTop: 20, lineHeight: 28 },
 });

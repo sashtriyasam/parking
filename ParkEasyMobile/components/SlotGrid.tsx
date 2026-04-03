@@ -1,16 +1,19 @@
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
   withSequence,
   withTiming,
-  FadeInDown
+  FadeInDown,
+  Layout
 } from 'react-native-reanimated';
 import { ParkingSlot } from '../types';
-import { SLOT_STATUS_COLORS, colors } from '../constants/colors';
+import { SLOT_STATUS_COLORS } from '../constants/colors';
 import { BlurView } from 'expo-blur';
+import { useThemeColors } from '../hooks/useThemeColors';
+import { useHaptics } from '../hooks/useHaptics';
 
 interface SlotGridProps {
   slots: ParkingSlot[];
@@ -33,6 +36,8 @@ const SlotItem: React.FC<{
   index: number;
   width: number;
 }> = ({ item, isSelected, isHighlighted, onPress, index, width }) => {
+  const colors = useThemeColors();
+  const haptics = useHaptics();
   const pulse = useSharedValue(1);
   const isSelectedSV = useSharedValue(isSelected);
   const isHighlightedSV = useSharedValue(isHighlighted);
@@ -59,7 +64,11 @@ const SlotItem: React.FC<{
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulse.value }],
-    borderColor: isSelectedSV.value ? colors.primary : isHighlightedSV.value ? '#FACC15' : 'rgba(255,255,255,0.08)',
+    borderColor: isSelectedSV.value 
+      ? colors.primary 
+      : isHighlightedSV.value 
+        ? colors.premium.primary 
+        : colors.border,
     borderWidth: (isSelectedSV.value || isHighlightedSV.value) ? 2 : 1,
   }));
 
@@ -67,26 +76,41 @@ const SlotItem: React.FC<{
   const statusKey = item.status.toLowerCase() as keyof typeof SLOT_STATUS_COLORS;
   const statusColor = SLOT_STATUS_COLORS[statusKey] || colors.textSecondary;
 
-  // Optimized delay to prevent long waits on large grids
   const staggeredDelay = Math.min(index * ANIMATION_CONFIG.STAGGER_MS, ANIMATION_CONFIG.MAX_DELAY_MS);
 
   return (
     <Animated.View
       entering={FadeInDown.delay(staggeredDelay).duration(ANIMATION_CONFIG.DURATION_MS)}
+      layout={Layout.springify()}
       style={[styles.itemWrapper, { width }]}
     >
       <TouchableOpacity
         activeOpacity={0.7}
-        onPress={() => onPress(item)}
+        onPress={() => {
+          haptics.impactLight();
+          onPress(item);
+        }}
         disabled={!isFree}
         style={styles.touchable}
       >
-        <Animated.View style={[styles.slotContainer, animatedStyle]}>
-          <BlurView intensity={isSelected ? 30 : 10} tint="dark" style={StyleSheet.absoluteFill} />
-          {!isFree && <View style={[styles.disabledOverlay, { backgroundColor: statusColor, opacity: 0.2 }]} />}
+        <Animated.View style={[styles.slotContainer, { backgroundColor: colors.surface }, animatedStyle]}>
+          <BlurView intensity={isSelected ? 30 : 10} tint={colors.isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+          {!isFree && <View style={[styles.disabledOverlay, { backgroundColor: statusColor, opacity: 0.1 }]} />}
           <View style={[styles.statusIndicator, { backgroundColor: statusColor }]} />
-          <Text style={[styles.slotNumber, isSelected && styles.selectedText]}>{item.slot_number}</Text>
-          {isSelected && <View style={styles.selectionGlow} />}
+          <Text style={[
+            styles.slotNumber, 
+            { color: colors.textMuted }, 
+            isSelected && { color: colors.textPrimary },
+            isHighlighted && { color: colors.premium.primary }
+          ]}>
+            {item.slot_number}
+          </Text>
+          {isSelected && (
+            <Animated.View 
+              entering={FadeInDown}
+              style={[styles.selectionGlow, { backgroundColor: colors.primary, shadowColor: colors.primary }]} 
+            />
+          )}
         </Animated.View>
       </TouchableOpacity>
     </Animated.View>
@@ -99,10 +123,11 @@ export const SlotGrid: React.FC<SlotGridProps> = ({
   selectedSlotId,
   highlightedSlotId
 }) => {
+  const colors = useThemeColors();
   const { width: screenWidth } = useWindowDimensions();
   const COLUMNS = 5;
   const GAP = 12;
-  const SCREEN_PADDING = 48; // Total horizontal padding (24 * 2)
+  const SCREEN_PADDING = 48; 
   const slotWidth = (screenWidth - SCREEN_PADDING - (GAP * (COLUMNS - 1))) / COLUMNS;
 
   return (
@@ -121,11 +146,11 @@ export const SlotGrid: React.FC<SlotGridProps> = ({
         ))}
       </View>
 
-      <View style={styles.legendContainer}>
+      <View style={[styles.legendContainer, { borderTopColor: colors.border }]}>
         {Object.entries(SLOT_STATUS_COLORS).map(([status, color]) => (
           <View key={status} style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: color }]} />
-            <Text style={styles.legendText}>{status.toUpperCase()}</Text>
+            <Text style={[styles.legendText, { color: colors.textMuted }]}>{status.toUpperCase()}</Text>
           </View>
         ))}
       </View>
@@ -144,7 +169,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   itemWrapper: {
-    // Width is calculated dynamically in SlotGrid component
   },
   touchable: {
     aspectRatio: 1,
@@ -156,7 +180,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
   },
   disabledOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -165,27 +189,20 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    marginBottom: 4,
     position: 'absolute',
     top: 8,
     right: 8,
   },
   slotNumber: {
     fontSize: 12,
-    fontWeight: '800',
-    color: 'rgba(255,255,255,0.6)',
-  },
-  selectedText: {
-    color: '#FFF',
+    fontWeight: '900',
   },
   selectionGlow: {
     position: 'absolute',
     bottom: -15,
     width: 30,
     height: 30,
-    backgroundColor: colors.primary,
     borderRadius: 15,
-    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 15,
@@ -198,7 +215,6 @@ const styles = StyleSheet.create({
     marginTop: 32,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
   },
   legendItem: {
     flexDirection: 'row',
@@ -211,8 +227,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   legendText: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1,
   },

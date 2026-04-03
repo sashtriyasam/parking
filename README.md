@@ -1,116 +1,96 @@
-# ParkEasy - Smart Parking Management System
+# ParkEasy 🅿️
 
-A comprehensive parking management solution with separate Customer and Provider flows.
+A full-stack smart parking management platform for India, built as a React Native mobile app with a Node.js/Express backend and PostgreSQL database via Supabase.
 
-## 📁 Project Structure
+## What it does
+
+ParkEasy connects parking facility providers with customers. Customers search for nearby parking, reserve a slot, pay via Razorpay, and get a QR code ticket. Providers manage their facilities, scan QR codes at entry/exit, and track earnings.
+
+## Project Structure
 
 ```
-PARKING THING/
-├── backend/                    # Node.js + Express API
-│   ├── prisma/                 # Database schema & migrations
-│   ├── src/
-│   │   ├── config/             # Database & Swagger config
-│   │   ├── controllers/        # Request handlers
-│   │   │   ├── auth.controller.js
-│   │   │   ├── booking.controller.js
-│   │   │   ├── customer.controller.js
-│   │   │   ├── parking.controller.js
-│   │   │   ├── pass.controller.js
-│   │   │   ├── provider.controller.js
-│   │   │   └── ticket.controller.js
-│   │   ├── middleware/         # Auth, validation, error handling
-│   │   ├── routes/             # API route definitions
-│   │   ├── services/           # Business logic
-│   │   │   ├── analytics.service.js
-│   │   │   ├── booking.service.js
-│   │   │   ├── discovery.service.js
-│   │   │   ├── pass.service.js
-│   │   │   ├── payment.service.js
-│   │   │   ├── pricing.service.js
-│   │   │   └── socket.service.js
-│   │   ├── utils/              # Helper functions
-│   │   └── validators/         # Zod schemas
-│   ├── tests/                  # Jest unit tests
-│   ├── .env.example            # Environment template
-│   └── package.json
-│
-├── frontend/                   # React + Vite + TypeScript
-│   ├── src/
-│   │   ├── app/                # Main application code
-│   │   ├── context/            # React contexts
-│   │   ├── data/               # Mock data
-│   │   ├── services/           # API service layer
-│   │   ├── store/              # Zustand state management
-│   │   ├── styles/             # CSS stylesheets
-│   │   └── types/              # TypeScript definitions
-│   └── package.json
-│
-├── Smart Parking Management System/  # Android native app
-│
-├── BUG_REPORT.md               # Known issues & fixes
-├── TESTING.md                  # Testing guide
-├── system_architecture.md      # System design docs
-└── setup.ps1                   # Windows setup script
+parking-main/
+├── backend/                  # Node.js/Express API server
+├── ParkEasyMobile/           # Expo React Native mobile app
+├── frontend/                 # Web frontend (React + Vite)
+└── Smart Parking Management System/   # Legacy web prototype
 ```
 
-## 🚀 Quick Start
+## Tech Stack
 
 ### Backend
-```bash
-cd backend
-npm install
-cp .env.example .env           # Configure your environment
-npx prisma db push             # Setup database
-npm run dev                    # Start on http://localhost:5000
-```
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js ≥ 18 |
+| Framework | Express 5 |
+| Database ORM | Prisma 5 |
+| Database | PostgreSQL (Supabase) |
+| Auth | JWT (access 15m + refresh 7d) |
+| Realtime | Socket.io 4 |
+| Payments | Razorpay |
+| Validation | Zod |
+| Logging | Winston |
+| Scheduling | node-cron |
+| Push Notifications | Expo Server SDK |
+| PDF Generation | PDFKit |
+| QR Codes | qrcode |
 
-### Frontend
-```bash
-cd frontend
-npm install
-npm run dev                    # Start on http://localhost:5173
-```
+### Mobile App
+| Layer | Technology |
+|---|---|
+| Framework | Expo SDK 54 / React Native 0.81.5 |
+| Navigation | Expo Router 6 (file-based) |
+| State Management | Zustand 5 |
+| Data Fetching | TanStack Query 5 |
+| HTTP Client | Axios |
+| Auth Storage | Expo SecureStore |
+| Realtime | Socket.io-client |
+| Payments | react-native-razorpay |
+| Maps | react-native-maps |
+| Camera/QR | expo-camera |
+| Notifications | expo-notifications |
+| OTA Updates | expo-updates |
 
-## 🔧 Configuration
+### Infrastructure
+| Service | Purpose |
+|---|---|
+| Render.com | Backend hosting (free tier) |
+| Supabase | PostgreSQL database + auth |
+| UptimeRobot | Keep Render alive (ping /health every 5min) |
+| EAS Build | Mobile app builds |
+| EAS Update | OTA updates |
 
-See `backend/.env.example` for all configuration options:
+## Live URLs
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| DATABASE_URL | PostgreSQL connection | Required |
-| JWT_SECRET | Auth token secret | Required |
-| RESERVATION_TIMEOUT_MINUTES | Slot reservation hold time | 5 |
-| GOOGLE_MAPS_API_KEY | Distance calculations | Optional |
-| RAZORPAY_KEY_ID | Payment gateway | Optional |
+- **Backend API:** `https://parkeasy-backend-uy3x.onrender.com`
+- **API Docs (Swagger):** `https://parkeasy-backend-uy3x.onrender.com/api-docs`
+- **Health Check:** `https://parkeasy-backend-uy3x.onrender.com/health`
+- **Expo Account:** `shivamshelatkar`
+- **Android Package:** `com.sashtriyasam.parkeasy`
+- **EAS Project ID:** `9d982466-1e49-4b8d-b58e-448daeebe14b`
 
-## 📊 API Documentation
+## Quick Start
 
-- Swagger UI: `http://localhost:5000/api-docs`
-- Health Check: `http://localhost:5000/health`
+See [SETUP.md](./SETUP.md) for local development and [DEPLOYMENT.md](./DEPLOYMENT.md) for production deployment.
 
-## 🧪 Testing
+## Roles
 
-```bash
-cd backend
-npm test              # Run tests
-npm test -- --coverage  # With coverage
-```
+| Role | Access |
+|---|---|
+| `CUSTOMER` | Search parking, book slots, manage tickets, monthly passes |
+| `PROVIDER` | Manage facilities, scan QR codes, view earnings/analytics |
 
-**Current Coverage**: 97.87%
+## Key Features
 
-## 🛠️ Tech Stack
-
-**Backend**: Node.js, Express, Prisma, PostgreSQL, JWT, Winston  
-**Frontend**: React, TypeScript, Vite, Zustand, React Query  
-**Mobile**: Android (Kotlin/Java)
-
-## 📝 Recent Updates
-
-- Fixed 18 bugs across the codebase
-- Added configurable reservation timeout
-- Improved error handling with Winston logger
-- Standardized vehicle type casing
-
----
-
-See [TESTING.md](./TESTING.md) for detailed testing instructions.
+- Real-time slot availability via Socket.io
+- Razorpay payment integration (UPI, Card, Wallet)
+- QR code ticket generation and scanning
+- Monthly parking passes
+- Slot reservation with 5-minute expiry + auto-cleanup cron
+- JWT refresh token rotation with DB storage (revocable)
+- OTA updates via Expo Updates
+- Push notifications via Expo Push API
+- PDF ticket download
+- Provider analytics and earnings dashboard
+- Global error boundary (mobile)
+- Rate limiting (100 req/15min per IP)

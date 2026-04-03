@@ -7,9 +7,9 @@ import { ComponentProps } from 'react';
 type IconName = ComponentProps<typeof Ionicons>['name'];
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { ParkingFacility } from '../types';
-import { GlassCard } from './ui/GlassCard';
-import { colors } from '../constants/colors';
+import { useThemeColors } from '../hooks/useThemeColors';
 import { formatCurrency } from '../utils/format';
+import { ProfessionalCard } from './ui/ProfessionalCard';
 
 interface ParkingFacilityCardProps {
   facility: ParkingFacility;
@@ -19,23 +19,7 @@ interface ParkingFacilityCardProps {
 }
 
 export const ParkingFacilityCard: React.FC<ParkingFacilityCardProps> = ({ facility, onPress, distance, style }) => {
-  const pulse = useSharedValue(1);
-
-  React.useEffect(() => {
-    pulse.value = withRepeat(
-      withSequence(
-        withTiming(1.2, { duration: 1000 }),
-        withTiming(1, { duration: 1000 })
-      ),
-      -1,
-      true
-    );
-  }, []);
-
-  const animatedDotStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulse.value }],
-    opacity: pulse.value > 1.1 ? 0.7 : 1,
-  }));
+  const colors = useThemeColors();
 
   const getStatusColor = (slots: number) => {
     if (slots > 5) return colors.success;
@@ -55,7 +39,7 @@ export const ParkingFacilityCard: React.FC<ParkingFacilityCardProps> = ({ facili
   };
 
   return (
-    <GlassCard style={[styles.container, style]} onPress={onPress}>
+    <ProfessionalCard style={[styles.container, style]} onPress={onPress}>
       <View style={styles.imageWrapper}>
         <Image
           source={facility.images?.[0] || 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&q=80&w=400'} 
@@ -63,13 +47,13 @@ export const ParkingFacilityCard: React.FC<ParkingFacilityCardProps> = ({ facili
           contentFit="cover"
           transition={300}
         />
-        <View style={styles.priceBadge}>
+        <View style={[styles.priceBadge, { backgroundColor: colors.primary }]}>
           <Text style={styles.priceLabel}>{formatCurrency(facility.price_per_hour)}</Text>
           <Text style={styles.priceUnit}>/hr</Text>
         </View>
         
         {facility.verified && (
-          <View style={styles.verifiedBadge}>
+          <View style={[styles.verifiedBadge, { backgroundColor: colors.success }]}>
             <Ionicons name="shield-checkmark" size={12} color="#FFF" />
           </View>
         )}
@@ -77,49 +61,49 @@ export const ParkingFacilityCard: React.FC<ParkingFacilityCardProps> = ({ facili
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.name} numberOfLines={1}>{facility.name}</Text>
+          <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>{facility.name}</Text>
           {facility.rating !== null && facility.rating !== undefined && (
-            <View style={styles.ratingBox}>
+            <View style={[styles.ratingBox, { backgroundColor: colors.isDark ? 'rgba(255, 159, 10, 0.1)' : 'rgba(255, 159, 10, 0.2)' }]}>
               <Ionicons name="star" size={10} color={colors.warning} />
-              <Text style={styles.ratingText}>{facility.rating}</Text>
+              <Text style={[styles.ratingText, { color: colors.warning }]}>{facility.rating}</Text>
             </View>
           )}
         </View>
 
         <View style={styles.addressRow}>
           <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
-          <Text style={styles.address} numberOfLines={1}>{facility.address}</Text>
+          <Text style={[styles.address, { color: colors.textSecondary }]} numberOfLines={1}>{facility.address}</Text>
         </View>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
         <View style={styles.footer}>
           <View style={styles.statsRow}>
             <View style={styles.availability}>
-              <Animated.View style={[styles.dot, { backgroundColor: statusColor }, animatedDotStyle]} />
+              <View style={[styles.dot, { backgroundColor: statusColor }]} />
               <Text style={[styles.slotsText, { color: statusColor }]}>
-                {facility.available_slots} Slots
+                {facility.available_slots} Slots Left
               </Text>
             </View>
             
             {distance !== undefined && (
               <View style={styles.distanceBox}>
                 <Ionicons name="navigate-outline" size={10} color={colors.primary} />
-                <Text style={styles.distanceText}>{distance.toFixed(1)} km</Text>
+                <Text style={[styles.distanceText, { color: colors.primary }]}>{distance.toFixed(1)} km</Text>
               </View>
             )}
           </View>
 
           <View style={styles.amenities}>
             {facility.amenities?.slice(0, 3).map((amenity) => (
-              <View key={amenity} style={styles.amenityIcon}>
-                <Ionicons name={getAmenityIcon(amenity)} size={12} color="rgba(255,255,255,0.6)" />
+              <View key={amenity} style={[styles.amenityIcon, { backgroundColor: colors.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
+                <Ionicons name={getAmenityIcon(amenity)} size={12} color={colors.textSecondary} />
               </View>
             ))}
           </View>
         </View>
       </View>
-    </GlassCard>
+    </ProfessionalCard>
   );
 };
 
@@ -144,13 +128,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     left: 10,
-    backgroundColor: colors.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'baseline',
-    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
@@ -170,7 +152,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: colors.success,
     width: 20,
     height: 20,
     borderRadius: 10,
@@ -192,20 +173,17 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFF',
     letterSpacing: -0.2,
   },
   ratingBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: 'rgba(255, 159, 10, 0.1)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
   ratingText: {
-    color: colors.warning,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -217,12 +195,10 @@ const styles = StyleSheet.create({
   },
   address: {
     fontSize: 11,
-    color: colors.textSecondary,
     flex: 1,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
     marginBottom: 10,
   },
   footer: {
@@ -257,7 +233,6 @@ const styles = StyleSheet.create({
   },
   distanceText: {
     fontSize: 11,
-    color: colors.primary,
     fontWeight: '600',
   },
   amenities: {
@@ -268,7 +243,6 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: 'rgba(255,255,255,0.06)',
     justifyContent: 'center',
     alignItems: 'center',
   }

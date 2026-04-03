@@ -17,21 +17,26 @@ const generateTicketPDF = (ticket) => {
                 resolve(pdfData);
             });
 
-            // --- Header ---
-            doc.fillColor('#444444')
-                .fontSize(20)
-                .text('PARKING THING', 50, 50)
+            // --- Header Decorative Stripe ---
+            doc.rect(0, 0, 612, 40).fill('#6366f1'); // Indigo-600
+            doc.fillColor('#ffffff').fontSize(12).font('Helvetica-Bold').text('PARKEASY - DIGITAL PARKING TICKET', 50, 15);
+
+            // --- Brand Header ---
+            doc.fillColor('#1f2937') // Gray-800
+                .fontSize(24)
+                .font('Helvetica-Bold')
+                .text('ParkEasy', 50, 60)
                 .fontSize(10)
-                .text('Official Parking Invoice', 200, 50, { align: 'right' })
-                .text(`Date: ${new Date().toLocaleDateString()}`, 200, 65, { align: 'right' })
+                .font('Helvetica')
+                .fillColor('#6b7280') // Gray-500
+                .text('Smart Parking Management System', 50, 85)
                 .moveDown();
 
-            // --- Divider ---
-            doc.strokeColor('#aaaaaa')
-                .lineWidth(1)
-                .moveTo(50, 90)
-                .lineTo(550, 90)
-                .stroke();
+            doc.fillColor('#111827') // Gray-900
+                .fontSize(10)
+                .text('Official Parking Invoice', 400, 60, { align: 'right' })
+                .text(`Issue Date: ${new Date().toLocaleDateString()}`, 400, 75, { align: 'right' })
+                .text(`Issue Time: ${new Date().toLocaleTimeString()}`, 400, 90, { align: 'right' });
 
             // --- Ticket Info ---
             doc.fontSize(14).text('Ticket Information', 50, 110);
@@ -46,8 +51,11 @@ const generateTicketPDF = (ticket) => {
             doc.font('Helvetica-Bold').text('Vehicle:', rightX, startY).font('Helvetica').text(`${ticket.vehicle_number} (${ticket.vehicle_type})`, rightX + 60, startY);
 
             // Row 2
-            doc.font('Helvetica-Bold').text('Facility:', leftX, startY + 20).font('Helvetica').text(ticket.parking_facility?.name || 'N/A', leftX + 80, startY + 20);
-            doc.font('Helvetica-Bold').text('Slot:', rightX, startY + 20).font('Helvetica').text(ticket.parking_slot?.slot_number || 'N/A', rightX + 60, startY + 20);
+            const facilityName = (ticket.facility?.name || ticket.parking_facility?.name || 'ParkEasy Facility');
+            doc.font('Helvetica-Bold').text('Facility:', leftX, startY + 20).font('Helvetica').text(facilityName, leftX + 80, startY + 20);
+            
+            const slotNumber = (ticket.slot?.slot_number || ticket.slot?.slotNumber || ticket.parking_slot?.slot_number || 'N/A');
+            doc.font('Helvetica-Bold').text('Slot:', rightX, startY + 20).font('Helvetica').text(slotNumber, rightX + 60, startY + 20);
 
             // --- Time Table ---
             const tableTop = 200;

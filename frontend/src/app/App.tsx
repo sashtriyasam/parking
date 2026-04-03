@@ -21,7 +21,6 @@ import { Toaster } from '@/app/components/ui/sonner';
 import type { ReactNode } from 'react';
 
 // Protected Route Component
-// Protected Route Component
 function ProtectedRoute({ children, requiredRole }: { children: ReactNode; requiredRole?: 'customer' | 'provider' }) {
   const { isAuthenticated, user, isLoading } = useApp();
 

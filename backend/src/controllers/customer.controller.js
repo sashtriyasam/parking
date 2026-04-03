@@ -225,6 +225,26 @@ const getCustomerStats = asyncHandler(async (req, res) => {
     });
 });
 
+// --- SLOT AVAILABILITY (Time-based) ---
+const bookingService = require('../services/booking.service');
+
+const getSlotAvailability = asyncHandler(async (req, res) => {
+    const { slotId } = req.params;
+    const { date } = req.query;
+
+    const queryDate = date ? new Date(date) : new Date();
+    const bookedWindows = await bookingService.getSlotAvailabilityForDay(slotId, queryDate);
+
+    res.status(200).json({
+        status: 'success',
+        data: {
+            slot_id: slotId,
+            date: queryDate.toISOString().split('T')[0],
+            booked_windows: bookedWindows
+        }
+    });
+});
+
 module.exports = {
     searchParking,
     getFacilityDetails,
@@ -237,5 +257,6 @@ module.exports = {
     addFavorite,
     removeFavorite,
     getFavorites,
-    getStats: getCustomerStats
+    getStats: getCustomerStats,
+    getSlotAvailability
 };

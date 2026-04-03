@@ -8,8 +8,7 @@ import {
   Alert, 
   Dimensions, 
   Platform,
-  StatusBar,
-  ImageBackground
+  StatusBar
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -22,14 +21,16 @@ import Animated, {
   Layout, 
   ZoomIn 
 } from 'react-native-reanimated';
+
 import { get } from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import { Button } from './ui/Button';
-import { GlassCard } from './ui/GlassCard';
+import { useThemeStore } from '../store/themeStore';
+import { useThemeColors } from '../hooks/useThemeColors';
+import { useHaptics } from '../hooks/useHaptics';
+import { ProfessionalCard } from './ui/ProfessionalCard';
 import { Skeleton } from './ui/SkeletonLoader';
-import { colors } from '../constants/colors';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 interface ProviderStats {
   revenue?: {
@@ -53,9 +54,12 @@ type ProfileStats = ProviderStats | CustomerStats;
 
 export function ProfileScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const haptics = useHaptics();
+  const { theme, setTheme } = useThemeStore();
   const { user, logout } = useAuthStore();
-  const userName = user?.full_name || 'GUEST OPERATOR';
-  const role = user?.role?.toUpperCase() || 'EXTERNAL NODE';
+  const userName = user?.full_name || 'GUEST USER';
+  const role = user?.role?.toUpperCase() || 'USER';
   const isProvider = role === 'PROVIDER';
 
   const [stats, setStats] = useState<ProfileStats | null>(null);
@@ -77,24 +81,29 @@ export function ProfileScreen() {
   }, [isProvider]);
 
   const handleWalletAction = () => {
+    haptics.impactLight();
     if (isProvider) {
       router.push('/(provider)/earnings');
     } else {
-      Alert.alert(
-        "WALLET ENCRYPTION",
-        "Direct fund injection is temporarily locked. Universal Payment Interface (UPI) is available at transaction endpoints.",
-        [{ text: "ACKNOWLEDGE" }]
-      );
+      router.push('/payments');
     }
   };
 
+  const toggleTheme = () => {
+    haptics.impactMedium();
+    const nextTheme = theme === 'dark' ? 'light' : theme === 'light' ? 'system' : 'dark';
+    setTheme(nextTheme);
+  };
+
   const handleLogout = async () => {
-    Alert.alert('SYSTEM DE-AUTHORIZATION', 'Confirm permanent disconnection from current session?', [
-      { text: 'ABORT', style: 'cancel' },
+    haptics.impactMedium();
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
       { 
-        text: 'DISCONNECT', 
+        text: 'Sign Out', 
         style: 'destructive',
         onPress: async () => {
+          haptics.notificationSuccess();
           await logout();
           router.replace('/(auth)/login');
         }
@@ -106,7 +115,7 @@ export function ProfileScreen() {
     if (loading || !stats) {
       return (
         <View style={styles.statsSkeleton}>
-          <Skeleton width="100%" height={70} borderRadius={20} />
+          <Skeleton width="100%" height={80} borderRadius={28} />
         </View>
       );
     }
@@ -115,29 +124,29 @@ export function ProfileScreen() {
     if (isProvider) {
       const s = stats as ProviderStats;
       statItems = [
-        { label: 'REVENUE', value: `₹${((s.revenue?.month || 0) / 1000).toFixed(1)}k`, icon: 'cash-outline' },
+        { label: 'REVENUE', value: `₹${((Number(s.revenue?.month || 0)) / 1000).toFixed(1)}k`, icon: 'cash-outline' },
         { label: 'ACTIVE', value: s.active_bookings || 0, icon: 'flash-outline' },
         { label: 'CAPACITY', value: `${s.occupancy || 0}%`, icon: 'business-outline' },
       ];
     } else {
       const s = stats as CustomerStats;
       statItems = [
-        { label: 'LOGS', value: s.bookings || 0, icon: 'ticket-outline' },
-        { label: 'UPTIME', value: `${s.parked_hours || 0}h`, icon: 'time-outline' },
-        { label: 'CREDITS', value: `₹${s.savings || 0}`, icon: 'wallet-outline' },
+        { label: 'BOOKINGS', value: s.bookings || 0, icon: 'ticket-outline' },
+        { label: 'PARKED', value: `${s.parked_hours || 0}h`, icon: 'time-outline' },
+        { label: 'SAVINGS', value: `₹${s.savings || 0}`, icon: 'wallet-outline' },
       ];
     }
 
     return (
-      <Animated.View entering={FadeInDown.delay(300).duration(800)} style={styles.statsRow}>
-        <BlurView intensity={15} tint="light" style={StyleSheet.absoluteFill} />
+      <Animated.View entering={FadeInDown.delay(300).duration(800)} style={[styles.statsRow, { borderColor: colors.border }]}>
+        <BlurView intensity={20} tint={colors.isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
         {statItems.map((item, index) => (
           <React.Fragment key={item.label}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{item.value}</Text>
-              <Text style={styles.statLabel}>{item.label}</Text>
+              <Text style={[styles.statValue, { color: colors.textPrimary }]}>{item.value}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>{item.label}</Text>
             </View>
-            {index < statItems.length - 1 && <View style={styles.statDivider} />}
+            {index < statItems.length - 1 && <View style={[styles.statDivider, { backgroundColor: colors.border }]} />}
           </React.Fragment>
         ))}
       </Animated.View>
@@ -145,59 +154,60 @@ export function ProfileScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
       
-      {/* Background Layer */}
+      {/* Dynamic Ambiance */}
       <View style={styles.bgContainer}>
         <LinearGradient
-          colors={['#080a0f', '#020617']}
+          colors={colors.isDark ? ['#080a0f', '#020617'] : ['#F8FAFC', '#E2E8F0']}
           style={StyleSheet.absoluteFill}
         />
-        <View style={[styles.glowPoint, { top: '10%', left: '-20%', backgroundColor: colors.premium.primary, opacity: 0.1 }]} />
-        <View style={[styles.glowPoint, { bottom: '20%', right: '-30%', backgroundColor: colors.premium.secondary, opacity: 0.08 }]} />
+        <View style={[styles.glowPoint, { top: '5%', left: '-20%', backgroundColor: colors.primary, opacity: colors.isDark ? 0.08 : 0.04 }]} />
+        <View style={[styles.glowPoint, { bottom: '15%', right: '-30%', backgroundColor: colors.secondary || colors.primary, opacity: colors.isDark ? 0.06 : 0.03 }]} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Profile Identity Header */}
-        <Animated.View entering={FadeIn.duration(1000)} style={styles.headerArea}>
-          <View style={styles.avatarWrapper}>
+        {/* Profile Master Interface */}
+        <Animated.View entering={FadeIn.duration(1000)} style={styles.masterHeader}>
+          <View style={styles.avatarMasterWrapper}>
             <LinearGradient
-              colors={[colors.premium.primary, colors.premium.secondary]}
-              style={styles.avatarBorder}
+              colors={[colors.primary, colors.secondary || colors.primary]}
+              style={styles.avatarMasterBorder}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <View style={styles.avatarInner}>
-                <Text style={styles.avatarText}>{userName.charAt(0)}</Text>
+              <View style={[styles.avatarMasterInner, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.avatarMasterText, { color: colors.textPrimary }]}>{userName.charAt(0).toUpperCase()}</Text>
               </View>
             </LinearGradient>
-            <Animated.View entering={ZoomIn.delay(500)} style={styles.avatarGlow} />
+            <Animated.View 
+              entering={ZoomIn.delay(500)} 
+              style={[styles.avatarMasterGlow, { backgroundColor: colors.primary, opacity: colors.isDark ? 0.2 : 0.1 }]} 
+            />
             <TouchableOpacity 
-              style={styles.editBtn} 
+              style={[styles.cameraBtn, { borderColor: colors.border }]} 
               activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel="Edit profile photo"
-              accessibilityHint="Opens the camera or gallery to update your avatar"
+              onPress={() => haptics.impactLight()}
             >
-              <BlurView accessible={false} intensity={40} tint="dark" style={styles.editBlur}>
-                <Ionicons name="camera-outline" size={16} color="white" />
+              <BlurView intensity={30} tint={colors.isDark ? 'dark' : 'light'} style={styles.cameraBtnBlur}>
+                <Ionicons name="camera" size={14} color={colors.textPrimary} />
               </BlurView>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.identityText}>
-            <Text style={styles.identityLabel}>AUTHORIZED OPERATOR</Text>
-            <Text style={styles.identityName}>{userName.toUpperCase()}</Text>
-            <View style={styles.securityTag}>
+          <View style={styles.identitySuite}>
+            <Text style={[styles.sectionLabel, { color: colors.primary }]}>USER ACCOUNT</Text>
+            <Text style={[styles.profileName, { color: colors.textPrimary }]}>{userName.toUpperCase()}</Text>
+            <View style={[styles.roleBadge, { borderColor: colors.primary + '30' }]}>
               <LinearGradient
-                colors={['rgba(0, 242, 255, 0.15)', 'rgba(0, 242, 255, 0.05)']}
-                style={styles.tagGradient}
+                colors={[colors.primary + '15', 'transparent']}
+                style={styles.roleGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
-                <Ionicons name="shield-checkmark" size={10} color={colors.premium.primary} />
-                <Text style={styles.tagText}>{role}</Text>
+                <Ionicons name="shield-checkmark" size={10} color={colors.primary} />
+                <Text style={[styles.roleText, { color: colors.primary }]}>{role} ACCESS</Text>
               </LinearGradient>
             </View>
           </View>
@@ -205,97 +215,124 @@ export function ProfileScreen() {
           {renderStats()}
         </Animated.View>
 
-        <View style={styles.mainBody}>
-          {/* Asset Monitor Card */}
-          <Animated.View entering={FadeInDown.delay(500).springify()}>
+        <View style={styles.interfaceBody}>
+          {/* Central Asset Ledger */}
+          <Animated.View entering={FadeInDown.delay(400)}>
             <TouchableOpacity 
               activeOpacity={0.9} 
               onPress={handleWalletAction}
-              accessibilityRole="button"
-              accessibilityLabel={isProvider ? "View operational revenue" : "View network credits"}
             >
-              <BlurView intensity={25} tint="dark" style={styles.walletCard}>
+              <ProfessionalCard style={[styles.walletCard, { borderColor: colors.border }]}>
                 <LinearGradient
-                  colors={[colors.premium.primary + '15', 'transparent']}
+                  colors={[colors.primary + '10', 'transparent']}
                   style={StyleSheet.absoluteFill}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                 />
-                <View style={styles.assetHeader}>
-                  <View style={styles.assetIconBox}>
-                    <Ionicons name="diamond-outline" size={22} color={colors.premium.primary} />
+                <View style={styles.walletHeader}>
+                  <View style={[styles.walletIconBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Ionicons name="wallet-outline" size={22} color={colors.primary} />
                   </View>
-                  <View style={styles.assetInfo}>
-                    <Text style={styles.assetLabel}>{isProvider ? 'OPERATIONAL REVENUE' : 'NETWORK CREDITS'}</Text>
-                    <Text style={styles.assetValue}>
+                  <View style={styles.walletInfo}>
+                    <Text style={[styles.walletLabel, { color: colors.textMuted }]}>{isProvider ? 'TOTAL EARNINGS' : 'WALLET BALANCE'}</Text>
+                    <Text style={[styles.walletValue, { color: colors.textPrimary }]}>
                       ₹{isProvider 
                         ? ((stats as ProviderStats)?.revenue?.total || '0.00') 
                         : ((stats as CustomerStats)?.wallet?.balance || '0.00')}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.2)" />
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 </View>
-              </BlurView>
+              </ProfessionalCard>
             </TouchableOpacity>
           </Animated.View>
 
-          <Section title="PROTOCOL SETTINGS">
-            <MenuOption 
-              icon="finger-print-outline" 
-              label="Bio-Identity & Access" 
-              onPress={() => router.push('/settings/personal-info')} 
+          <SettingsSection title="ACCOUNT SETTINGS" colors={colors}>
+            <SettingsOption 
+              icon="finger-print" 
+              label="Biometric Verification" 
+              onPress={() => haptics.impactLight()} 
+              colors={colors}
             />
-            <MenuOption 
-              icon={isProvider ? "construct-outline" : "car-sport-outline"} 
-              label={isProvider ? "Node Management" : "Vehicle Signatures"} 
-              onPress={() => router.push(isProvider ? '/(provider)/(tabs)' : '/vehicles')} 
+            <SettingsOption 
+              icon={isProvider ? "construct" : "car-sport"} 
+              label={isProvider ? "Manage Facilities" : "My Vehicles"} 
+              onPress={() => {
+                haptics.impactLight();
+                router.push(isProvider ? '/(provider)/(tabs)' : '/vehicles');
+              }} 
+              colors={colors}
             />
-            <MenuOption 
-              icon="flash-outline" 
-              label="Payment Protocols" 
-              onPress={() => router.push('/payments')} 
+            <SettingsOption 
+              icon="card" 
+              label="Payment Methods" 
+              onPress={() => {
+                haptics.impactLight();
+                router.push('/payments');
+              }} 
+              colors={colors}
             />
-            <MenuOption 
-              icon="notifications-outline" 
+            <SettingsOption 
+              icon="notifications" 
               label="System Alerts" 
               isLast
+              onPress={() => haptics.impactLight()}
+              colors={colors}
             />
-          </Section>
+          </SettingsSection>
 
-          <Section title="ENVIRONMENT">
-            <MenuOption 
-              icon="color-palette-outline" 
-              label="Interface Theme" 
-              value="KINETIC ETHER"
+          <SettingsSection title="PREFERENCES" colors={colors}>
+            <SettingsOption 
+              icon="color-palette" 
+              label="App Theme" 
+              value={theme.toUpperCase()}
+              onPress={toggleTheme}
+              colors={colors}
             />
-            <MenuOption 
-              icon="globe-outline" 
-              label="Regional Node" 
-              value="IN-NORTH-01" 
+            <SettingsOption 
+              icon="globe" 
+              label="Region" 
+              value="India" 
               isLast
+              onPress={() => haptics.impactLight()}
+              colors={colors}
             />
-          </Section>
+          </SettingsSection>
 
-          <Section title="SUPPORT & CLEARANCE">
-            <MenuOption icon="help-buoy-outline" label="Documentation" onPress={() => router.push('/(customer)/support/faq')} />
-            <MenuOption icon="chatbubbles-outline" label="Comms Channel" onPress={() => router.push('/(customer)/support/contact')} />
-            <MenuOption icon="document-text-outline" label="Terms of Service" isLast />
-          </Section>
+          <SettingsSection title="SUPPORT" colors={colors}>
+            <SettingsOption 
+              icon="help-buoy" 
+              label="Help Center & FAQ" 
+              onPress={() => router.push('/(customer)/support/faq')} 
+              colors={colors} 
+            />
+            <SettingsOption 
+              icon="chatbubbles" 
+              label="Contact Support" 
+              onPress={() => router.push('/(customer)/support/contact')} 
+              colors={colors} 
+            />
+            <SettingsOption 
+              icon="document-text" 
+              label="Terms & Privacy" 
+              isLast 
+              onPress={() => haptics.impactLight()}
+              colors={colors} 
+            />
+          </SettingsSection>
 
           <TouchableOpacity 
-            style={styles.deAuthAction} 
+            style={[styles.logoutBtn, { borderColor: colors.error + '30' }]} 
             onPress={handleLogout} 
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Terminate session"
+            activeOpacity={0.8}
           >
-            <BlurView intensity={20} tint="dark" style={styles.deAuthBlur}>
-              <Ionicons name="power-outline" size={20} color="#FF5B5B" />
-              <Text style={styles.deAuthLabel}>TERMINATE SESSION</Text>
+            <BlurView intensity={20} tint={colors.isDark ? 'dark' : 'light'} style={styles.logoutBlur}>
+              <Ionicons name="power" size={20} color={colors.error} />
+              <Text style={[styles.logoutLabel, { color: colors.error }]}>SIGN OUT</Text>
             </BlurView>
           </TouchableOpacity>
 
-          <Text style={styles.buildTag}>SYSTEM CORE v2.4.0-STABLE</Text>
+          <Text style={[styles.versionLabel, { color: colors.textMuted }]}>PARKEASY v2.8.5</Text>
           <View style={{ height: 60 }} />
         </View>
       </ScrollView>
@@ -303,43 +340,33 @@ export function ProfileScreen() {
   );
 }
 
-function Section({ title, children }: { title: string, children: React.ReactNode }) {
+function SettingsSection({ title, children, colors }: any) {
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <BlurView intensity={10} tint="dark" style={styles.sectionCard}>
+    <View style={styles.settingsSection}>
+      <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>{title}</Text>
+      <BlurView intensity={10} tint={colors.isDark ? 'dark' : 'light'} style={[styles.sectionSheet, { borderColor: colors.border }]}>
         {children}
       </BlurView>
     </View>
   );
 }
 
-interface MenuOptionProps {
-  icon: any; // Using any for icon name compatibility with Ionicons
-  label: string;
-  onPress?: () => void;
-  isLast?: boolean;
-  value?: string | number;
-}
-
-function MenuOption({ icon, label, onPress, isLast, value }: MenuOptionProps) {
+function SettingsOption({ icon, label, onPress, isLast, value, colors }: any) {
   return (
     <TouchableOpacity 
-      style={[styles.menuItem, !isLast && styles.menuBorder]} 
+      style={[styles.menuRow, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border + '15' }]} 
       onPress={onPress}
-      activeOpacity={0.6}
-      accessibilityRole="button"
-      accessibilityLabel={`${label}${value ? `, current value: ${value}` : ''}`}
+      activeOpacity={0.7}
     >
       <View style={styles.menuLeft}>
-        <View style={styles.menuIconContainer}>
-          <Ionicons name={icon} size={18} color="rgba(255,255,255,0.6)" />
+        <View style={[styles.iconInnerBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Ionicons name={icon} size={18} color={colors.textSecondary} />
         </View>
-        <Text style={styles.menuLabel}>{label}</Text>
+        <Text style={[styles.menuLabel, { color: colors.textPrimary }]}>{label}</Text>
       </View>
       <View style={styles.menuRight}>
-        {value && <Text style={styles.menuValue}>{value}</Text>}
-        <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.2)" />
+        {value && <Text style={[styles.valueTag, { color: colors.primary }]}>{value}</Text>}
+        <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
       </View>
     </TouchableOpacity>
   );
@@ -348,7 +375,6 @@ function MenuOption({ icon, label, onPress, isLast, value }: MenuOptionProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#080a0f',
   },
   bgContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -356,122 +382,102 @@ const styles = StyleSheet.create({
   },
   glowPoint: {
     position: 'absolute',
-    width: 400,
-    height: 400,
-    borderRadius: 200,
+    width: 450,
+    height: 450,
+    borderRadius: 225,
   },
   scrollContent: {
     flexGrow: 1,
   },
-  headerArea: {
+  masterHeader: {
     alignItems: 'center',
     paddingTop: Platform.OS === 'ios' ? 80 : 60,
     paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingBottom: 44,
   },
-  avatarWrapper: {
+  avatarMasterWrapper: {
     position: 'relative',
-    marginBottom: 24,
+    marginBottom: 28,
   },
-  avatarBorder: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
+  avatarMasterBorder: {
+    width: 110,
+    height: 110,
+    borderRadius: 38,
     padding: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  avatarInner: {
+  avatarMasterInner: {
     flex: 1,
-    width: '100%',
-    borderRadius: 50,
-    backgroundColor: '#0f172a',
+    borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
   },
-  avatarText: {
-    fontSize: 44,
+  avatarMasterText: {
+    fontSize: 48,
     fontWeight: '900',
-    color: 'white',
-    textShadowColor: 'rgba(255,255,255,0.3)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+    letterSpacing: -1,
   },
-  avatarGlow: {
+  avatarMasterGlow: {
     position: 'absolute',
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    backgroundColor: colors.premium.primary,
-    opacity: 0.2,
+    width: 110,
+    height: 110,
+    borderRadius: 38,
     zIndex: -1,
-    // iOS Shadow for Glow
-    shadowColor: colors.premium.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 15,
-    // Android elevation (simulated glow)
-    elevation: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
   },
-  editBtn: {
+  cameraBtn: {
     position: 'absolute',
-    bottom: -4,
-    right: -4,
-    borderRadius: 18,
+    bottom: -6,
+    right: -6,
+    borderRadius: 16,
+    borderWidth: 1,
     overflow: 'hidden',
   },
-  editBlur: {
+  cameraBtnBlur: {
     padding: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
   },
-  identityText: {
+  identitySuite: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 36,
   },
-  identityLabel: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: colors.premium.primary,
-    letterSpacing: 3,
-    marginBottom: 8,
-  },
-  identityName: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: 'white',
-    letterSpacing: -0.5,
-  },
-  securityTag: {
-    marginTop: 12,
-    borderRadius: 10,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 242, 255, 0.2)',
-  },
-  tagGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    gap: 6,
-  },
-  tagText: {
+  sectionLabel: {
     fontSize: 10,
     fontWeight: '900',
-    color: colors.premium.primary,
-    letterSpacing: 1,
+    letterSpacing: 3,
+    marginBottom: 10,
+  },
+  profileName: {
+    fontSize: 30,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+  roleBadge: {
+    marginTop: 14,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  roleGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    gap: 8,
+  },
+  roleText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
   },
   statsRow: {
     flexDirection: 'row',
     width: '100%',
-    borderRadius: 24,
-    paddingVertical: 18,
+    borderRadius: 28,
+    paddingVertical: 22,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
   },
   statsSkeleton: {
     width: '100%',
@@ -481,148 +487,130 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '900',
-    color: 'white',
   },
   statLabel: {
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '900',
-    color: 'rgba(255,255,255,0.3)',
     letterSpacing: 1.5,
-    marginTop: 4,
+    marginTop: 6,
   },
   statDivider: {
     width: 1,
-    height: 24,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    height: 28,
     alignSelf: 'center',
+    opacity: 0.2,
   },
-  mainBody: {
+  interfaceBody: {
     paddingHorizontal: 20,
   },
   walletCard: {
-    borderRadius: 28,
-    padding: 24,
+    borderRadius: 32,
+    padding: 26,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    marginBottom: 32,
   },
-  assetHeader: {
+  walletHeader: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  assetIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 15,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+  walletIconBox: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
   },
-  assetInfo: {
+  walletInfo: {
     flex: 1,
   },
-  assetLabel: {
+  walletLabel: {
     fontSize: 9,
     fontWeight: '900',
-    color: 'rgba(255,255,255,0.4)',
     letterSpacing: 2,
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  assetValue: {
-    fontSize: 22,
+  walletValue: {
+    fontSize: 24,
     fontWeight: '900',
-    color: 'white',
     letterSpacing: 0.5,
   },
-  section: {
-    marginTop: 32,
+  settingsSection: {
+    marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '900',
-    color: 'rgba(255,255,255,0.3)',
     letterSpacing: 2.5,
     marginBottom: 16,
-    marginLeft: 8,
+    marginLeft: 10,
   },
-  sectionCard: {
-    borderRadius: 24,
+  sectionSheet: {
+    borderRadius: 28,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
   },
-  menuItem: {
+  menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 18,
-  },
-  menuBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.03)',
+    padding: 20,
   },
   menuLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  menuIconContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.02)',
+  iconInnerBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
   },
   menuLabel: {
     fontSize: 15,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '800',
   },
   menuRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
-  menuValue: {
+  valueTag: {
     fontSize: 12,
-    fontWeight: '800',
-    color: colors.premium.primary,
-    opacity: 0.8,
+    fontWeight: '900',
+    opacity: 0.9,
   },
-  deAuthAction: {
-    marginTop: 40,
-    borderRadius: 22,
+  logoutBtn: {
+    marginTop: 20,
+    borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 91, 91, 0.2)',
   },
-  deAuthBlur: {
+  logoutBlur: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 18,
-    gap: 12,
+    padding: 20,
+    gap: 14,
   },
-  deAuthLabel: {
+  logoutLabel: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#FF5B5B',
     letterSpacing: 1.5,
   },
-  buildTag: {
+  versionLabel: {
     textAlign: 'center',
     fontSize: 9,
     fontWeight: '900',
-    color: 'rgba(255,255,255,0.2)',
     letterSpacing: 2,
-    marginTop: 32,
+    marginTop: 40,
+    opacity: 0.5,
   },
 });

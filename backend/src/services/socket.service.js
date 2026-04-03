@@ -20,9 +20,19 @@ const initSocket = (server) => {
             console.log(`Socket ${socket.id} joined facility: ${facilityId}`);
         });
 
+        socket.on('join_provider', (providerId) => {
+            socket.join(`provider_${providerId}`);
+            console.log(`Socket ${socket.id} joined provider room: ${providerId}`);
+        });
+
         socket.on('leave_facility', (facilityId) => {
             socket.leave(`facility_${facilityId}`);
             console.log(`Socket ${socket.id} left facility: ${facilityId}`);
+        });
+
+        socket.on('leave_provider', (providerId) => {
+            socket.leave(`provider_${providerId}`);
+            console.log(`Socket ${socket.id} left provider room: ${providerId}`);
         });
 
         socket.on('disconnect', () => {
@@ -46,8 +56,15 @@ const emitSlotUpdate = (facilityId, data) => {
     }
 };
 
+const emitToProvider = (providerId, event, data) => {
+    if (io) {
+        io.to(`provider_${providerId}`).emit(event, data);
+    }
+};
+
 module.exports = {
     initSocket,
     getIO,
-    emitSlotUpdate
+    emitSlotUpdate,
+    emitToProvider
 };

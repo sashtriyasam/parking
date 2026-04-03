@@ -14,12 +14,23 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/app/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/app/components/ui/alert-dialog";
 import { Label } from '@/app/components/ui/label';
 import { Textarea } from '@/app/components/ui/textarea';
 import { toast } from 'sonner';
 import { providerService } from '@/services/provider.service';
 import type { Facility } from '@/services/provider.service';
 import { useApp } from '@/context/AppContext';
+import { LocationPicker } from '@/app/components/shared/LocationPicker';
 
 export function ProviderFacilities() {
     const navigate = useNavigate();
@@ -29,6 +40,8 @@ export function ProviderFacilities() {
     const [searchQuery, setSearchQuery] = useState('');
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [editingFacility, setEditingFacility] = useState<Facility | null>(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -38,6 +51,8 @@ export function ProviderFacilities() {
         operating_hours: '',
         total_floors: 1,
         description: '',
+        latitude: 0,
+        longitude: 0,
     });
 
     useEffect(() => {
@@ -62,6 +77,14 @@ export function ProviderFacilities() {
         setFormData(prev => ({
             ...prev,
             [name]: value
+        }));
+    };
+
+    const handleLocationChange = (lat: number, lng: number) => {
+        setFormData(prev => ({
+            ...prev,
+            latitude: lat,
+            longitude: lng
         }));
     };
 
@@ -97,6 +120,8 @@ export function ProviderFacilities() {
             operating_hours: '',
             total_floors: 1,
             description: '',
+            latitude: 0,
+            longitude: 0,
         });
     };
 
@@ -109,20 +134,25 @@ export function ProviderFacilities() {
             operating_hours: facility.operating_hours,
             total_floors: facility.total_floors,
             description: facility.description || '',
+            latitude: Number(facility.latitude) || 0,
+            longitude: Number(facility.longitude) || 0,
         });
         setIsAddDialogOpen(true);
     };
 
     const handleDelete = async (id: string) => {
-        if (confirm('Are you sure you want to delete this facility? This action cannot be undone.')) {
-            try {
-                await providerService.deleteFacility(id);
-                toast.success('Facility deleted successfully');
-                loadFacilities();
-            } catch (error) {
-                toast.error('Failed to delete facility');
-                console.error(error);
-            }
+        console.log("Delete triggered for:", id);
+        setIsDeleting(true);
+        try {
+            await providerService.deleteFacility(id);
+            toast.success('Facility deleted successfully');
+            setDeleteConfirmId(null);
+            loadFacilities();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Failed to delete facility');
+            console.error("Delete error:", error);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -216,7 +246,15 @@ export function ProviderFacilities() {
                                             <Button variant="outline" size="sm" className="flex-1" onClick={() => navigate(`/provider/facilities/${facility.id}/slots`)}>
                                                 Manage Slots
                                             </Button>
-                                            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(facility.id)}>
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="text-red-500 hover:text-red-700 hover:bg-red-50" 
+                                                onClick={() => {
+                                                    console.log("Trash icon clicked for id:", facility.id);
+                                                    setDeleteConfirmId(facility.id);
+                                                }}
+                                            >
                                                 <Trash2 className="w-4 h-4" />
                                             </Button>
                                         </div>
@@ -269,6 +307,18 @@ export function ProviderFacilities() {
                                 <Textarea id="description" name="description" value={formData.description} onChange={handleInputChange} />
                             </div>
 
+                            <div className="space-y-2 pt-2 border-t border-gray-100">
+                                <Label className="text-sm font-semibold">Location Preview</Label>
+                                <p className="text-[10px] text-gray-500 mb-2">
+                                    Drag the marker to the exact entrance of your parking facility.
+                                </p>
+                                <LocationPicker 
+                                    lat={formData.latitude} 
+                                    lng={formData.longitude} 
+                                    onChange={handleLocationChange} 
+                                />
+                            </div>
+
                             <DialogFooter>
                                 <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
                                 <Button type="submit">{editingFacility ? 'Update Changes' : 'Create Facility'}</Button>
@@ -276,6 +326,28 @@ export function ProviderFacilities() {
                         </form>
                     </DialogContent>
                 </Dialog>
+
+                {/* Delete Confirmation */}
+                <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will deactivate your parking facility. Customers will no longer be able to find or book slots at this location.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                                onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+                                className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? 'Deleting...' : 'Deactivate Facility'}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </div>
     );

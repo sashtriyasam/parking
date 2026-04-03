@@ -7,18 +7,18 @@ import {
   Dimensions,
   ActivityIndicator,
   TouchableOpacity,
-  Platform,
-  StatusBar
+  StatusBar,
+  Platform
 } from 'react-native';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInUp, FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { get } from '../../services/api';
-import { colors } from '../../constants/colors';
-import { GlassCard } from '../../components/ui/GlassCard';
+import { useThemeColors } from '../../hooks/useThemeColors';
+import { useHaptics } from '../../hooks/useHaptics';
+import { ProfessionalCard } from '../../components/ui/ProfessionalCard';
 
 const { width } = Dimensions.get('window');
 
@@ -38,6 +38,8 @@ interface AnalyticsData {
 
 export default function AnalyticsScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const haptics = useHaptics();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLive, setIsLive] = useState(false);
@@ -58,9 +60,9 @@ export default function AnalyticsScreen() {
           revenue: [1200, 1900, 1500, 2400, 2100, 3200, 2800],
           occupancy: [40, 60, 85, 95, 75, 45, 30],
           vehicles: [
-            { name: 'CARS', population: 65, color: colors.primary, legendFontColor: 'rgba(255,255,255,0.6)', legendFontSize: 10 },
-            { name: 'BIKES', population: 25, color: colors.success, legendFontColor: 'rgba(255,255,255,0.6)', legendFontSize: 10 },
-            { name: 'OTHER', population: 10, color: '#818cf8', legendFontColor: 'rgba(255,255,255,0.6)', legendFontSize: 10 },
+            { name: 'CARS', population: 65, color: colors.primary, legendFontColor: colors.textSecondary, legendFontSize: 10 },
+            { name: 'BIKES', population: 25, color: colors.success, legendFontColor: colors.textSecondary, legendFontSize: 10 },
+            { name: 'OTHER', population: 10, color: '#818cf8', legendFontColor: colors.textSecondary, legendFontSize: 10 },
           ],
           revenueGrowth: '+14.2%',
           avgRating: '4.92'
@@ -80,7 +82,7 @@ export default function AnalyticsScreen() {
     backgroundGradientToOpacity: 0,
     decimalPlaces: 0,
     color: (opacity = 1) => colors.primary + `${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
-    labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity * 0.4})`,
+    labelColor: (opacity = 1) => colors.textMuted + `${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
     style: { borderRadius: 24 },
     propsForDots: {
       r: '4',
@@ -89,7 +91,7 @@ export default function AnalyticsScreen() {
     },
     propsForBackgroundLines: {
       strokeDasharray: '0',
-      stroke: 'rgba(255, 255, 255, 0.05)',
+      stroke: colors.border + '30',
     },
     propsForLabels: {
       fontSize: 9,
@@ -105,269 +107,152 @@ export default function AnalyticsScreen() {
 
   if (loading || !data) {
     return (
-      <View style={[styles.center, { backgroundColor: '#0A0F1E' }]}>
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="small" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient colors={['#0A0F1E', '#161B2E']} style={StyleSheet.absoluteFill} />
-
-      <View style={styles.header}>
-         <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
-            <BlurView intensity={20} tint="dark" style={styles.navBlur}>
-              <Ionicons name="chevron-back" size={24} color="#FFF" />
-            </BlurView>
-         </TouchableOpacity>
-         <View style={styles.headerInfo}>
-            <Text style={styles.headerTitle}>ANALYTICS CORE</Text>
-            <Text style={styles.headerSubtitle}>PROTOCOL PHASE: DATA ANALYSIS</Text>
-         </View>
-         <View style={styles.liveBadge}>
-          <View style={[styles.liveDot, { backgroundColor: isLive ? colors.success : colors.warning }]} />
-            <Text style={styles.liveText}>{isLive ? 'LIVE' : 'CACHE'}</Text>
-         </View>
-      </View>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
+      
+      <Animated.View entering={FadeInDown.duration(600)} style={styles.header}>
+         <BlurView intensity={20} tint={colors.isDark ? 'dark' : 'light'} style={styles.headerContent}>
+            <View style={styles.headerTop}>
+               <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+                  <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+               </TouchableOpacity>
+               <View style={styles.headerTitleSection}>
+                  <Text style={[styles.headerLabel, { color: colors.textMuted }]}>ANALYTICS ENGINE</Text>
+                  <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Performance</Text>
+               </View>
+               <View style={[styles.liveBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <View style={[styles.liveDot, { backgroundColor: isLive ? colors.success : colors.warning }]} />
+                  <Text style={[styles.liveText, { color: isLive ? colors.success : colors.warning }]}>{isLive ? 'LIVE' : 'CACHE'}</Text>
+               </View>
+            </View>
+         </BlurView>
+      </Animated.View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Revenue Growth Card */}
+        {/* Revenue Performance Card */}
         <Animated.View entering={FadeInDown.delay(100)}>
-          <GlassCard style={styles.sectionCard}>
-            <Text style={styles.sectionLabel}>REVENUE (7-DAY CYCLE)</Text>
+          <ProfessionalCard style={styles.sectionCard} hasVibrancy={true}>
+            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>REVENUE GROWTH</Text>
             <LineChart
               data={{
                 labels: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
-                datasets: [{ data: Array.isArray(data?.revenue) && data.revenue.length === 7 ? data.revenue : [0,0,0,0,0,0,0] }]
+                datasets: [{ data: Array.isArray(data?.revenue) ? data.revenue : [0,0,0,0,0,0,0] }]
               }}
-              width={width - 56}
-              height={200}
+              width={width - 80}
+              height={180}
               chartConfig={chartConfig}
               bezier
               transparent
-              style={styles.chart}
-              withInnerLines={true}
-              withOuterLines={false}
-              withHorizontalLines={true}
-              withVerticalLines={false}
-            />
-          </GlassCard>
-        </Animated.View>
-
-        {/* High-Density Stats Grid */}
-        <View style={styles.statsGrid}>
-          <Animated.View entering={ZoomIn.delay(300)} style={styles.statsCol}>
-            <GlassCard style={styles.miniCard}>
-              <View style={styles.statIconWrapper}>
-                <Ionicons name="trending-up" size={16} color={colors.success} />
-              </View>
-              <Text style={styles.statLabel}>GROWTH</Text>
-              <Text style={[styles.statValue, { color: colors.success }]}>{data.revenueGrowth ?? '—'}</Text>
-            </GlassCard>
-          </Animated.View>
-          <Animated.View entering={ZoomIn.delay(400)} style={styles.statsCol}>
-            <GlassCard style={styles.miniCard}>
-               <View style={styles.statIconWrapper}>
-                <Ionicons name="star" size={16} color="#FACC15" />
-              </View>
-              <Text style={styles.statLabel}>RATING</Text>
-              <Text style={[styles.statValue, { color: '#FACC15' }]}>{data.avgRating ?? 'N/A'}</Text>
-            </GlassCard>
-          </Animated.View>
-        </View>
-
-        {/* Occupancy Peaks */}
-        <Animated.View entering={FadeInUp.delay(500)}>
-          <GlassCard style={styles.sectionCard}>
-            <Text style={styles.sectionLabel}>OCCUPANCY PEAKS (24H)</Text>
-            <BarChart
-              data={{
-                labels: ["08:00", "12:00", "16:00", "20:00"],
-                datasets: [{ data: Array.isArray(data?.occupancy) && data.occupancy.length >= 4 ? data.occupancy.slice(0, 4) : [0,0,0,0] }]
-              }}
-              width={width - 56}
-              height={180}
-              chartConfig={successChartConfig}
-              yAxisLabel=""
-              yAxisSuffix="%"
-              style={styles.chart}
-              flatColor={true}
-              fromZero={true}
-              showBarTops={false}
               withInnerLines={false}
+              withOuterLines={false}
+              style={styles.chart}
             />
-          </GlassCard>
+          </ProfessionalCard>
         </Animated.View>
 
-        {/* Vehicle Demographics */}
-        <Animated.View entering={FadeInDown.delay(600)} style={{ marginBottom: 40 }}>
-          <GlassCard style={styles.sectionCard}>
-            <Text style={styles.sectionLabel}>DEMOGRAPHIC SIGNATURES</Text>
-            <PieChart
-              data={Array.isArray(data?.vehicles) ? data.vehicles : []}
-              width={width - 56}
-              height={180}
-              chartConfig={chartConfig}
-              accessor="population"
-              backgroundColor="transparent"
-              paddingLeft="15"
-              absolute
-            />
-          </GlassCard>
-        </Animated.View>
-
-        <View style={styles.footerNote}>
-           <Ionicons name="shield-checkmark" size={12} color="rgba(255,255,255,0.2)" />
-           <Text style={styles.footerText}>ALL DATA IS END-TO-END ENCRYPTED AND VERIFIED</Text>
+        {/* High-Impact Stat Grid */}
+        <View style={styles.statsGrid}>
+           <Animated.View entering={ZoomIn.delay(300)} style={styles.statsCol}>
+              <ProfessionalCard style={styles.miniCard} hasVibrancy={true}>
+                 <Ionicons name="trending-up" size={20} color={colors.success} />
+                 <Text style={[styles.statLabel, { color: colors.textMuted }]}>GROWTH</Text>
+                 <Text style={[styles.statValue, { color: colors.textPrimary }]}>{data.revenueGrowth ?? '+0%'}</Text>
+              </ProfessionalCard>
+           </Animated.View>
+           <Animated.View entering={ZoomIn.delay(400)} style={styles.statsCol}>
+              <ProfessionalCard style={styles.miniCard} hasVibrancy={true}>
+                 <Ionicons name="star" size={20} color={colors.warning} />
+                 <Text style={[styles.statLabel, { color: colors.textMuted }]}>RATING</Text>
+                 <Text style={[styles.statValue, { color: colors.textPrimary }]}>{data.avgRating ?? '5.00'}</Text>
+              </ProfessionalCard>
+           </Animated.View>
         </View>
+
+        {/* Occupancy Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>OCCUPANCY PEAKS (24H)</Text>
+          <Animated.View entering={FadeInDown.delay(500)}>
+            <ProfessionalCard style={styles.sectionCard} hasVibrancy={true}>
+              <BarChart
+                data={{
+                  labels: ["08:00", "12:00", "16:00", "20:00"],
+                  datasets: [{ data: Array.isArray(data?.occupancy) ? data.occupancy.slice(0, 4) : [0,0,0,0] }]
+                }}
+                width={width - 80}
+                height={160}
+                chartConfig={successChartConfig}
+                yAxisLabel=""
+                yAxisSuffix="%"
+                fromZero={true}
+                withInnerLines={false}
+                style={styles.chart}
+              />
+            </ProfessionalCard>
+          </Animated.View>
+        </View>
+
+        {/* Demographics */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>VEHICLE MIX</Text>
+          <Animated.View entering={FadeInUp.delay(600)}>
+            <ProfessionalCard style={styles.sectionCard} hasVibrancy={true}>
+              <PieChart
+                data={data.vehicles}
+                width={width - 80}
+                height={150}
+                chartConfig={chartConfig}
+                accessor="population"
+                backgroundColor="transparent"
+                paddingLeft="15"
+                absolute
+              />
+            </ProfessionalCard>
+          </Animated.View>
+        </View>
+        
+        <View style={{ height: 100 }} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0F1E',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  header: {
-    paddingTop: 60,
-    paddingHorizontal: 24,
+  container: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  header: { zIndex: 100 },
+  headerContent: {
+    paddingTop: Platform.OS === 'ios' ? 70 : 50,
     paddingBottom: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    zIndex: 10,
+    borderBottomWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
-  navBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  navBlur: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerInfo: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  headerTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#FFF',
-    letterSpacing: 2.5,
-  },
-  headerSubtitle: {
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
-    fontWeight: '800',
-    marginTop: 4,
-    letterSpacing: 0.5,
-  },
-  liveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.success,
-  },
-  liveText: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: '#FFF',
-    letterSpacing: 1,
-  },
-  scrollContent: {
-    padding: 24,
-    paddingBottom: 60,
-  },
-  sectionCard: {
-    padding: 24,
-    marginBottom: 24,
-  },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 2,
-    marginBottom: 24,
-  },
-  chart: {
-    borderRadius: 16,
-    marginLeft: -12,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 24,
-  },
-  statsCol: {
-    flex: 1,
-  },
-  miniCard: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  statIconWrapper: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  statLabel: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: 'rgba(255,255,255,0.3)',
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-  statValue: {
-    fontSize: 22,
-    fontWeight: '900',
-    letterSpacing: -0.5,
-  },
-  footerNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 20,
-    opacity: 0.5,
-  },
-  footerText: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: 'rgba(255,255,255,0.3)',
-    letterSpacing: 1,
-  },
+  headerTop: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, gap: 16 },
+  backBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  headerTitleSection: { flex: 1 },
+  headerLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 2 },
+  headerTitle: { fontSize: 26, fontWeight: '900', letterSpacing: -1 },
+  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1 },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
+  liveText: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  scrollContent: { padding: 24, paddingBottom: 100 },
+  sectionCard: { borderRadius: 32, padding: 24, borderWidth: 0 },
+  sectionLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 20, opacity: 0.6 },
+  chart: { borderRadius: 16, marginLeft: -12 },
+  statsGrid: { flexDirection: 'row', gap: 16, marginTop: 20 },
+  statsCol: { flex: 1 },
+  miniCard: { padding: 24, alignItems: 'center', borderRadius: 28, borderWidth: 0 },
+  statLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1, marginTop: 12, marginBottom: 4 },
+  statValue: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
+  section: { marginTop: 32 },
+  sectionTitle: { fontSize: 11, fontWeight: '900', letterSpacing: 2, marginBottom: 16, marginLeft: 4 },
 });

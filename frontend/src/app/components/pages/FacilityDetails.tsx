@@ -21,10 +21,11 @@ export function FacilityDetails() {
   const pricing = mockPricing?.[id!] || mockPricing?.['facility-1'] || [];
   const reviews = (mockReviews || []).filter(r => r.facilityId === id);
 
-  const [selectedFloor, setSelectedFloor] = useState(0);
+  const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [selectedVehicleType, setSelectedVehicleType] = useState<VehicleType>('car');
   const [facilitySlots, setFacilitySlots] = useState<any[]>([]);
+  const [floorNames, setFloorNames] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(true);
 
   // Fetch slots from API on mount
@@ -35,11 +36,21 @@ export function FacilityDetails() {
         setSlotsLoading(true);
         const slotsData = await customerService.getAvailableSlots(id);
         // slotsData is { "Floor 1": [...], "Floor 2": [...] }
-        // Flatten into array with floor info
+        const names = Object.keys(slotsData);
+        setFloorNames(names);
+        if (names.length > 0) setSelectedFloor(names[0]); // default to first floor
+
         const allSlots: any[] = [];
-        Object.entries(slotsData).forEach(([floorName, slots]) => {
-          (slots as any[]).forEach(slot => {
-            allSlots.push({ ...slot, floorName, floor: parseInt(floorName.replace(/\D/g, '')) || 0 });
+        names.forEach(floorName => {
+          (slotsData[floorName] as any[]).forEach(slot => {
+            allSlots.push({
+              ...slot,
+              floorName,
+              // Normalize fields for frontend
+              status: (slot.status || 'free').toLowerCase(),
+              vehicleType: (slot.vehicle_type || 'car').toLowerCase(),
+              pricePerHour: slot.price_per_hour || 20
+            });
           });
         });
         setFacilitySlots(allSlots);
@@ -54,7 +65,8 @@ export function FacilityDetails() {
   }, [id]);
 
   const floorsSlots = useMemo(() => {
-    return facilitySlots.filter(slot => slot.floor === selectedFloor);
+    if (!selectedFloor) return facilitySlots; // show all if no floor selected
+    return facilitySlots.filter(slot => slot.floorName === selectedFloor);
   }, [facilitySlots, selectedFloor]);
 
   const selectedSlotData = useMemo(() => {
@@ -173,16 +185,17 @@ export function FacilityDetails() {
 
               {/* Floor Tabs */}
               <div className="flex overflow-x-auto gap-2 pb-4 scrollbar-hide">
-                {Array.from({ length: facility.floors }, (_, i) => i).map((floor) => (
+                {floorNames.map((floorName) => (
                   <button
-                    key={floor}
-                    onClick={() => setSelectedFloor(floor)}
-                    className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${selectedFloor === floor
-                      ? 'bg-primary text-white shadow-md'
-                      : 'bg-white border border-gray-200 text-gray-600'
-                      }`}
+                    key={floorName}
+                    onClick={() => setSelectedFloor(floorName)}
+                    className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${
+                      selectedFloor === floorName
+                        ? 'bg-primary text-white shadow-md'
+                        : 'bg-white border border-gray-200 text-gray-600'
+                    }`}
                   >
-                    {floor === 0 ? 'Ground Floor' : `Floor ${floor}`}
+                    {floorName}
                   </button>
                 ))}
               </div>

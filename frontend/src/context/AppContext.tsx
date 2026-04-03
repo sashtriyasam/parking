@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import type { User, Facility, ParkingSlot, Booking } from '@/types';
+import type { User, Facility, ParkingSlot, Booking, VehicleType, PaymentMethod } from '@/types';
 // Remove mock imports
 // import { mockFacilities, mockSlots, mockBookings } from '@/data/mockData';
 import { authService } from '@/services/auth.service';
@@ -17,9 +17,11 @@ interface AppContextType {
   bookings: Booking[];
   login: (email: string, password: string, role: 'customer' | 'provider') => Promise<void>;
   logout: () => void;
-  signup: (name: string, email: string, password: string, role: 'customer' | 'provider') => Promise<void>;
+  signup: (name: string, email: string, password: string, phone: string, role: 'customer' | 'provider') => Promise<void>;
   updateSlotStatus: (facilityId: string, slotId: string, status: ParkingSlot['status']) => void;
-  createBooking: (booking: Omit<Booking, 'id'>) => Promise<Booking>; // Changed to Promise
+  createBooking: (booking: Omit<Booking, 'id'>) => Promise<Booking>;
+  cancelBooking: (ticketId: string) => Promise<void>;
+  createOfflineBooking: (data: any) => Promise<Booking>;
   getBookingsByUser: (userId: string) => Booking[];
   getFacilityById: (id: string) => Facility | undefined;
   refreshData: () => Promise<void>;
@@ -45,15 +47,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
     avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(backendUser.full_name)}&background=random`,
   });
 
+  const mapBackendFacilityToFrontend = (f: any): Facility => ({
+    ...f,
+    id: f.id,
+    name: f.name,
+    address: f.address,
+    city: f.city,
+    latitude: f.latitude != null ? parseFloat(f.latitude) : 0,
+    longitude: f.longitude != null ? parseFloat(f.longitude) : 0,
+    image_url: f.image_url || (f.images && f.images[0]),
+    totalSlots: f.total_slots || f._count?.parking_slots || 0,
+    availableSlots: f.available_slots !== undefined ? f.available_slots : (f.total_slots || f._count?.parking_slots || 0),
+    providerId: f.provider_id,
+    operatingHours: f.operating_hours,
+  });
+
+  const mapBackendTicketToBooking = (t: any): Booking => ({
+    id: t.id,
+    customerId: t.user_id,
+    facilityId: t.facility_id,
+    slotId: t.slot_id,
+    vehicleNumber: t.vehicle_number,
+    vehicleType: (t.vehicle_type?.toLowerCase() || 'car') as any as VehicleType,
+    entryTime: t.entry_time,
+    exitTime: t.exit_time,
+    duration: t.duration || t.duration_hours || 0,
+    amount: t.total_fee || t.amount || 0,
+    paymentMethod: (t.payment_method?.toLowerCase() || 'pay-at-exit') as any as PaymentMethod,
+    status: (t.status || 'active').toLowerCase() as any,
+    bookingType: (t.booking_type || 'ONLINE').toUpperCase(),
+    qrCode: t.qr_code || t.id,
+  });
+
   const loadInitialData = useCallback(async () => {
     try {
       // 1. Load Facilities (Common for all)
-      // Note: In a real large app, we wouldn't load ALL facilities here, but for this scale it's fine
-      // to populate the map.
       const allFacilities = await customerService.getAllFacilities();
-      // Cast backend type to frontend type if needed, assuming they match for now or mapper needed
-      // Ideally types should be shared.
-      setFacilities(allFacilities as unknown as Facility[]);
+      const normalizedFacilities = allFacilities.map(mapBackendFacilityToFrontend);
+      setFacilities(normalizedFacilities);
 
       // 2. Load User Logic
       const token = localStorage.getItem('accessToken');
@@ -65,17 +96,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         // 3. Role-specific data loading
         if (frontendUser.role === 'provider') {
-          const myFacilities = await providerService.getMyFacilities();
-          const providerBookings = await providerService.getBookings(); // Adjusted to provider service
-          // Merge provider facilities if needed, or just rely on 'facilities' state 
-          // (provider might want to see ONLY theirs or ALL? provider dashboard filters usually)
-          setBookings(providerBookings);
+          await providerService.getMyFacilities(); // ensure fresh access
+          const providerBookings = await providerService.getBookings(); 
+          setBookings(providerBookings.map(mapBackendTicketToBooking));
         } else {
           // Customer
           const myTickets = await customerService.getActiveTickets();
-          // Map tickets to bookings format if they differ significantly
-          // For now assuming Booking type interface match or we verify later
-          setBookings(myTickets as unknown as Booking[]);
+          setBookings(myTickets.map(mapBackendTicketToBooking));
         }
       }
     } catch (error) {
@@ -90,11 +117,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loadInitialData();
   }, [loadInitialData]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, role?: 'customer' | 'provider') => {
     setIsLoading(true);
     try {
+      console.log(`[v1.6] Attempting login: ${email} as ${role || 'unknown'}`);
       const response = await authService.login({ email, password });
+      
+      if (!response || !response.data) {
+        throw new Error('Invalid server response during login');
+      }
+
       const { user: backendUser, accessToken, refreshToken } = response.data;
+
+      if (!backendUser) {
+        throw new Error('User data missing from response');
+      }
 
       const frontendUser = mapBackendUserToFrontend(backendUser);
 
@@ -105,9 +142,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // Reload data for the new user
       await loadInitialData();
-      toast.success(`Welcome back, ${frontendUser.name}!`);
     } catch (error: any) {
-      console.error('Login failed:', error);
+      console.error('[v1.6] Login failed:', error);
       toast.error(error.message || 'Login failed');
       throw error;
     } finally {
@@ -123,7 +159,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toast.info('Logged out successfully');
   };
 
-  const signup = async (name: string, email: string, password: string, role: 'customer' | 'provider') => {
+  const signup = async (name: string, email: string, password: string, phone: string, role: 'customer' | 'provider') => {
     setIsLoading(true);
     try {
       const response = await authService.register({
@@ -131,7 +167,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         password,
         full_name: name,
         role: role.toUpperCase() as any, // Backend expects uppercase
-        phone_number: '', // Optional in frontend UI currently
+        phone_number: phone, 
       });
 
       const { user: backendUser, accessToken, refreshToken } = response.data;
@@ -163,35 +199,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const cancelBooking = async (ticketId: string) => {
+    try {
+      await customerService.cancelBooking(ticketId);
+      setBookings(prev => prev.map(b => b.id === ticketId ? { ...b, status: 'cancelled' } : b));
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const createBooking = async (bookingData: Omit<Booking, 'id'>): Promise<Booking> => {
     try {
-      // Use the service to create booking
-      // The bookingData structure from frontend might need mapping to what backend expects
-      // Frontend: { customerId, facilityId, slotId, vehicleNumber, ... }
-      // Backend: /customer/booking/confirm expects { slot_id, vehicle_id, ... } or /bookings expects generic
-
-      // For now, let's assume we map it to the 'confirmBooking' flow
-      const ticket = await customerService.confirmBooking({
+      const vehicleTypeMap: Record<string, string> = {
+        'car': 'CAR', 'bike': 'BIKE', 'truck': 'TRUCK', 'scooter': 'BIKE'
+      };
+      const paymentMethodMap: Record<string, string> = {
+        'upi': 'UPI', 'card': 'CARD', 'pay-at-exit': 'PAY_AT_EXIT', 'cash': 'PAY_AT_EXIT'
+      };
+      const ticket = await (customerService as any).confirmBooking({
         facility_id: bookingData.facilityId,
         slot_id: bookingData.slotId,
         vehicle_number: bookingData.vehicleNumber,
-        vehicle_type: bookingData.vehicleType,
-        start_time: bookingData.entryTime, // ISO string
-        duration_hours: bookingData.duration,
-        payment_method: bookingData.paymentMethod,
+        vehicle_type: vehicleTypeMap[bookingData.vehicleType] || bookingData.vehicleType.toUpperCase(),
+        start_time: bookingData.startTime || bookingData.entryTime,
+        end_time: bookingData.endTime || new Date(new Date(bookingData.entryTime).getTime() + (bookingData.duration || 2) * 60 * 60 * 1000).toISOString(),
+        entry_time: bookingData.entryTime,
+        duration: bookingData.duration,
+        payment_method: paymentMethodMap[bookingData.paymentMethod] || bookingData.paymentMethod.toUpperCase(),
         amount: bookingData.amount
       });
 
       // Map back ticket to Booking type to update local state
-      const newBooking: Booking = {
-        ...bookingData,
-        id: ticket.id,
-        status: 'active',
-        qrCode: ticket.qr_code || 'QR-PENDING'
-      };
-
+      const newBooking = mapBackendTicketToBooking(ticket);
       setBookings(prev => [...prev, newBooking]);
-      // updateSlotStatus(bookingData.facilityId, bookingData.slotId, 'occupied'); // Backend handles this
 
       return newBooking;
     } catch (error) {
@@ -235,9 +275,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const facilities = await providerService.getMyFacilities();
           if (facilities.length === 0) {
             // No facilities -> Onboarding
-            // We can't navigate here easily without `useNavigate` hook context.
-            // But state change will trigger re-render in App.
-            // We rely on component level logic or redirecting
             window.location.href = '/provider/onboarding'; // Hard refresh/nav safest here
             return;
           }
@@ -250,7 +287,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
     } catch (error) {
-      console.error('Failed to switch role', error);
       toast.error('Failed to switch role');
     } finally {
       setIsLoading(false);
@@ -271,6 +307,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         signup,
         updateSlotStatus,
         createBooking,
+        cancelBooking,
+        createOfflineBooking: async (data: any) => {
+          const ticket = await providerService.createOfflineBooking(data);
+          const newBooking = mapBackendTicketToBooking(ticket);
+          setBookings(prev => [newBooking, ...prev]);
+          return newBooking;
+        },
         getBookingsByUser,
         getFacilityById,
         refreshData,

@@ -71,6 +71,8 @@ export interface Booking {
   qr_code?: string;
   slot?: ParkingSlot;
   facility?: ParkingFacility;
+  created_at?: string;
+  updated_at?: string;
 }
 export interface Vehicle {
   id: string; 

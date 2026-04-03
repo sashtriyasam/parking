@@ -14,6 +14,7 @@ export function Signup() {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -27,7 +28,7 @@ export function Signup() {
 
     try {
       // Pass the selected role preference
-      await signup(name, email, password, isProvider ? 'provider' : 'customer');
+      await signup(name, email, password, phone, isProvider ? 'provider' : 'customer');
       toast.success(isProvider ? 'Partner account created!' : 'Account created!');
 
       // Redirect based on role
@@ -80,6 +81,18 @@ export function Signup() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              className="h-12 border-gray-300 text-lg"
+              required
+            />
+          </div>
+
+          <div>
+            <Label className="text-gray-700 font-medium mb-1.5 block">Phone Number</Label>
+            <Input
+              type="tel"
+              placeholder="+91 98765 43210"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               className="h-12 border-gray-300 text-lg"
               required
             />

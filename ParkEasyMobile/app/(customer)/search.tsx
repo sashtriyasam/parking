@@ -10,119 +10,48 @@ import {
   Platform,
   ActivityIndicator,
   StatusBar,
-  Dimensions,
-  Pressable
+  Dimensions
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   FadeInDown,
-  FadeIn,
   SlideInUp,
-  Layout,
-  LinearTransition,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withRepeat,
-  withSequence,
-  withTiming,
-  withDelay,
-  Easing
+  LinearTransition
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { get } from '../../services/api';
 import { searchLocation, LocationSuggestion } from '../../services/geocoding';
 import { ParkingFacilityCard } from '../../components/ParkingFacilityCard';
-import { colors } from '../../constants/colors';
+import { useThemeColors } from '../../hooks/useThemeColors';
+import { useHaptics } from '../../hooks/useHaptics';
 import { ParkingFacility, VehicleType } from '../../types';
 import { EmptyState } from '../../components/EmptyState';
-import { GlassCard } from '../../components/ui/GlassCard';
+import { ProfessionalCard } from '../../components/ui/ProfessionalCard';
+import { BlurView } from 'expo-blur';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 type SearchMode = 'NAME' | 'COORD';
 
 const VEHICLE_FILTERS: { label: string; value: VehicleType; icon: any }[] = [
-  { label: 'BIKE', value: 'bike', icon: 'bicycle' },
-  { label: 'SCOOTER', value: 'scooter', icon: 'bicycle-outline' },
-  { label: 'CAR', value: 'car', icon: 'car' },
-  { label: 'TRUCK', value: 'truck', icon: 'bus' },
+  { label: 'Bike', value: 'bike', icon: 'bicycle' },
+  { label: 'Scooter', value: 'scooter', icon: 'bicycle-outline' },
+  { label: 'Car', value: 'car', icon: 'car' },
+  { label: 'Truck', value: 'truck', icon: 'bus' },
 ];
-
-const Particle = ({ delay = 0 }) => {
-  const translateY = useSharedValue(0);
-  const opacity = useSharedValue(0.1);
-  const scale = useSharedValue(Math.random() * 0.5 + 0.5);
-
-  useEffect(() => {
-    translateY.value = withDelay(
-      delay,
-      withRepeat(
-        withTiming(-height, {
-          duration: Math.random() * 5000 + 5000,
-          easing: Easing.linear,
-        }),
-        -1,
-        false
-      )
-    );
-    opacity.value = withDelay(
-      delay,
-      withRepeat(
-        withSequence(
-          withTiming(0.4, { duration: 2500 }),
-          withTiming(0.1, { duration: 2500 })
-        ),
-        -1,
-        true
-      )
-    );
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: translateY.value },
-      { scale: scale.value }
-    ],
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.View 
-      style={[
-        styles.particle, 
-        { 
-          left: Math.random() * width, 
-          top: height + 20,
-        }, 
-        animatedStyle
-      ]} 
-    />
-  );
-};
 
 export default function SearchScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const haptics = useHaptics();
+  
   const [query, setQuery] = useState('');
-  const [mode, setMode] = useState<SearchMode>('NAME');
+  const [mode, setMode] = useState<SearchMode>('COORD');
   const [vehicleType, setVehicleType] = useState<VehicleType | null>(null);
   const [results, setResults] = useState<ParkingFacility[]>([]);
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
-
-  const loaderRotation = useSharedValue(0);
-
-  useEffect(() => {
-    loaderRotation.value = withRepeat(
-      withTiming(360, { duration: 1500 }),
-      -1,
-      false
-    );
-  }, []);
 
   const handleSearch = useCallback(async (q: string, m: SearchMode, type: VehicleType | null) => {
     if (!q) {
@@ -157,7 +86,7 @@ export default function SearchScreen() {
   }, [query, mode, vehicleType, handleSearch]);
 
   const toggleMode = (m: SearchMode) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptics.impactLight();
     setMode(m);
     setQuery('');
     setResults([]);
@@ -166,10 +95,17 @@ export default function SearchScreen() {
   };
 
   const handleSuggestionPress = async (suggestion: LocationSuggestion) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptics.impactMedium();
     setLoading(true);
     try {
-      const url = `/parking/search?lat=${suggestion.lat}&lon=${suggestion.lon}&limit=10`;
+      const lat = parseFloat(suggestion.lat as string);
+      const lon = parseFloat(suggestion.lon as string);
+      
+      if (isNaN(lat) || isNaN(lon)) {
+        throw new Error('Invalid coordinates received from suggestion');
+      }
+
+      const url = `/parking/search?lat=${lat}&lon=${lon}&limit=10`;
       const res = await get(url);
       setResults(res.data.data || []);
       setSuggestions([]);
@@ -182,131 +118,90 @@ export default function SearchScreen() {
     }
   };
 
-  const renderLoader = () => (
-    <Animated.View style={{ transform: [{ rotate: `${loaderRotation.value}deg` }] }}>
-      <Ionicons name="sync" size={18} color={colors.primary} />
-    </Animated.View>
-  );
-
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient colors={['#0A0F1E', '#161B2E']} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
       
-      {/* Immersive Background Elements */}
-      {Array.from({ length: 15 }).map((_, i) => (
-        <Particle key={i} delay={i * 400} />
-      ))}
-      
-      <View style={[styles.glow, { top: height * 0.1, right: -50, backgroundColor: colors.primary + '20' }]} />
-      <View style={[styles.glow, { bottom: height * 0.2, left: -50, backgroundColor: colors.primary + '10' }]} />
-
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Futuristic Search Header */}
         <Animated.View entering={SlideInUp.duration(600)} style={styles.header}>
-          <BlurView intensity={30} tint="dark" style={styles.headerContent}>
+          <BlurView intensity={20} tint={colors.isDark ? 'dark' : 'light'} style={styles.headerBlur}>
             <View style={styles.headerTop}>
-              <TouchableOpacity onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.back();
-              }} style={styles.navBtn}>
-                <Ionicons name="chevron-back" size={24} color="#FFF" />
+              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                 <Ionicons name="chevron-back" size={28} color={colors.textPrimary} />
               </TouchableOpacity>
-              <View style={styles.protocolInfo}>
-                 <Text style={styles.protocolTitle}>INTEL SCAN NODE</Text>
-                 <Text style={styles.protocolSub}>PROTOCOL: {mode === 'NAME' ? 'NAME_TRACE' : 'COORD_SCAN'}</Text>
-              </View>
-              <View style={styles.statusBadge}>
-                 <View style={styles.statusDot} />
-                 <Text style={styles.statusText}>ACTIVE</Text>
-              </View>
+              <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Find Parking</Text>
             </View>
 
-            <View style={styles.modeSwitcherHost}>
-               <TouchableOpacity 
-                  onPress={() => toggleMode('NAME')}
-                  style={[styles.modeBtn, mode === 'NAME' && styles.modeBtnActive]}
-               >
-                  <Text style={[styles.modeText, mode === 'NAME' && styles.modeTextActive]}>NAME_TRACE</Text>
-               </TouchableOpacity>
+            <View style={[styles.segmentedControl, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                <TouchableOpacity 
                   onPress={() => toggleMode('COORD')}
-                  style={[styles.modeBtn, mode === 'COORD' && styles.modeBtnActive]}
+                  style={[styles.segment, mode === 'COORD' && { backgroundColor: colors.background }]}
                >
-                  <Text style={[styles.modeText, mode === 'COORD' && styles.modeTextActive]}>COORD_SCAN</Text>
+                  <Text style={[styles.segmentText, { color: mode === 'COORD' ? colors.primary : colors.textMuted }]}>By Location</Text>
+               </TouchableOpacity>
+               <TouchableOpacity 
+                  onPress={() => toggleMode('NAME')}
+                  style={[styles.segment, mode === 'NAME' && { backgroundColor: colors.background }]}
+               >
+                  <Text style={[styles.segmentText, { color: mode === 'NAME' ? colors.primary : colors.textMuted }]}>By Name</Text>
                </TouchableOpacity>
             </View>
 
-            <View style={styles.inputHost}>
-               <View style={styles.glassInputBox}>
-                  <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
-                  <Ionicons 
-                    name={mode === 'NAME' ? "search-outline" : "location-outline"} 
-                    size={20} 
-                    color={colors.primary} 
-                  />
+            <View style={styles.searchContainer}>
+               <View style={[styles.searchField, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Ionicons name={mode === 'COORD' ? "location-outline" : "search-outline"} size={20} color={colors.primary} />
                   <TextInput
-                    ref={searchInputRef}
-                    style={styles.searchInput}
-                    placeholder={mode === 'NAME' ? "Trace facility or node..." : "Input grid coordinates..."}
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={query}
-                    onChangeText={setQuery}
-                    selectionColor={colors.primary}
-                    autoFocus
+                     ref={searchInputRef}
+                     style={[styles.input, { color: colors.textPrimary }]}
+                     placeholder={mode === 'COORD' ? "Destination..." : "Parking name..."}
+                     placeholderTextColor={colors.textMuted}
+                     value={query}
+                     onChangeText={setQuery}
+                     selectionColor={colors.primary}
                   />
-                  {loading && renderLoader()}
-                  {!loading && query.length > 0 && (
-                    <TouchableOpacity onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setQuery('');
-                    }}>
-                       <Ionicons name="close-circle" size={18} color="rgba(255,255,255,0.4)" />
+                  {loading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : query.length > 0 ? (
+                    <TouchableOpacity onPress={() => setQuery('')}>
+                       <Ionicons name="close-circle" size={18} color={colors.textMuted} />
                     </TouchableOpacity>
-                  )}
+                  ) : null}
                </View>
             </View>
 
-            {mode === 'NAME' && (
-              <View style={styles.filtersWrapper}>
-                <FlatList
+            <View style={styles.filterBar}>
+               <FlatList
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   data={VEHICLE_FILTERS}
-                  keyExtractor={(item) => item.value}
-                  contentContainerStyle={styles.filtersContent}
+                  contentContainerStyle={styles.filterContent}
                   renderItem={({ item }) => {
-                    const isActive = vehicleType === item.value;
-                    return (
-                      <TouchableOpacity
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setVehicleType(isActive ? null : item.value as VehicleType);
-                        }}
-                        style={[styles.filterChip, isActive && styles.filterChipActive]}
-                      >
-                        <BlurView intensity={isActive ? 40 : 10} tint="dark" style={StyleSheet.absoluteFill} />
-                        <Ionicons
-                          name={item.icon as any}
-                          size={14}
-                          color={isActive ? colors.primary : 'rgba(255,255,255,0.5)'}
-                        />
-                        <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
-                          {item.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
+                     const active = vehicleType === item.value;
+                     return (
+                        <TouchableOpacity 
+                           onPress={() => {
+                              haptics.impactLight();
+                              setVehicleType(active ? null : item.value);
+                           }}
+                           style={[
+                             styles.filterChip, 
+                             { backgroundColor: colors.surface, borderColor: colors.border },
+                             active && { backgroundColor: colors.primary, borderColor: colors.primary }
+                           ]}
+                        >
+                           <Ionicons name={item.icon} size={14} color={active ? '#FFF' : colors.textSecondary} />
+                           <Text style={[styles.filterText, { color: active ? '#FFF' : colors.textSecondary }]}>{item.label}</Text>
+                        </TouchableOpacity>
+                     );
                   }}
-                />
-              </View>
-            )}
+               />
+            </View>
           </BlurView>
         </Animated.View>
 
-        {/* Results / Suggestions Grid */}
         {mode === 'COORD' && suggestions.length > 0 ? (
           <FlatList
             data={suggestions}
@@ -315,41 +210,35 @@ export default function SearchScreen() {
             renderItem={({ item, index }) => (
               <Animated.View entering={FadeInDown.delay(index * 50)}>
                 <TouchableOpacity 
-                   style={styles.suggestionItem}
+                   style={[styles.suggestionRow, { borderBottomColor: colors.border }]}
                    onPress={() => handleSuggestionPress(item)}
                 >
-                   <BlurView intensity={10} tint="dark" style={styles.suggestionBlur}>
-                      <View style={styles.suggestionIconBox}>
-                         <Ionicons name="map-outline" size={18} color={colors.primary} />
-                      </View>
-                      <View style={styles.suggestionInfo}>
-                         <Text style={styles.suggestionTitle} numberOfLines={1}>
-                            {item.display_name.split(',')[0]}
-                         </Text>
-                         <Text style={styles.suggestionSub} numberOfLines={1}>
-                            {item.display_name.split(',').slice(1).join(',')}
-                         </Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.3)" />
-                   </BlurView>
+                   <View style={[styles.suggestionIcon, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                      <Ionicons name="location" size={18} color={colors.primary} />
+                   </View>
+                   <View style={styles.suggestionInfo}>
+                      <Text style={[styles.suggestionPrimary, { color: colors.textPrimary }]} numberOfLines={1}>
+                         {item.display_name.split(',')[0]}
+                      </Text>
+                      <Text style={[styles.suggestionSecondary, { color: colors.textMuted }]} numberOfLines={1}>
+                         {item.display_name.split(',').slice(1).join(',')}
+                      </Text>
+                   </View>
+                   <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                 </TouchableOpacity>
               </Animated.View>
             )}
-            ListHeaderComponent={
-              <Text style={styles.sectionHeader}>GRID MATCHES DETECTED</Text>
-            }
           />
         ) : results.length > 0 ? (
           <FlatList
             data={results}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.resultsList}
-            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.resultsContent}
             renderItem={({ item, index }) => (
               <Animated.View
                 layout={LinearTransition.springify()}
                 entering={FadeInDown.delay(index * 100)}
-                style={styles.resultWrapper}
+                style={styles.resultCard}
               >
                 <ParkingFacilityCard
                   facility={item}
@@ -360,22 +249,17 @@ export default function SearchScreen() {
               </Animated.View>
             )}
             ListHeaderComponent={
-              <View style={styles.resultsHeader}>
-                 <Text style={styles.resultsCount}>TRACE COMPLETE: {results.length} NODES</Text>
-                 <View style={styles.resultsLine} />
-              </View>
+              <Text style={[styles.metaTitle, { color: colors.textMuted }]}>{results.length} PLACES FOUND</Text>
             }
           />
         ) : (
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <EmptyState
-              icon={query.length > 0 ? "eye-off-outline" : "wifi-outline"}
-              title={query.length > 0 ? "ZERO MATCHES" : "SCAN INITIALIZED"}
+              icon={query.length > 0 ? "search-outline" : "map-outline"}
+              title={query.length > 0 ? "No results found" : "Ready to explore?"}
               subtitle={query.length > 0
-                ? "Keyword mismatch. Adjust grid parameters."
-                : "Scanning for nearby parking infrastructure..."}
-              actionLabel={query.length > 0 ? "RESET TRACE" : undefined}
-              onAction={query.length > 0 ? () => { setQuery(''); setVehicleType(null); } : undefined}
+                ? "Check your filters or try a different search term."
+                : "Enter a destination to discover nearby parking opportunities."}
             />
           </View>
         )}
@@ -385,241 +269,34 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0F1E',
+  container: { flex: 1 },
+  header: { zIndex: 100 },
+  headerBlur: {
+     paddingTop: Platform.OS === 'ios' ? 60 : 40,
+     paddingBottom: 20,
+     borderBottomWidth: 0.5,
+     borderColor: 'rgba(0,0,0,0.1)',
   },
-  particle: {
-    position: 'absolute',
-    width: 2,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: colors.primary,
-  },
-  glow: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    filter: 'blur(50px)',
-  },
-  header: {
-    zIndex: 100,
-  },
-  headerContent: {
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    overflow: 'hidden',
-    borderBottomWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  navBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  protocolInfo: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  protocolTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#FFF',
-    letterSpacing: 2,
-  },
-  protocolSub: {
-    fontSize: 8,
-    color: 'rgba(255,255,255,0.4)',
-    fontWeight: '800',
-    marginTop: 2,
-    letterSpacing: 1,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary + '20',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: colors.primary + '30',
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
-  },
-  statusText: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: colors.primary,
-    letterSpacing: 1,
-  },
-  modeSwitcherHost: {
-    flexDirection: 'row',
-    marginHorizontal: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
-    padding: 2,
-    marginBottom: 20,
-  },
-  modeBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 10,
-  },
-  modeBtnActive: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  modeText: {
-     fontSize: 9,
-     fontWeight: '900',
-     color: 'rgba(255,255,255,0.3)',
-     letterSpacing: 1,
-  },
-  modeTextActive: {
-     color: colors.primary,
-  },
-  inputHost: {
-    paddingHorizontal: 20,
-  },
-  glassInputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    height: 60,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    overflow: 'hidden',
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFF',
-  },
-  filtersWrapper: {
-    marginTop: 16,
-  },
-  filtersContent: {
-    paddingHorizontal: 20,
-    gap: 10,
-  },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    overflow: 'hidden',
-  },
-  filterChipActive: {
-    borderColor: colors.primary + '50',
-  },
-  chipText: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 1,
-  },
-  chipTextActive: {
-    color: colors.primary,
-  },
-  suggestionList: {
-    padding: 24,
-    paddingTop: 30,
-  },
-  suggestionItem: {
-    marginBottom: 12,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  suggestionBlur: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-  },
-  suggestionIconBox: {
-     width: 36,
-     height: 36,
-     borderRadius: 10,
-     backgroundColor: colors.primary + '10',
-     alignItems: 'center',
-     justifyContent: 'center',
-     marginRight: 14,
-  },
-  suggestionInfo: {
-     flex: 1,
-  },
-  suggestionTitle: {
-     fontSize: 14,
-     fontWeight: '800',
-     color: '#FFF',
-  },
-  suggestionSub: {
-     fontSize: 9,
-     color: 'rgba(255,255,255,0.4)',
-     fontWeight: '700',
-     marginTop: 2,
-  },
-  sectionHeader: {
-     fontSize: 10,
-     fontWeight: '900',
-     color: 'rgba(255,255,255,0.3)',
-     letterSpacing: 2,
-     marginBottom: 16,
-  },
-  resultsList: {
-    paddingHorizontal: 20,
-    paddingTop: 30,
-    paddingBottom: 40,
-  },
-  resultsHeader: {
-     flexDirection: 'row',
-     alignItems: 'center',
-     gap: 16,
-     marginBottom: 24,
-  },
-  resultsCount: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: colors.primary,
-    letterSpacing: 2,
-    opacity: 0.8,
-  },
-  resultsLine: {
-     flex: 1,
-     height: 1,
-     backgroundColor: colors.primary + '20',
-  },
-  resultWrapper: {
-    marginBottom: 20,
-  },
+  headerTop: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, marginBottom: 16 },
+  backBtn: { width: 40, height: 40, justifyContent: 'center', marginLeft: -10 },
+  headerTitle: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
+  segmentedControl: { flexDirection: 'row', marginHorizontal: 24, borderRadius: 12, padding: 3, height: 42, marginBottom: 16, borderWidth: 1 },
+  segment: { flex: 1, justifyContent: 'center', alignItems: 'center', borderRadius: 9 },
+  segmentText: { fontSize: 13, fontWeight: '800' },
+  searchContainer: { paddingHorizontal: 24, marginBottom: 16 },
+  searchField: { flexDirection: 'row', alignItems: 'center', height: 56, borderRadius: 16, paddingHorizontal: 16, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+  input: { flex: 1, marginLeft: 12, fontSize: 16, fontWeight: '700' },
+  filterBar: { marginBottom: 8 },
+  filterContent: { paddingHorizontal: 24, gap: 10 },
+  filterChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, borderWidth: 1, gap: 8 },
+  filterText: { fontSize: 13, fontWeight: '800' },
+  suggestionList: { padding: 24 },
+  suggestionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 0.5 },
+  suggestionIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 16, borderWidth: 1 },
+  suggestionInfo: { flex: 1 },
+  suggestionPrimary: { fontSize: 16, fontWeight: '700' },
+  suggestionSecondary: { fontSize: 12, fontWeight: '600', marginTop: 2, opacity: 0.7 },
+  resultsContent: { padding: 24, paddingBottom: 60 },
+  metaTitle: { fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 20 },
+  resultCard: { marginBottom: 16 },
 });

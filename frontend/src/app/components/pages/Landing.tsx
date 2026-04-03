@@ -1,8 +1,21 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/app/components/ui/button';
+import { useApp } from '@/context/AppContext';
 
 export function Landing() {
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useApp();
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === 'provider') {
+        navigate('/provider/dashboard', { replace: true });
+      } else {
+        navigate('/customer/search', { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-between p-6 bg-background animate-in slide-in-from-bottom duration-700">
@@ -41,6 +54,7 @@ export function Landing() {
           <div>
             <span className="text-muted-foreground mr-1">Already have an account?</span>
             <button
+              type="button"
               className="text-primary hover:underline"
               onClick={() => navigate('/login')}
             >
@@ -48,6 +62,7 @@ export function Landing() {
             </button>
           </div>
           <button
+            type="button"
             className="text-gray-500 hover:text-gray-900 text-xs"
             onClick={() => navigate('/signup', { state: { isProvider: true } })}
           >

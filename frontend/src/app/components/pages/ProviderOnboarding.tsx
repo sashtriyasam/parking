@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app
 import { toast } from 'sonner';
 import { providerService } from '@/services/provider.service';
 import { useApp } from '@/context/AppContext';
+import { LocationPicker } from '@/app/components/shared/LocationPicker';
 
 export function ProviderOnboarding() {
     const navigate = useNavigate();
@@ -22,6 +23,8 @@ export function ProviderOnboarding() {
         operating_hours: '24/7',
         total_floors: 1,
         description: '',
+        latitude: 0,
+        longitude: 0,
     });
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -29,6 +32,14 @@ export function ProviderOnboarding() {
         setFormData(prev => ({
             ...prev,
             [name]: value
+        }));
+    };
+
+    const handleLocationChange = (lat: number, lng: number) => {
+        setFormData(prev => ({
+            ...prev,
+            latitude: lat,
+            longitude: lng
         }));
     };
 
@@ -40,10 +51,10 @@ export function ProviderOnboarding() {
             // Ensure types match backend expectations
             const payload = {
                 ...formData,
-                total_floors: parseInt(String(formData.total_floors), 10),
-                // Default lat/long for now if not provided, or let backend handle optional
-                latitude: 0,
-                longitude: 0,
+                total_floors: parseInt(formData.total_floors as any, 10),
+                // If user didn't pick, backend will geocode address
+                latitude: formData.latitude || null,
+                longitude: formData.longitude || null,
             };
 
             await providerService.createFacility(payload);
@@ -52,7 +63,7 @@ export function ProviderOnboarding() {
             await refreshData();
 
             toast.success('Facility created! Now let\'s add some slots.');
-            // After creating facility, go to slots management (or dashboard if simplest)
+            // After creating facility, go to slots management
             navigate('/provider/dashboard');
         } catch (error) {
             toast.error('Failed to create facility. Please try again.');
@@ -151,6 +162,18 @@ export function ProviderOnboarding() {
                                             className="mt-1"
                                         />
                                     </div>
+                                </div>
+
+                                <div className="space-y-2 pt-2 border-t border-gray-100">
+                                    <Label className="text-sm font-semibold text-gray-700">Confirm Location on Map</Label>
+                                    <p className="text-[10px] text-gray-500 mb-2">
+                                        Drag the pin to your exact parking entrance for accurate customer navigation.
+                                    </p>
+                                    <LocationPicker 
+                                        lat={formData.latitude} 
+                                        lng={formData.longitude} 
+                                        onChange={handleLocationChange} 
+                                    />
                                 </div>
                             </div>
 

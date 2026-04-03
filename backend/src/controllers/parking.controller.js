@@ -2,6 +2,7 @@ const prisma = require('../config/db');
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const geocodingService = require('../services/geocoding.service');
+const socketService = require('../services/socket.service');
 
 // --- Facilities ---
 
@@ -39,13 +40,19 @@ const createFacility = asyncHandler(async (req, res, next) => {
         },
     });
 
+    console.log(`[Socket] Notifying provider ${provider_id} of new facility`);
+    socketService.emitToProvider(provider_id, 'facility_created', facility);
+
     res.status(201).json({ status: 'success', data: facility });
 });
 
 
 const getMyFacilities = asyncHandler(async (req, res) => {
     const facilities = await prisma.parkingFacility.findMany({
-        where: { provider_id: req.user.id },
+        where: { 
+            provider_id: req.user.id,
+            is_active: true 
+        },
         include: { 
             floors: {
                 include: {
@@ -73,7 +80,7 @@ const getMyFacilities = asyncHandler(async (req, res) => {
 
 const getAllFacilities = asyncHandler(async (req, res) => {
     const { city, vehicle_type } = req.query;
-    const where = {};
+    const where = { is_active: true };
 
     if (city) where.city = { contains: city, mode: 'insensitive' };
     // If filtering by vehicle type, we'd need complex queries or just filter in memory/UI for now 

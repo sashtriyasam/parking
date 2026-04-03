@@ -34,6 +34,7 @@ export interface Facility {
   providerId?: string;
   provider_id?: string;
   verified?: boolean;
+  is_active?: boolean;
 }
 
 export interface ParkingSlot {
@@ -44,6 +45,7 @@ export interface ParkingSlot {
   vehicleType: VehicleType;
   status: SlotStatus;
   pricePerHour: number;
+  slot_number?: string; // Backend snake_case
 }
 
 export interface Pricing {
@@ -62,11 +64,15 @@ export interface Booking {
   vehicleType: VehicleType;
   entryTime: string;
   exitTime?: string;
+  startTime?: string;
+  endTime?: string;
   duration: number;
   amount: number;
   paymentMethod: PaymentMethod;
   status: BookingStatus;
   qrCode: string;
+  bookingType?: string;
+  facility_id?: string;
 }
 
 export interface Vehicle {
@@ -151,6 +157,7 @@ export interface ParkingFacility {
   amenities: string[];
   provider_id: string;
   verified: boolean;
+  is_active: boolean;
   distance?: number;
   price_per_hour?: number;
 }
@@ -180,6 +187,9 @@ export interface Ticket {
   qr_code: string;
   facility?: ParkingFacility;
   slot?: ParkingSlot;
+  total_fee?: number;   // Backend field
+  current_fee?: number; // Backend calculated field
+  duration?: number;    // Backend field
 }
 
 export interface Reservation {
@@ -197,6 +207,23 @@ export interface BookingRequest {
   vehicle_type: VehicleType;
   payment_method: PaymentMethod;
   duration_hours?: number;
-  start_time?: string;
+  start_time: string;
+  end_time: string;
   amount?: number;
+  entry_time?: string;
+  duration?: number;
+}
+
+export interface TimeSlot {
+  id: string;
+  start: string;
+  end: string;
+  status: string;
+  vehicle_type: string;
+}
+
+export interface SlotAvailabilityResponse {
+  slot_id: string;
+  date: string;
+  booked_windows: TimeSlot[];
 }

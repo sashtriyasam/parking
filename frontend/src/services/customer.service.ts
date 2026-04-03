@@ -56,6 +56,18 @@ export const customerService = {
         return response.data.data;
     },
 
+    async getSlotAvailability(facilityId: string, slotId: string, date?: string): Promise<any> {
+        const response = await apiClient.get<ApiResponse<any>>(
+            `/customer/facility/${facilityId}/slots/${slotId}/availability`,
+            { params: { date } }
+        );
+        return response.data.data;
+    },
+
+    async cancelBooking(ticketId: string): Promise<void> {
+        await apiClient.post(`/customer/tickets/${ticketId}/cancel`);
+    },
+
     // Tickets
     async getActiveTickets(): Promise<Ticket[]> {
         const response = await apiClient.get<ApiResponse<Ticket[]>>('/customer/tickets/active');

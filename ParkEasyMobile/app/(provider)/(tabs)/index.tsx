@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, ComponentProps } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,26 +12,20 @@ import {
   StatusBar
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import Animated, {
-  FadeIn,
   FadeInDown,
   FadeInRight,
-  FadeInUp,
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withTiming
+  Layout
 } from 'react-native-reanimated';
+import { useRouter } from 'expo-router';
+
 import { get } from '../../../services/api';
-import { GlassCard } from '../../../components/ui/GlassCard';
-import { colors } from '../../../constants/colors';
+import { ProfessionalCard } from '../../../components/ui/ProfessionalCard';
 import { EmptyState } from '../../../components/EmptyState';
 import { useAuthStore } from '../../../store/authStore';
-import { useRouter } from 'expo-router';
 import { useSocket } from '../../../hooks/useSocket';
-import Svg, { Circle, Text as SvgText, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import { useThemeColors } from '../../../hooks/useThemeColors';
+import { useHaptics } from '../../../hooks/useHaptics';
 
 const { width } = Dimensions.get('window');
 
@@ -45,161 +39,57 @@ interface Facility {
 
 interface Booking {
   id: string;
-  customer?: {
-    full_name: string;
-  };
-  facility?: {
-    name: string;
-  };
-  slot?: {
-    slot_number: string | number;
-  };
-  total_fee?: number;
+  vehicle_number: string;
+  booking_type?: 'ONLINE' | 'OFFLINE';
+  facility?: { name: string };
+  status: string;
   entry_time: string;
+  total_fee?: number;
   [key: string]: any;
 }
-
-const Glow = ({
-  width = 60,
-  height = 60,
-  borderRadius = 30,
-  backgroundColor = colors.primary,
-  opacity = 0.1,
-  style = {}
-}: {
-  width?: number;
-  height?: number;
-  borderRadius?: number;
-  backgroundColor?: string;
-  opacity?: number;
-  style?: any;
-}) => (
-  <View style={[{
-    width,
-    height,
-    borderRadius,
-    backgroundColor,
-    opacity,
-    position: 'absolute',
-    overflow: 'hidden'
-  }, style]}>
-    <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-  </View>
-);
-
-const OccupancyGauge = ({ value, total }: { value: number, total: number }) => {
-  const percentage = total > 0 ? (value / total) * 100 : 0;
-  const radius = 65;
-  const strokeWidth = 12;
-  const center = 80;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
-
-  return (
-    <View style={gaugeStyles.container}>
-      <Svg width="160" height="160" viewBox="0 0 160 160">
-        <Defs>
-          <SvgGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor={colors.primary} />
-            <Stop offset="100%" stopColor="#3B82F6" />
-          </SvgGradient>
-        </Defs>
-        <Circle
-          cx={center}
-          cy={center}
-          r={radius}
-          stroke="rgba(255,255,255,0.03)"
-          strokeWidth={strokeWidth}
-          fill="none"
-        />
-        <Circle
-          cx={center}
-          cy={center}
-          r={radius}
-          stroke="url(#gaugeGradient)"
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          transform={`rotate(-90 ${center} ${center})`}
-        />
-        <SvgText
-          x="80"
-          y="75"
-          textAnchor="middle"
-          fontSize="32"
-          fontWeight="900"
-          fill="white"
-        >
-          {Math.round(percentage)}%
-        </SvgText>
-        <SvgText
-          x="80"
-          y="100"
-          textAnchor="middle"
-          fontSize="10"
-          fontWeight="900"
-          fill="rgba(255,255,255,0.3)"
-          letterSpacing={2}
-        >
-          LOAD
-        </SvgText>
-      </Svg>
-      <Glow width={80} height={80} borderRadius={40} backgroundColor={colors.primary} />
-    </View>
-  );
-};
-
-const gaugeStyles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-});
 
 export default function ProviderDashboard() {
   const { user } = useAuthStore();
   const router = useRouter();
+  const colors = useThemeColors();
+  const haptics = useHaptics();
+  const { socket, isConnected, joinProvider } = useSocket();
+  
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [activeBookings, setActiveBookings] = useState<Booking[]>([]);
   const [stats, setStats] = useState({
-    activeFacilities: 0,
-    activeBookings: 0,
     todayRevenue: 0,
-    totalRevenue: 0,
+    onlineCount: 0,
+    offlineCount: 0,
   });
-  const [recentBookings, setRecentBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [facilities, setFacilities] = useState<Facility[]>([]);
 
   const fetchDashboardData = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
-      const [statsRes, facilitiesRes] = await Promise.all([
+      const [statsRes, facilitiesRes, bookingsRes] = await Promise.all([
         get('/provider/dashboard/stats'),
-        get('/provider/facilities')
+        get('/provider/facilities'),
+        get('/provider/bookings?status=ACTIVE&limit=10')
       ]);
-
-      if (statsRes.data?.data) {
-        const d = statsRes.data.data;
-        setStats({
-          activeFacilities: facilitiesRes.data?.data?.length || 0,
-          activeBookings: d.active_bookings || 0,
-          todayRevenue: d.revenue?.today || 0,
-          totalRevenue: d.revenue?.month || 0,
-        });
-      }
 
       if (facilitiesRes.data?.data) {
         setFacilities(facilitiesRes.data.data);
       }
 
-      const recentRes = await get('/provider/bookings?limit=5');
-      if (recentRes.data?.data) {
-        setRecentBookings(recentRes.data.data);
+      if (bookingsRes.data?.data) {
+        setActiveBookings(bookingsRes.data.data);
       }
 
+      if (statsRes.data?.data) {
+        const d = statsRes.data.data;
+        setStats({
+          todayRevenue: d.revenue?.today || 0,
+          onlineCount: d.active_bookings_online || 0,
+          offlineCount: d.active_bookings_offline || 0,
+        });
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -212,73 +102,66 @@ export default function ProviderDashboard() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const { socket, isConnected, joinFacility } = useSocket();
-
+  // Socket Real-time Sync
   useEffect(() => {
-    if (!socket || facilities.length === 0) return;
-    facilities.forEach(f => joinFacility(f.id));
+    if (!socket || !user?.id) return;
+    
+    joinProvider(user.id);
 
-    const handleSlotUpdate = (payload: { status: string, facilityId: string }) => {
-      setStats(prev => {
-        let newActiveBookings = prev.activeBookings;
-        if (payload.status === 'OCCUPIED') {
-          newActiveBookings += 1;
-        } else if (payload.status === 'FREE') {
-          newActiveBookings = Math.max(0, newActiveBookings - 1);
-        }
-        return { ...prev, activeBookings: newActiveBookings };
-      });
+    const handleRefresh = () => {
+      haptics.impactLight();
+      fetchDashboardData(false);
     };
 
-    socket.on('slot_updated', handleSlotUpdate);
+    socket.on('booking_updated', handleRefresh);
+    socket.on('facility_created', handleRefresh);
+    
     return () => {
-      socket.off('slot_updated', handleSlotUpdate);
+      socket.off('booking_updated', handleRefresh);
+      socket.off('facility_created', handleRefresh);
     };
-  }, [socket, facilities, joinFacility]);
+  }, [socket, user?.id, joinProvider, fetchDashboardData]);
 
   const onRefresh = () => {
+    haptics.impactLight();
     setRefreshing(true);
     fetchDashboardData(false);
   };
 
+  const totalSlots = useMemo(() => 
+    facilities.reduce((acc, f) => acc + (f.total_slots || 0), 0) || 1
+  , [facilities]);
+
+  const occupancyRate = useMemo(() => 
+    Math.round((activeBookings.length / totalSlots) * 100)
+  , [activeBookings, totalSlots]);
+
   if (loading && !refreshing) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="small" color={colors.primary} />
       </View>
     );
   }
 
-  const totalSlots = facilities.reduce((acc, f) => acc + (f.total_slots || 0), 0) || 1;
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'MORNING CMD';
-    if (hour < 17) return 'AFTERNOON CMD';
-    return 'EVENING CMD';
-  };
-
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-
-      {/* Premium Header */}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
+      
       <View style={styles.header}>
-        <View style={styles.profileSection}>
-          <Glow width={44} height={44} borderRadius={22} backgroundColor={colors.primary} opacity={0.15} />
-          <View style={styles.profileText}>
-            <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.userName}>{user?.full_name?.toUpperCase() || 'OPERATOR'}</Text>
-          </View>
+        <View>
+          <Text style={[styles.greetingLabel, { color: colors.textMuted }]}>PARTNER OVERVIEW</Text>
+          <Text style={[styles.userName, { color: colors.textPrimary }]}>{user?.full_name || 'Partner'}</Text>
         </View>
         
         <TouchableOpacity 
-          style={styles.scanBtn}
-          onPress={() => router.push('/(provider)/scan')}
+          style={[styles.syncBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          onPress={onRefresh}
         >
-          <BlurView intensity={30} tint="dark" style={styles.scanBlur}>
-            <Ionicons name="qr-code" size={20} color="#FFF" />
-          </BlurView>
+          <View style={[styles.syncDot, { backgroundColor: isConnected ? colors.success : colors.warning }]} />
+          <Text style={[styles.syncText, { color: isConnected ? colors.success : colors.warning }]}>
+            {isConnected ? 'LIVE' : 'SYNCING'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -289,130 +172,119 @@ export default function ProviderDashboard() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        {/* Main Live Insights */}
-        <Animated.View entering={FadeInUp.duration(800)}>
-          <GlassCard style={styles.mainInsightCard}>
-            <View style={styles.insightHeader}>
-              <Text style={styles.insightTitle}>SYSTEM OVERVIEW</Text>
-              <View style={styles.statusBadge}>
-                <View style={[styles.statusDot, { backgroundColor: isConnected ? colors.success : colors.danger }]} />
-                <Text style={styles.statusText}>{isConnected ? 'SYNCED' : 'OFFLINE'}</Text>
-              </View>
-            </View>
-
-            <View style={styles.insightGrid}>
-              <OccupancyGauge value={stats.activeBookings} total={totalSlots} />
-              
-              <View style={styles.gaugeStats}>
-                <View style={styles.gaugeStatItem}>
-                  <Text style={styles.gaugeStatVal}>{stats.activeBookings}</Text>
-                  <Text style={styles.gaugeStatLabel}>ENGAGED</Text>
+        {/* Apple-style Hero Section: Offline Entry Widget */}
+        <Animated.View entering={FadeInDown.duration(800)}>
+          <ProfessionalCard 
+             style={[styles.heroCard, { backgroundColor: colors.primary }]} 
+             hasVibrancy={false}
+             onPress={() => {
+                haptics.impactMedium();
+                router.push('/(provider)/manual-entry');
+             }}
+          >
+             <View style={styles.heroLayout}>
+                <View style={styles.heroTextSection}>
+                   <Text style={styles.heroTitle}>Manual Check-in</Text>
+                   <Text style={styles.heroSubtitle}>Direct entry for walk-in arrivals</Text>
+                   
+                   <View style={styles.occupancyBarContainer}>
+                      <View style={styles.occupancyTextRow}>
+                         <Text style={styles.occupancyLabel}>LIVE OCCUPANCY</Text>
+                         <Text style={styles.occupancyPercent}>{occupancyRate}%</Text>
+                      </View>
+                      <View style={[styles.progressBarBg, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                         <Animated.View 
+                            style={[
+                               styles.progressBarFill, 
+                               { width: `${occupancyRate}%`, backgroundColor: '#FFF' }
+                            ]} 
+                         />
+                      </View>
+                   </View>
                 </View>
-                <View style={styles.gaugeStatDivider} />
-                <View style={styles.gaugeStatItem}>
-                  <Text style={styles.gaugeStatVal}>{Math.max(0, totalSlots - stats.activeBookings)}</Text>
-                  <Text style={styles.gaugeStatLabel}>AVAILABLE</Text>
+                <View style={[styles.heroIconBox, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                   <Ionicons name="add" size={32} color="#FFF" />
                 </View>
-              </View>
-            </View>
-          </GlassCard>
+             </View>
+          </ProfessionalCard>
         </Animated.View>
 
-        {/* Global Stats */}
-        <View style={styles.statsGrid}>
-          <Animated.View entering={FadeInDown.delay(200)} style={styles.statCol}>
-            <GlassCard style={styles.statCard}>
-              <Text style={styles.statLabel}>CYCLE REVENUE</Text>
-              <View style={styles.valRow}>
-                <Text style={styles.statVal}>₹{stats.todayRevenue}</Text>
-                <Glow width={40} height={20} borderRadius={10} backgroundColor={colors.primary} opacity={0.1} />
-              </View>
-            </GlassCard>
-          </Animated.View>
-          <Animated.View entering={FadeInDown.delay(300)} style={styles.statCol}>
-            <GlassCard style={styles.statCard}>
-              <Text style={styles.statLabel}>ACTIVE NODES</Text>
-              <View style={styles.valRow}>
-                <Text style={styles.statVal}>{stats.activeFacilities}</Text>
-              </View>
-            </GlassCard>
-          </Animated.View>
+        {/* Stats Section with Apple Vibe */}
+        <View style={styles.statsSection}>
+           <View style={styles.statsRow}>
+              <MiniStat 
+                label="App Entries" 
+                value={stats.onlineCount} 
+                icon="phone-portrait-outline" 
+                colors={colors}
+              />
+              <MiniStat 
+                label="Manual" 
+                value={stats.offlineCount} 
+                icon="people-outline" 
+                colors={colors}
+              />
+           </View>
+           <View style={styles.statsRow}>
+              <MiniStat 
+                label="Revenue" 
+                value={`₹${stats.todayRevenue}`} 
+                icon="wallet-outline" 
+                colors={colors}
+              />
+              <MiniStat 
+                label="Facilities" 
+                value={facilities.length} 
+                icon="business-outline" 
+                colors={colors}
+              />
+           </View>
         </View>
 
-        {/* Management Nodes */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>MANAGEMENT INTERFACE</Text>
-          <View style={styles.actionGrid}>
-            <ActionNode
-              icon="add-circle"
-              label="NEW NODE"
-              onPress={() => router.push('/(provider)/add-facility')}
-              delay={400}
-            />
-            <ActionNode
-              icon="business"
-              label="NODES"
-              onPress={() => router.push('/(provider)/facilities')}
-              delay={500}
-            />
-            <ActionNode
-              icon="wallet"
-              label="EARNINGS"
-              onPress={() => router.push('/(provider)/earnings')}
-              delay={600}
-            />
-            <ActionNode
-              icon="stats-chart"
-              label="ANALYTICS"
-              onPress={() => router.push('/(provider)/analytics')}
-              delay={700}
-            />
-          </View>
-        </View>
-
-        {/* Recent Feed */}
+        {/* Recent Activity List */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>SYSTEM FEED</Text>
-            <View style={styles.liveBadge}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveLabel}>REAL-TIME</Text>
-            </View>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Arrivals</Text>
+            <TouchableOpacity onPress={() => router.push('/(provider)/bookings')}>
+               <Text style={[styles.viewAll, { color: colors.primary }]}>View All</Text>
+            </TouchableOpacity>
           </View>
 
-          {recentBookings.length > 0 ? (
-            recentBookings.map((booking, index) => {
-              const nodeName = booking.facility?.name || 'UNKNOWN NODE';
-              const displayNodeName = nodeName.length > 15 ? nodeName.substring(0, 15) + '...' : nodeName;
-              
-              return (
-                <Animated.View key={booking.id} entering={FadeInRight.delay(index * 100 + 800)}>
-                  <GlassCard style={styles.feedCard}>
-                    <View style={styles.feedIcon}>
-                      <Ionicons name="car" size={20} color={colors.primary} />
+          {activeBookings.length > 0 ? (
+            activeBookings.slice(0, 5).map((booking, index) => (
+              <Animated.View 
+                key={booking.id} 
+                entering={FadeInRight.delay(index * 100).duration(600)}
+                layout={Layout.springify()}
+              >
+                <ProfessionalCard 
+                  style={styles.activityItem} 
+                  onPress={() => router.push(`/(provider)/facility/${booking.facility_id}`)}
+                  hasVibrancy={true}
+                >
+                  <View style={styles.activityLeft}>
+                    <View style={[styles.activityIcon, { backgroundColor: booking.booking_type === 'OFFLINE' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(79, 70, 229, 0.1)' }]}>
+                       <Ionicons 
+                          name={booking.booking_type === 'OFFLINE' ? 'walk-outline' : 'phone-portrait-outline'} 
+                          size={20} 
+                          color={booking.booking_type === 'OFFLINE' ? '#F59E0B' : colors.primary} 
+                        />
                     </View>
-                    <View style={styles.feedInfo}>
-                      <Text style={styles.feedUser}>{booking.customer?.full_name?.toUpperCase() || 'EXTERNAL USER'}</Text>
-                      <Text style={styles.feedMeta}>
-                        NODE: {displayNodeName} • SLOT {booking.slot?.slot_number}
-                      </Text>
+                    <View>
+                       <Text style={[styles.vehicleId, { color: colors.textPrimary }]}>{booking.vehicle_number}</Text>
+                       <Text style={[styles.activitySub, { color: colors.textMuted }]}>
+                          {booking.booking_type || 'ONLINE'} • {booking.facility?.name?.split(' ')[0]}
+                       </Text>
                     </View>
-                    <View style={styles.feedEnd}>
-                      <Text style={styles.feedVal}>+₹{booking.total_fee || 0}</Text>
-                      <Text style={styles.feedTime}>
-                        {new Date(booking.entry_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </Text>
-                    </View>
-                  </GlassCard>
-                </Animated.View>
-              );
-            })
+                  </View>
+                  <Text style={[styles.arrivalTimestamp, { color: colors.primary }]}>
+                    {new Date(booking.entry_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </ProfessionalCard>
+              </Animated.View>
+            ))
           ) : (
-            <EmptyState
-              icon="radio-outline"
-              title="NO FEED DETECTED"
-              subtitle="System activity will propagate here as events occur."
-            />
+            <EmptyState icon="timer-outline" title="Ready to Sync" subtitle="Recent arrivals will appear here in real-time." />
           )}
         </View>
       </ScrollView>
@@ -420,277 +292,58 @@ export default function ProviderDashboard() {
   );
 }
 
-const ActionNode = ({ icon, label, onPress, delay }: { icon: ComponentProps<typeof Ionicons>['name'], label: string, onPress: () => void, delay: number }) => (
-  <Animated.View entering={FadeIn.delay(delay)} style={styles.actionNodeWrapper}>
-    <TouchableOpacity onPress={onPress}>
-      <GlassCard style={styles.actionNode}>
-        <View style={styles.actionIcon}>
-          <Ionicons name={icon} size={24} color={colors.primary} />
-        </View>
-        <Text style={styles.actionLabel}>{label}</Text>
-      </GlassCard>
-    </TouchableOpacity>
-  </Animated.View>
-);
-
+function MiniStat({ label, value, icon, colors }: any) {
+  return (
+    <ProfessionalCard style={styles.miniStatCard} hasVibrancy={true}>
+       <Ionicons name={icon} size={20} color={colors.primary} style={{ marginBottom: 12 }} />
+       <Text style={[styles.miniStatLabel, { color: colors.textMuted }]}>{label}</Text>
+       <Text style={[styles.miniStatValue, { color: colors.textPrimary }]}>{value}</Text>
+    </ProfessionalCard>
+  );
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0F1E',
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#0A0F1E',
-  },
+  container: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
-    paddingTop: 60,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 24,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    paddingTop: Platform.OS === 'ios' ? 70 : 40,
+    paddingBottom: 24,
   },
-  profileSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  profileText: {
-    justifyContent: 'center',
-  },
-  greeting: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  userName: {
-    fontSize: 18,
-    color: '#FFF',
-    fontWeight: '900',
-    letterSpacing: -0.5,
-  },
-  scanBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  scanBlur: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 100,
-  },
-  mainInsightCard: {
-    borderRadius: 32,
-    padding: 24,
-    marginBottom: 20,
-  },
-  insightHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  insightTitle: {
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 3,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusText: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  insightGrid: {
-    alignItems: 'center',
-  },
-  gaugeStats: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'center',
-    marginTop: 10,
-    gap: 32,
-  },
-  gaugeStatItem: {
-    alignItems: 'center',
-  },
-  gaugeStatVal: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#FFF',
-  },
-  gaugeStatLabel: {
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.3)',
-    fontWeight: '900',
-    letterSpacing: 1.5,
-    marginTop: 4,
-  },
-  gaugeStatDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignSelf: 'center',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 32,
-  },
-  statCol: {
-    flex: 1,
-  },
-  statCard: {
-    padding: 20,
-    borderRadius: 24,
-  },
-  statLabel: {
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.3)',
-    fontWeight: '900',
-    letterSpacing: 2,
-    marginBottom: 8,
-  },
-  valRow: {
-    position: 'relative',
-  },
-  statVal: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#FFF',
-  },
-  section: {
-    marginBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: 'rgba(255,255,255,0.3)',
-    marginBottom: 16,
-    letterSpacing: 3,
-  },
-  actionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  actionNodeWrapper: {
-    width: (width - 60) / 2,
-  },
-  actionNode: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    borderRadius: 24,
-  },
-  actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: colors.primary + '10',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  actionLabel: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#FFF',
-    letterSpacing: 1,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  liveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
-  },
-  liveLabel: {
-    fontSize: 9,
-    color: colors.primary,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  feedCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 20,
-    marginBottom: 12,
-  },
-  feedIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.02)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  feedInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  feedUser: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#FFF',
-    letterSpacing: 0.5,
-  },
-  feedMeta: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.3)',
-    fontWeight: '600',
-    marginTop: 3,
-  },
-  feedEnd: {
-    alignItems: 'flex-end',
-  },
-  feedVal: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: colors.success,
-  },
-  feedTime: {
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.2)',
-    fontWeight: '800',
-    marginTop: 2,
-  },
+  greetingLabel: { fontSize: 11, fontWeight: '900', letterSpacing: 1.5, marginBottom: 4 },
+  userName: { fontSize: 26, fontWeight: '900', letterSpacing: -1 },
+  syncBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 24, borderWidth: 1 },
+  syncDot: { width: 8, height: 8, borderRadius: 4 },
+  syncText: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 100 },
+  heroCard: { padding: 0, borderRadius: 32, marginBottom: 24, borderWidth: 0, elevation: 12, shadowColor: '#4F46E5', shadowOpacity: 0.3, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
+  heroLayout: { padding: 28, flexDirection: 'row', alignItems: 'center', gap: 20 },
+  heroTextSection: { flex: 1 },
+  heroTitle: { color: '#FFF', fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
+  heroSubtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600', marginTop: 4 },
+  heroIconBox: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center' },
+  occupancyBarContainer: { marginTop: 24 },
+  occupancyTextRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8, alignItems: 'flex-end' },
+  occupancyLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
+  occupancyPercent: { color: '#FFF', fontSize: 18, fontWeight: '900' },
+  progressBarBg: { height: 8, borderRadius: 4, overflow: 'hidden' },
+  progressBarFill: { height: '100%', borderRadius: 4 },
+  statsSection: { gap: 12, marginBottom: 32 },
+  statsRow: { flexDirection: 'row', gap: 12 },
+  miniStatCard: { flex: 1, padding: 20, borderRadius: 24, borderWidth: 0 },
+  miniStatLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase', opacity: 0.8 },
+  miniStatValue: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
+  section: { marginTop: 8 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  sectionTitle: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
+  viewAll: { fontSize: 14, fontWeight: '800' },
+  activityItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, borderRadius: 28, marginBottom: 12, borderWidth: 0 },
+  activityLeft: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  activityIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  vehicleId: { fontSize: 15, fontWeight: '900' },
+  activitySub: { fontSize: 11, fontWeight: '700', marginTop: 3 },
+  arrivalTimestamp: { fontSize: 13, fontWeight: '900' },
 });

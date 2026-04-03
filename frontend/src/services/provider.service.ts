@@ -160,4 +160,9 @@ export const providerService = {
         });
         return response.data;
     },
+
+    createOfflineBooking: async (data: any): Promise<any> => {
+        const response = await apiClient.post('/provider/bookings/offline', data);
+        return response.data.data;
+    },
 };

@@ -1,16 +1,21 @@
 const prisma = require('../config/db');
 const AppError = require('../utils/AppError');
-const { emitSlotUpdate } = require('./socket.service');
+const { emitSlotUpdate, emitToProvider } = require('./socket.service');
 
 /**
  * Reserve a slot for a specific duration (default 5 mins)
  * Handles race conditions by using atomic updateMany with state check
  */
-const reserveSlot = async (facilityId, vehicleType, floorId = null, userId) => {
+const reserveSlot = async (facilityId, vehicleType, floorId = null, userId, startTime = new Date(), endTime = null) => {
     // 1. Find potential candidate slot
     // We prioritize a specific floor if provided, otherwise any floor in facility
     const RESERVATION_MINUTES = parseInt(process.env.RESERVATION_TIMEOUT_MINUTES) || 5;
-    const expiryTime = new Date(Date.now() + RESERVATION_MINUTES * 60 * 1000);
+    const reservationExpiry = new Date(Date.now() + RESERVATION_MINUTES * 60 * 1000);
+
+    // Default endTime to +1 hour if not provided
+    if (!endTime) {
+        endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+    }
 
     // We can't do a simple FIND one because of concurrency.
     // We should try to UPDATE one directly.
@@ -141,6 +146,15 @@ const confirmBooking = async (slotId, userId, vehicleNumber, vehicleType) => {
             status: 'OCCUPIED'
         });
 
+        // Notify provider for real-time dashboard update
+        const facility = await tx.parkingFacility.findUnique({
+            where: { id: slot.floor.facility_id },
+            select: { provider_id: true }
+        });
+        if (facility) {
+            emitToProvider(facility.provider_id, 'booking_updated', ticket);
+        }
+
         return ticket;
     });
 };
@@ -186,8 +200,144 @@ const createPendingBooking = async (slotId, userId, vehicleNumber, vehicleType) 
     });
 };
 
+/**
+ * Check if a slot is available for a specific time window
+ */
+const isSlotAvailable = async (slotId, startTime, endTime) => {
+    // 1. Check for overlapping tickets
+    const overlappingTicket = await prisma.ticket.findFirst({
+        where: {
+            slot_id: slotId,
+            status: { in: ['ACTIVE', 'PENDING_PAYMENT', 'RESERVED'] },
+            OR: [
+                {
+                    // New booking starts during existing booking
+                    entry_time: { lte: startTime },
+                    exit_time: { gt: startTime }
+                },
+                {
+                    // New booking ends during existing booking
+                    entry_time: { lt: endTime },
+                    exit_time: { gte: endTime }
+                },
+                {
+                    // New booking completely wraps existing booking
+                    entry_time: { gte: startTime },
+                    exit_time: { lte: endTime }
+                }
+            ]
+        }
+    });
+
+    if (overlappingTicket) return false;
+
+    // 2. Check for temporary slot reservation (concurrency protection)
+    const slot = await prisma.parkingSlot.findUnique({
+        where: { id: slotId },
+        select: { status: true, reservation_expiry: true }
+    });
+
+    if (slot && slot.status === 'RESERVED' && slot.reservation_expiry > new Date()) {
+        // If it's strictly RESERVED now, we consider it unavailable for an immediate start
+        // but it might be available for a future window.
+        // For simplicity in v1.9, if the window overlaps with the 5-min reservation, we block.
+        const resExpiry = new Date(slot.reservation_expiry);
+        if (startTime < resExpiry) return false;
+    }
+
+    return true;
+};
+
+const createOfflineBooking = async (slotId, vehicleNumber, vehicleType, providerId) => {
+    return await prisma.$transaction(async (tx) => {
+        const slot = await tx.parkingSlot.findUnique({
+            where: { id: slotId },
+            include: { floor: true }
+        });
+
+        if (!slot) throw new AppError('Slot not found', 404);
+        
+        // Manual check-in usually means the car is THERE NOW.
+        // We ensure no overlap.
+        const start = new Date();
+        const end = new Date(start.getTime() + 24 * 60 * 60 * 1000); // Default 24h for offline
+
+        const available = await isSlotAvailable(slotId, start, end);
+        if (!available) throw new AppError('Slot is already occupied or reserved for this time', 400);
+
+        // Create Ticket
+        const ticket = await tx.ticket.create({
+            data: {
+                customer_id: providerId, // Provider is the surrogate customer for offline
+                slot_id: slotId,
+                facility_id: slot.floor.facility_id,
+                vehicle_number: vehicleNumber,
+                vehicle_type: vehicleType,
+                status: 'ACTIVE',
+                booking_type: 'OFFLINE',
+                entry_time: start,
+            }
+        });
+
+        // Update Slot status for current visibility
+        await tx.parkingSlot.update({
+            where: { id: slotId },
+            data: { status: 'OCCUPIED' }
+        });
+
+        emitSlotUpdate(slot.floor.facility_id, {
+            slot_id: slotId,
+            status: 'OCCUPIED'
+        });
+
+        return ticket;
+    });
+};
+
+/**
+ * Get all booked time windows for a slot on a given date.
+ * Returns an array of { start, end, status } objects.
+ */
+const getSlotAvailabilityForDay = async (slotId, date) => {
+    const dayStart = new Date(date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(date);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const bookedWindows = await prisma.ticket.findMany({
+        where: {
+            slot_id: slotId,
+            status: { in: ['ACTIVE', 'PENDING_PAYMENT', 'RESERVED'] },
+            entry_time: { lte: dayEnd },
+            OR: [
+                { exit_time: { gte: dayStart } },
+                { exit_time: null } // Still active, no exit_time set
+            ]
+        },
+        select: {
+            id: true,
+            entry_time: true,
+            exit_time: true,
+            status: true,
+            vehicle_type: true
+        },
+        orderBy: { entry_time: 'asc' }
+    });
+
+    return bookedWindows.map(t => ({
+        id: t.id,
+        start: t.entry_time,
+        end: t.exit_time || new Date(new Date(t.entry_time).getTime() + 24 * 60 * 60 * 1000),
+        status: t.status,
+        vehicle_type: t.vehicle_type
+    }));
+};
+
 module.exports = {
     reserveSlot,
     confirmBooking,
-    createPendingBooking
+    createPendingBooking,
+    isSlotAvailable,
+    createOfflineBooking,
+    getSlotAvailabilityForDay
 };

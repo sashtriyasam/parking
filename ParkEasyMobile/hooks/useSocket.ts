@@ -10,7 +10,7 @@ import { useAuthStore } from '../store/authStore';
 
 // Derive base URL from API URL by stripping /api/v1
 // TODO: Update EXPO_PUBLIC_API_URL in .env to point to Render URL after deployment
-const BASE_API = process.env.EXPO_PUBLIC_API_URL || 'https://parkeasy-backend.onrender.com/api/v1';
+const BASE_API = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 const SOCKET_URL = BASE_API.replace(/\/api\/v1\/?$/, '');
 
 let socketInstance: Socket | null = null;
@@ -97,5 +97,13 @@ export const useSocket = () => {
     socketInstance?.emit('leave_facility', facilityId);
   };
 
-  return { isConnected: connected, joinFacility, leaveFacility, socket: socketInstance };
+  const joinProvider = (providerId: string) => {
+    socketInstance?.emit('join_provider', providerId);
+  };
+
+  const leaveProvider = (providerId: string) => {
+    socketInstance?.emit('leave_provider', providerId);
+  };
+
+  return { isConnected: connected, joinFacility, leaveFacility, joinProvider, leaveProvider, socket: socketInstance };
 };

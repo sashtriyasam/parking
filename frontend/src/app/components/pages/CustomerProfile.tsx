@@ -209,6 +209,9 @@ export function CustomerProfile() {
                       <DialogContent>
                         <DialogHeader>
                           <DialogTitle>Add New Vehicle</DialogTitle>
+                          <DialogDescription>
+                            Register your vehicle details for quick bookings.
+                          </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                           <div className="space-y-2">

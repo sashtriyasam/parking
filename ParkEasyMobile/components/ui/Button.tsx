@@ -1,9 +1,9 @@
 import React, { ReactNode } from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, Platform } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
+import { useThemeColors } from '../../hooks/useThemeColors';
+import { useHaptics } from '../../hooks/useHaptics';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -31,6 +31,8 @@ export const Button: React.FC<ButtonProps> = ({
   textStyle,
 }) => {
   const scale = useSharedValue(1);
+  const colors = useThemeColors();
+  const haptics = useHaptics();
   
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -45,32 +47,53 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const handlePress = () => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
+    haptics.impactLight();
     onPress();
   };
 
   const isGhost = variant === 'ghost';
   
   const getContainerStyle = (): ViewStyle => {
-    let styleObj: any = { ...styles.baseContainer, ...styles[`${size}Container`] };
-    if (!isGhost) {
-      styleObj = { ...styleObj, ...styles[`${variant}Container`] };
+    let styleObj: any = { ...styles.baseContainer, height: size === 'sm' ? 40 : size === 'lg' ? 56 : 48 };
+    
+    switch (variant) {
+      case 'primary':
+        styleObj = { ...styleObj, backgroundColor: colors.primary };
+        break;
+      case 'secondary':
+        styleObj = { ...styleObj, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary };
+        break;
+      case 'glass':
+        styleObj = { ...styleObj, backgroundColor: colors.glass, borderWidth: 1, borderColor: colors.glassBorder };
+        break;
+      case 'danger':
+        styleObj = { ...styleObj, backgroundColor: colors.danger };
+        break;
+      case 'outline':
+        styleObj = { ...styleObj, backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.primary };
+        break;
+      case 'ghost':
+        styleObj = { ...styleObj, backgroundColor: 'transparent' };
+        break;
     }
+
     if (disabled || loading) {
-      styleObj = { ...styleObj, opacity: 0.6 };
+      styleObj = { ...styleObj, opacity: 0.5 };
     }
     return styleObj;
   };
 
   const getTextStyle = (): TextStyle => {
-    let styleObj: any = { ...styles.baseText, ...styles[`${size}Text`] };
-    if (!isGhost) {
-      styleObj = { ...styleObj, ...styles[`${variant}Text`] };
-    } else {
-      styleObj = { ...styleObj, color: colors.primary };
+    let styleObj: any = { 
+      fontSize: size === 'sm' ? 14 : size === 'lg' ? 17 : 15,
+      fontWeight: '700',
+      color: variant === 'primary' || variant === 'danger' ? '#FFFFFF' : colors.primary
+    };
+
+    if (variant === 'glass') {
+      styleObj.color = colors.textPrimary;
     }
+
     if (textStyle) {
       styleObj = { ...styleObj, ...textStyle };
     }
@@ -78,9 +101,9 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const iconColor = (variant === 'primary' || variant === 'danger') 
-    ? colors.surface 
+    ? '#FFFFFF' 
     : (variant === 'glass' ? colors.textPrimary : colors.primary);
-  const iconSize = size === 'sm' ? 16 : size === 'lg' ? 22 : 18;
+  const iconSize = size === 'sm' ? 18 : size === 'lg' ? 24 : 20;
 
   const renderIcon = () => {
     if (!icon) return null;
@@ -101,7 +124,7 @@ export const Button: React.FC<ButtonProps> = ({
     >
       {renderIcon()}
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' || variant === 'danger' ? colors.surface : colors.primary} />
+        <ActivityIndicator color={iconColor} />
       ) : (
         <Text style={getTextStyle()}>{label}</Text>
       )}
@@ -109,58 +132,14 @@ export const Button: React.FC<ButtonProps> = ({
   );
 };
 
-const styles: any = StyleSheet.create({
+const styles = StyleSheet.create({
   baseContainer: {
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 8,
-    ...colors.shadows.md,
+    paddingHorizontal: 20,
   },
-  smContainer: { paddingVertical: 10, paddingHorizontal: 16 },
-  mdContainer: { paddingVertical: 14, paddingHorizontal: 20 },
-  lgContainer: { paddingVertical: 18, paddingHorizontal: 28 },
-  
-  primaryContainer: {
-    backgroundColor: colors.primary,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  secondaryContainer: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  glassContainer: {
-    backgroundColor: colors.glassSurface,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    ...colors.shadows.sm,
-  },
-  dangerContainer: {
-    backgroundColor: colors.danger,
-    borderWidth: 1,
-    borderColor: colors.danger,
-  },
-  outlineContainer: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    ...colors.shadows.sm,
-  },
-  
-  baseText: {
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  smText: { fontSize: 13 },
-  mdText: { fontSize: 15 },
-  lgText: { fontSize: 17 },
-  
-  primaryText: { color: colors.surface },
-  secondaryText: { color: colors.primary },
-  glassText: { color: colors.textPrimary },
-  dangerText: { color: colors.surface },
-  outlineText: { color: colors.primary },
 });
+

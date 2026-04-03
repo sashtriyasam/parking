@@ -8,22 +8,25 @@ import {
   KeyboardAvoidingView, 
   Platform,
   StatusBar,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
 import { useAuthStore } from '../../store/authStore';
-import { GlassCard } from '../../components/ui/GlassCard';
-import { GlassInput } from '../../components/ui/GlassInput';
-import { GlassButton } from '../../components/ui/GlassButton';
-import { LinearGradient } from 'expo-linear-gradient';
+import { ProfessionalCard } from '../../components/ui/ProfessionalCard';
+import { ProfessionalInput } from '../../components/ui/ProfessionalInput';
+import { ProfessionalButton } from '../../components/ui/ProfessionalButton';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { useToast } from '../../components/Toast';
+import { useThemeColors } from '../../hooks/useThemeColors';
+import { useHaptics } from '../../hooks/useHaptics';
 
 export default function PersonalInfoScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const haptics = useHaptics();
   const { user } = useAuthStore();
   const { showToast } = useToast();
   const [formData, setFormData] = useState({
@@ -34,25 +37,29 @@ export default function PersonalInfoScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleUpdate = () => {
+    haptics.impactMedium();
     setLoading(true);
+    // Simulate API call
     setTimeout(() => {
       setLoading(false);
-      showToast('IDENTITY SYNCED SUCCESSFULLY', 'success');
+      haptics.notificationSuccess();
+      showToast('PROFILE UPDATED SUCCESSFULLY', 'success');
     }, 1500);
   };
 
   const handleInitializeAccountTermination = () => {
+    haptics.notificationWarning();
     Alert.alert(
-      "TERMINATION PROTOCOL",
-      "WARNING: Initializing account termination will permanently purge all node access coordinates and identity logs. This action is irreversible. Proceed with termination?",
+      "Delete Account",
+      "Are you sure you want to permanently delete your ParkEasy account? This action is irreversible.",
       [
-        { text: "ABORT", style: "cancel" },
+        { text: "Cancel", style: "cancel" },
         { 
-          text: "CONFIRM TERMINATION", 
+          text: "Delete My Account", 
           style: "destructive",
           onPress: () => {
-            showToast('TERMINATION SEQUENCE INITIATED', 'error');
-            // In a real app, this would call an API then log out
+            haptics.impactHeavy();
+            showToast('DELETION REQUESTED', 'info');
           }
         }
       ]
@@ -60,25 +67,26 @@ export default function PersonalInfoScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient colors={['#0A0F1E', '#161B2E']} style={StyleSheet.absoluteFill} />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
       
-      <View style={styles.header}>
-         <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
-            <BlurView intensity={20} tint="dark" style={styles.navBlur}>
-              <Ionicons name="chevron-back" size={24} color="#FFF" />
-            </BlurView>
-         </TouchableOpacity>
-         <View style={styles.headerInfo}>
-            <Text style={styles.headerTitle}>IDENTITY CORE</Text>
-            <Text style={styles.headerSubtitle}>PROTOCOL PHASE: IDENTITY MGMT</Text>
-         </View>
-         <View style={styles.shieldBadge}>
-            <Ionicons name="shield-checkmark" size={12} color={colors.primary} />
-            <Text style={styles.shieldText}>SECURED</Text>
-         </View>
-      </View>
+      <Animated.View entering={FadeInDown.duration(600)} style={styles.header}>
+         <BlurView intensity={20} tint={colors.isDark ? 'dark' : 'light'} style={styles.headerContent}>
+            <View style={styles.headerTop}>
+               <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
+                  <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+               </TouchableOpacity>
+               <View style={styles.headerInfoSection}>
+                  <Text style={[styles.headerLabel, { color: colors.textMuted }]}>ACCOUNT • PROFILE</Text>
+                  <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Personal Info</Text>
+               </View>
+               <View style={[styles.shieldBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Ionicons name="shield-checkmark" size={12} color={colors.primary} />
+                  <Text style={[styles.shieldText, { color: colors.textPrimary }]}>SECURED</Text>
+               </View>
+            </View>
+         </BlurView>
+      </Animated.View>
 
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
@@ -87,46 +95,44 @@ export default function PersonalInfoScreen() {
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <Animated.View entering={ZoomIn.delay(200)} style={styles.avatarSection}>
             <View style={styles.avatarHost}>
-              <View style={styles.avatarGlass}>
-                <BlurView intensity={30} tint="dark" style={styles.avatarBlur}>
-                   <Text style={styles.avatarInitial}>{(formData.name.trim().charAt(0) || user?.email?.charAt(0) || '?').toUpperCase()}</Text>
-                </BlurView>
-              </View>
-              <View style={styles.avatarGlow}>
-                <BlurView intensity={20} tint="light" style={StyleSheet.absoluteFill} />
-              </View>
-              <TouchableOpacity style={styles.editBadge}>
-                 <Ionicons name="camera" size={14} color="#FFF" />
-              </TouchableOpacity>
+               <View style={[styles.avatarGlow, { backgroundColor: colors.primary + '20' }]} />
+               <View style={[styles.avatarMain, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Text style={[styles.avatarInitial, { color: colors.primary }]}>
+                     {(formData.name.trim().charAt(0) || user?.email?.charAt(0) || '?').toUpperCase()}
+                  </Text>
+               </View>
+               <TouchableOpacity style={[styles.editBadge, { backgroundColor: colors.primary, borderColor: colors.background }]}>
+                  <Ionicons name="camera" size={14} color="#FFF" />
+               </TouchableOpacity>
             </View>
-            <Text style={styles.operatorId}>OPERATOR_ID: {user?.id?.slice(0, 8).toUpperCase()}</Text>
+            <Text style={[styles.idText, { color: colors.textMuted }]}>ACCOUNT ID: {user?.id?.slice(0, 8).toUpperCase()}</Text>
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(400)}>
-            <GlassCard style={styles.formCard}>
-              <View style={styles.formLabel}>
-                <Ionicons name="finger-print-outline" size={14} color={colors.primary} />
-                <Text style={styles.formLabelText}>NODE ACCESS COORDINATES</Text>
+            <ProfessionalCard style={styles.formCard} hasVibrancy={true}>
+              <View style={styles.cardHeader}>
+                 <Ionicons name="person-circle-outline" size={18} color={colors.primary} />
+                 <Text style={[styles.cardHeaderText, { color: colors.textMuted }]}>ENTITY INFORMATION</Text>
               </View>
 
-              <GlassInput 
-                label="FULL LEGAL NAME" 
+              <ProfessionalInput 
+                label="LEGAL FULL NAME" 
                 value={formData.name}
                 onChangeText={(t) => setFormData({...formData, name: t})}
-                placeholder="OPERATOR_NAME"
+                placeholder="Full Name"
                 icon="person-outline"
               />
 
-              <GlassInput 
-                label="IDENTITY SIGNATURE (EMAIL)" 
+              <ProfessionalInput 
+                label="REGISTERED EMAIL" 
                 value={formData.email}
                 editable={false}
                 icon="mail-outline"
               />
-              <Text style={styles.lockedHint}>IDENTITY SIGNATURE IS PERMANENTLY BOUND TO NODE.</Text>
+              <Text style={[styles.hintTxt, { color: colors.textMuted }]}>Email is locked to your identity profile.</Text>
 
-              <GlassInput 
-                label="KINETIC CONTACT (PHONE)" 
+              <ProfessionalInput 
+                label="CONTACT NUMBER" 
                 value={formData.phone}
                 onChangeText={(t) => setFormData({...formData, phone: t})}
                 placeholder="+91 00000 00000"
@@ -134,28 +140,25 @@ export default function PersonalInfoScreen() {
                 icon="call-outline"
               />
 
-              <View style={styles.actionHost}>
-                <GlassButton 
-                  label={loading ? "SYNCING..." : "COMMIT CHANGES"} 
-                  onPress={handleUpdate} 
-                  variant="primary"
-                  loading={loading}
-                />
-              </View>
+              <ProfessionalButton
+                label="Update Profile"
+                onPress={handleUpdate}
+                variant="primary"
+                loading={loading}
+                style={{ marginTop: 24 }}
+              />
 
               <TouchableOpacity 
-                style={styles.terminationBtn}
+                style={styles.deleteBtn}
                 onPress={handleInitializeAccountTermination}
+                activeOpacity={0.7}
               >
-                <Text style={styles.terminationText}>INITIALIZE ACCOUNT TERMINATION</Text>
+                <Text style={[styles.deleteTxt, { color: colors.error }]}>DEACTIVATE ACCOUNT</Text>
               </TouchableOpacity>
-            </GlassCard>
+            </ProfessionalCard>
           </Animated.View>
-
-          <View style={styles.footerNote}>
-             <Ionicons name="lock-closed" size={10} color="rgba(255,255,255,0.2)" />
-             <Text style={styles.footerNoteText}>ALL IDENTITY MODIFICATIONS ARE LOGGED IN THE AUDIT TRAIL</Text>
-          </View>
+          
+          <View style={{ height: 60 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -163,184 +166,33 @@ export default function PersonalInfoScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0F1E',
-  },
-  header: {
-    paddingTop: 60,
-    paddingHorizontal: 24,
+  container: { flex: 1 },
+  header: { zIndex: 100 },
+  headerContent: {
+    paddingTop: Platform.OS === 'ios' ? 70 : 50,
     paddingBottom: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    zIndex: 10,
+    borderBottomWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
-  navBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  navBlur: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerInfo: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  headerTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#FFF',
-    letterSpacing: 2,
-  },
-  headerSubtitle: {
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.4)',
-    fontWeight: '800',
-    marginTop: 4,
-    letterSpacing: 0.5,
-  },
-  shieldBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.primary + '15',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.primary + '20',
-  },
-  shieldText: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: colors.primary,
-    letterSpacing: 1,
-  },
-  content: {
-    padding: 24,
-    paddingBottom: 60,
-  },
-  avatarSection: {
-    alignItems: 'center',
-    marginBottom: 40,
-    marginTop: 20,
-  },
-  avatarHost: {
-    width: 110,
-    height: 110,
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarGlass: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.2)',
-    zIndex: 10,
-  },
-  avatarBlur: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.primary + '10',
-  },
-  avatarInitial: {
-    fontSize: 40,
-    fontWeight: '900',
-    color: '#FFF',
-    textShadowColor: colors.primary,
-    textShadowRadius: 10,
-  },
-  avatarGlow: {
-    position: 'absolute',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primaryGlow,
-    overflow: 'hidden',
-  },
-  editBadge: {
-    position: 'absolute',
-    right: 0,
-    bottom: 0,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 20,
-    borderWidth: 3,
-    borderColor: '#161B2E',
-  },
-  operatorId: {
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.3)',
-    fontWeight: '900',
-    marginTop: 20,
-    letterSpacing: 2,
-  },
-  formCard: {
-    padding: 24,
-  },
-  formLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 24,
-    opacity: 0.8,
-  },
-  formLabelText: {
-    color: '#FFF',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  lockedHint: {
-    fontSize: 8,
-    color: 'rgba(255,255,255,0.3)',
-    fontWeight: '800',
-    marginTop: -8,
-    marginBottom: 20,
-    marginLeft: 4,
-    letterSpacing: 0.5,
-  },
-  actionHost: {
-    marginTop: 20,
-  },
-  terminationBtn: {
-    alignItems: 'center',
-    marginTop: 32,
-  },
-  terminationText: {
-    color: 'rgba(255,69,58,0.6)',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  footerNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 32,
-    opacity: 0.4,
-  },
-  footerNoteText: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: '#FFF',
-    letterSpacing: 1,
-    textAlign: 'center',
-  },
+  headerTop: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, gap: 12 },
+  navBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  headerInfoSection: { flex: 1 },
+  headerLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
+  headerTitle: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
+  shieldBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, borderWidth: 1 },
+  shieldText: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  content: { padding: 24 },
+  avatarSection: { alignItems: 'center', marginBottom: 40, marginTop: 10 },
+  avatarHost: { width: 110, height: 110, position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  avatarGlow: { position: 'absolute', width: 100, height: 100, borderRadius: 50, opacity: 0.5 },
+  avatarMain: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarInitial: { fontSize: 42, fontWeight: '900' },
+  editBadge: { position: 'absolute', right: 0, bottom: 0, width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 3 },
+  idText: { fontSize: 9, fontWeight: '900', letterSpacing: 2, marginTop: 20 },
+  formCard: { padding: 24, borderRadius: 32 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 24 },
+  cardHeaderText: { fontSize: 10, fontWeight: '900', letterSpacing: 2 },
+  hintTxt: { fontSize: 9, fontWeight: '800', marginTop: -8, marginBottom: 20, marginLeft: 4, letterSpacing: 0.5, opacity: 0.6 },
+  deleteBtn: { alignItems: 'center', marginTop: 32, paddingVertical: 10 },
+  deleteTxt: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, opacity: 0.7 },
 });

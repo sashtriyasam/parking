@@ -12,6 +12,15 @@ export default function ProviderRootLayout() {
       />
       <Stack.Screen name="earnings" />
       <Stack.Screen name="analytics" />
+      <Stack.Screen 
+        name="manual-entry" 
+        options={{ 
+          presentation: 'modal',
+          headerShown: true,
+          headerTitle: 'Offline Check-in',
+          headerBlurEffect: 'prominent'
+        }} 
+      />
       <Stack.Screen name="facility/[id]/index" />
       <Stack.Screen name="facility/[id]/edit" />
     </Stack>

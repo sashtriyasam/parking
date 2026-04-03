@@ -1,8 +1,9 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
+// Derive base URL from API URL by stripping /api/v1
 // TODO: Update EXPO_PUBLIC_API_URL in .env to point to Render URL after deployment
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://parkeasy-backend.onrender.com/api/v1';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
 const apiClient = axios.create({
   baseURL: API_URL,
@@ -51,11 +52,16 @@ apiClient.interceptors.response.use(
             originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
           }
           return apiClient(originalRequest);
+        } else {
+          // No refresh token available, force logout
+          throw new Error('No refresh token');
         }
       } catch (refreshError) {
-        await SecureStore.deleteItemAsync('accessToken');
-        await SecureStore.deleteItemAsync('refreshToken');
-        await SecureStore.deleteItemAsync('user');
+        // Professional Proactive Session Cleanup:
+        // Automatically clears memory & store, then redirects via RootLayout.
+        const { logout } = require('../store/authStore').useAuthStore.getState();
+        await logout();
+        console.error('Session expired. Universal authentication gateway reset.');
       }
     }
     return Promise.reject(error);

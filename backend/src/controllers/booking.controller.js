@@ -4,6 +4,7 @@ const asyncHandler = require('../utils/asyncHandler');
 
 const bookingService = require('../services/booking.service');
 const pricingService = require('../services/pricing.service');
+const { emitSlotUpdate } = require('../services/socket.service');
 
 
 
@@ -145,15 +146,43 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
         slot_id,
         vehicle_type,
         vehicle_number,
-        entry_time,
-        duration,
+        start_time,
+        end_time,
+        entry_time, // legacy fallback
+        duration,    // legacy fallback
         payment_method,
         payment_details,
     } = req.body;
 
     const customer_id = req.user.id;
 
-    // Validate slot availability
+    // Resolve start/end times (support both new and legacy formats)
+    const bookingStart = new Date(start_time || entry_time || Date.now());
+    let bookingEnd;
+    if (end_time) {
+        bookingEnd = new Date(end_time);
+    } else if (duration) {
+        bookingEnd = new Date(bookingStart.getTime() + (duration * 60 * 60 * 1000));
+    } else {
+        bookingEnd = new Date(bookingStart.getTime() + (2 * 60 * 60 * 1000)); // Default 2h
+    }
+
+    // Validate time window
+    if (bookingEnd <= bookingStart) {
+        return next(new AppError('End time must be after start time', 400));
+    }
+
+    const durationMs = bookingEnd - bookingStart;
+    const durationHours = durationMs / (1000 * 60 * 60);
+
+    if (durationHours < 0.5) {
+        return next(new AppError('Minimum booking duration is 30 minutes', 400));
+    }
+    if (durationHours > 24) {
+        return next(new AppError('Maximum booking duration is 24 hours', 400));
+    }
+
+    // Validate slot exists
     const slot = await prisma.parkingSlot.findUnique({
         where: { id: slot_id },
         include: {
@@ -167,8 +196,14 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
         }
     });
 
-    if (!slot || slot.status !== 'FREE') {
-        return next(new AppError('Slot not available', 400));
+    if (!slot) {
+        return next(new AppError('Slot not found', 404));
+    }
+
+    // Check time-based availability (allows same slot at different times)
+    const available = await bookingService.isSlotAvailable(slot_id, bookingStart, bookingEnd);
+    if (!available) {
+        return next(new AppError('This slot is already booked for the selected time window. Please choose a different time or slot.', 409));
     }
 
     // Calculate fees
@@ -180,12 +215,12 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
         return next(new AppError('Pricing rule not found for vehicle type', 404));
     }
 
-    const baseFee = pricingRule.hourly_rate * (duration || 1);
+    const baseFee = pricingRule.hourly_rate * durationHours;
     const cappedFee = pricingRule.daily_max && baseFee > pricingRule.daily_max
         ? pricingRule.daily_max
         : baseFee;
     const gst = cappedFee * 0.18;
-    const totalFee = cappedFee + gst;
+    const totalFee = Math.round((cappedFee + gst) * 100) / 100;
 
     // Process payment
     let paymentResult;
@@ -208,24 +243,36 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
         return next(new AppError('Payment processing failed', 500));
     }
 
+    // Determine if slot should be marked OCCUPIED now
+    // Only mark OCCUPIED if booking starts within 15 minutes
+    const now = new Date();
+    const startsWithin15Min = (bookingStart.getTime() - now.getTime()) <= 15 * 60 * 1000;
+
     // Transaction to ensure slot is locked and ticket is created
     const ticket = await prisma.$transaction(async (tx) => {
-        // Double check slot status inside transaction
-        const currentSlot = await tx.parkingSlot.findUnique({
-            where: { id: slot_id },
+        // Double check availability inside transaction
+        const overlapping = await tx.ticket.findFirst({
+            where: {
+                slot_id: slot_id,
+                status: { in: ['ACTIVE', 'PENDING_PAYMENT'] },
+                entry_time: { lt: bookingEnd },
+                exit_time: { gt: bookingStart }
+            }
         });
 
-        if (!currentSlot || currentSlot.status !== 'FREE') {
-            throw new AppError('Slot is no longer available', 400);
+        if (overlapping) {
+            throw new AppError('Slot is no longer available for this time window', 409);
         }
 
-        // Update slot status
-        await tx.parkingSlot.update({
-            where: { id: slot_id },
-            data: { status: 'OCCUPIED' }
-        });
+        // Update slot status only if booking starts now
+        if (startsWithin15Min) {
+            await tx.parkingSlot.update({
+                where: { id: slot_id },
+                data: { status: 'OCCUPIED' }
+            });
+        }
 
-        // Create ticket
+        // Create ticket with both entry_time and exit_time (scheduled window)
         return await tx.ticket.create({
             data: {
                 customer_id,
@@ -233,7 +280,8 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
                 slot_id,
                 vehicle_number,
                 vehicle_type,
-                entry_time: new Date(entry_time),
+                entry_time: bookingStart,
+                exit_time: bookingEnd,
                 status: 'ACTIVE',
                 total_fee: totalFee,
                 payment_status: payment_method === 'PAY_AT_EXIT' ? 'PENDING' : 'PAID',
@@ -260,20 +308,20 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
         ticketId: ticket.id,
         slotId: slot_id,
         vehicleNumber: vehicle_number,
-        entryTime: entry_time,
+        entryTime: bookingStart.toISOString(),
+        exitTime: bookingEnd.toISOString(),
         facilityId: slot.floor.facility.id,
     });
 
-    // Update ticket with QR code (Optional: just return in response or save to DB)
+    // Update ticket with QR code
     await prisma.ticket.update({
         where: { id: ticket.id },
         data: { qr_code: qrCode }
     });
 
     // Emit socket event for real-time update
-    const io = req.app.get('io');
-    if (io) {
-        io.to(`facility_${slot.floor.facility.id}`).emit('slot_updated', {
+    if (startsWithin15Min) {
+        emitSlotUpdate(slot.floor.facility.id, {
             slot_id: slot_id,
             status: 'OCCUPIED',
             facility_id: slot.floor.facility.id
@@ -285,6 +333,7 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
         data: {
             ...ticket,
             qr_code: qrCode,
+            duration_hours: Math.round(durationHours * 100) / 100,
         }
     });
 });
@@ -320,9 +369,89 @@ const downloadTicketPDF = asyncHandler(async (req, res, next) => {
     // Generate PDF
     const pdfBuffer = await generateTicketPDF(ticket);
 
+    // Set explicit headers for PDF download
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=ticket-${ticket.id.slice(0, 8)}.pdf`);
-    res.send(pdfBuffer);
+    res.setHeader('Content-Disposition', `attachment; filename="parkeasy-ticket-${ticket.id.slice(0, 8)}.pdf"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.status(200).send(pdfBuffer);
+});
+
+/**
+ * Cancel a booking
+ */
+const cancelBooking = asyncHandler(async (req, res, next) => {
+    const { ticketId } = req.params;
+    const customer_id = req.user.id;
+
+    console.log(`[DEBUG] Attempting to cancel ticket: ${ticketId} for customer: ${customer_id}`);
+
+    // Find the ticket
+    const ticket = await prisma.ticket.findUnique({
+        where: { id: ticketId },
+        include: { slot: true, facility: true }
+    });
+
+    if (!ticket) {
+        console.log(`[DEBUG] Ticket ${ticketId} not found`);
+        return next(new AppError('Ticket not found', 404));
+    }
+
+    // Check authorization
+    const isOwner = ticket.customer_id === req.user.id;
+    const isProvider = req.user.role === 'PROVIDER' && ticket.facility.provider_id === req.user.id;
+
+    if (!isOwner && !isProvider) {
+        console.log(`[DEBUG] Unauthorized attempt to cancel ticket ${ticketId}. Role: ${req.user.role}, Requester: ${req.user.id}`);
+        return next(new AppError('Not authorized to cancel this booking', 403));
+    }
+
+    // Check if the ticket is active
+    if (ticket.status !== 'ACTIVE') {
+        console.log(`[DEBUG] Cannot cancel ticket ${ticketId}. Current status: ${ticket.status}`);
+        return next(new AppError(`Ticket cannot be cancelled in its current status: ${ticket.status}`, 400));
+    }
+
+    console.log(`[DEBUG] Ticket ${ticketId} is valid for cancellation. Starting transaction...`);
+
+    // Transaction to update ticket and slot
+    try {
+        console.log(`[DEBUG] Starting transaction for ticket ${ticketId}...`);
+        await prisma.$transaction(async (tx) => {
+            // Update ticket status
+            const updatedTicket = await tx.ticket.update({
+                where: { id: ticketId },
+                data: { status: 'CANCELLED' }
+            });
+            console.log(`[DEBUG] Ticket status updated to CANCELLED in transaction`);
+
+            // If the slot is currently OCCUPIED by this ticket, free it.
+            if (ticket.slot && ticket.slot.status === 'OCCUPIED' && ticket.slot_id) {
+                console.log(`[DEBUG] Releasing slot ${ticket.slot_id} as it was OCCUPIED`);
+                await tx.parkingSlot.update({
+                    where: { id: ticket.slot_id },
+                    data: { status: 'FREE' }
+                });
+
+                // Emit socket update
+                emitSlotUpdate(ticket.facility_id, {
+                    slot_id: ticket.slot_id,
+                    status: 'FREE',
+                    facility_id: ticket.facility_id
+                });
+            } else {
+                console.log(`[DEBUG] No slot to release or slot not OCCUPIED. (Slot exists: ${!!ticket.slot})`);
+            }
+        });
+        console.log(`[DEBUG] Transaction committed successfully for ticket ${ticketId}`);
+    } catch (err) {
+        console.error(`[DEBUG] Transaction failed for ticket ${ticketId}:`, err);
+        return next(new AppError(`Failed to cancel booking: ${err.message}`, 500));
+    }
+
+    res.status(200).json({
+        status: 'success',
+        message: 'Booking cancelled successfully'
+    });
 });
 
 module.exports = {
@@ -332,4 +461,5 @@ module.exports = {
     getMyBookings,
     createBookingWithPayment,
     downloadTicketPDF,
+    cancelBooking
 };

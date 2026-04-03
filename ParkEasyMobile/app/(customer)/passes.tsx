@@ -9,27 +9,27 @@ import {
   Platform,
   Dimensions,
   Modal,
-  StatusBar
+  StatusBar,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
-import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import Animated, {
   FadeInDown,
-  FadeInUp,
   ZoomIn,
-  Layout,
   SlideInUp,
-  FadeIn
 } from 'react-native-reanimated';
-import { colors } from '../../constants/colors';
+import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
+
+import { useThemeColors } from '../../hooks/useThemeColors';
+import { useHaptics } from '../../hooks/useHaptics';
 import { useToast } from '../../components/Toast';
 import { EmptyState } from '../../components/EmptyState';
-import { Skeleton } from '../../components/ui/SkeletonLoader';
-import { useQuery } from '@tanstack/react-query';
 import { get } from '../../services/api';
-import { useRouter } from 'expo-router';
+import { ProfessionalCard } from '../../components/ui/ProfessionalCard';
+import { ProfessionalButton } from '../../components/ui/ProfessionalButton';
 
 const { width } = Dimensions.get('window');
 
@@ -39,7 +39,6 @@ interface Pass {
     id: string;
     name: string;
     address: string;
-    image_url: string;
   };
   vehicle_type: string;
   start_date: string;
@@ -55,10 +54,9 @@ function getDaysRemaining(endDate: string): number {
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }
 
-function formatPassDate(dateStr: string | null | undefined): string {
+function formatPassDate(dateStr: string): string {
   if (!dateStr) return '';
   const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return '';
   return date.toLocaleDateString(undefined, {
     month: 'short',
     day: '2-digit',
@@ -66,13 +64,10 @@ function formatPassDate(dateStr: string | null | undefined): string {
   });
 }
 
-function formatPassEndDate(pass: Pass | null): string {
-  if (!pass || !pass.end_date) return '';
-  return formatPassDate(pass.end_date).toUpperCase();
-}
-
 export default function PassesScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const haptics = useHaptics();
   const [refreshing, setRefreshing] = useState(false);
   const [showQR, setShowQR] = useState(false);
   const [selectedPass, setSelectedPass] = useState<Pass | null>(null);
@@ -88,11 +83,13 @@ export default function PassesScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    haptics.impactLight();
     await refetch();
     setRefreshing(false);
   };
 
   const handleShowPass = (pass: Pass) => {
+    haptics.impactMedium();
     if (pass.status !== 'ACTIVE') {
       showToast('This pass has expired.', 'error');
       return;
@@ -101,606 +98,216 @@ export default function PassesScreen() {
     setShowQR(true);
   };
 
-  const handleRenew = (pass: Pass) => {
-    if (pass.facility.id) {
-      router.push(`/(customer)/facility/${pass.facility.id}`);
-    } else {
-      router.push('/(customer)');
-    }
-  };
-
   const renderPass = ({ item, index }: { item: Pass; index: number }) => {
     const isActive = item.status === 'ACTIVE';
     const daysLeft = getDaysRemaining(item.end_date);
-    const isExpiringSoon = isActive && daysLeft <= 7;
 
     return (
-      <Animated.View entering={FadeInDown.delay(index * 100).springify().damping(12)}>
+      <Animated.View entering={FadeInDown.delay(index * 100).duration(600)}>
         <TouchableOpacity
           activeOpacity={0.9}
           onPress={() => handleShowPass(item)}
-          style={!isActive && { opacity: 0.6 }}
+          disabled={!isActive}
         >
-          <BlurView
-            intensity={isActive ? 40 : 15}
-            tint="dark"
-            style={[
-              styles.passCard,
-              isActive && { borderColor: colors.premium.primary + '30', borderWidth: 1 }
-            ]}
+          <ProfessionalCard 
+            style={[styles.passCard, !isActive && { opacity: 0.6 }]}
+            hasVibrancy={isActive}
           >
-            {isActive ? (
-              <LinearGradient
-                colors={[colors.premium.primary + '20', colors.premium.secondary + '20']}
-                style={styles.passGradientTop}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <View style={styles.passTopContent}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.facilityNameLight}>{item.facility.name.toUpperCase()}</Text>
-                    <Text style={styles.facilityAddressLight} numberOfLines={1}>{item.facility.address}</Text>
-                  </View>
-                  <View style={styles.statusBadge}>
-                    <View style={styles.activeDot} />
-                    <Text style={styles.activeBadgeText}>ACTIVE</Text>
-                  </View>
-                </View>
-
-                <View style={styles.passStatsRow}>
-                  <View style={styles.passStat}>
-                    <Text style={styles.passStatVal}>{daysLeft}</Text>
-                    <Text style={styles.passStatLabel}>DAYS LEFT</Text>
-                  </View>
-                  <View style={styles.passStatDiv} />
-                  <View style={styles.passStat}>
-                    <Text style={styles.passStatVal}>{item.vehicle_type.toUpperCase()}</Text>
-                    <Text style={styles.passStatLabel}>VEHICLE</Text>
-                  </View>
-                  <View style={styles.passStatDiv} />
-                  <View style={styles.passStat}>
-                    <Text style={[styles.passStatVal, { color: colors.premium.tertiary }]}>₹{item.price}</Text>
-                    <Text style={styles.passStatLabel}>CREDITS</Text>
-                  </View>
-                </View>
-              </LinearGradient>
-            ) : (
-              <View style={styles.expiredTop}>
-                <View style={styles.passTopContent}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.facilityNameDark}>{item.facility.name.toUpperCase()}</Text>
-                    <Text style={styles.facilityAddressDark} numberOfLines={1}>{item.facility.address}</Text>
-                  </View>
-                  <View style={styles.expiredBadge}>
-                    <Text style={styles.expiredBadgeText}>EXPIRED</Text>
-                  </View>
-                </View>
+            <View style={styles.cardHeader}>
+              <View style={styles.headerInfo}>
+                <Text style={[styles.facilityName, { color: colors.textPrimary }]}>{item.facility.name}</Text>
+                <Text style={[styles.facilityAddress, { color: colors.textMuted }]} numberOfLines={1}>{item.facility.address}</Text>
               </View>
-            )}
-
-            <View style={styles.passActions}>
-              <View style={styles.dateRange}>
-                <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.4)" />
-                <Text style={styles.dateText}>
-                  {formatPassDate(item.start_date)}
-                  {' → '}
-                  {formatPassDate(item.end_date)}
-                </Text>
-              </View>
-
-              <View style={styles.actionRow}>
-                {isExpiringSoon && (
-                  <TouchableOpacity style={styles.renewBtn} onPress={() => handleRenew(item)}>
-                    <Text style={styles.renewBtnText}>RENEW</Text>
-                    <Ionicons name="refresh" size={14} color={colors.premium.primary} />
-                  </TouchableOpacity>
-                )}
-                {isActive && (
-                  <View style={styles.tagWrapper}>
-                    <Ionicons name="finger-print-outline" size={12} color="rgba(255,255,255,0.4)" />
-                  </View>
-                )}
+              <View style={[styles.statusBadge, { backgroundColor: isActive ? colors.success + '15' : colors.surface, borderColor: isActive ? colors.success + '30' : colors.border }]}>
+                <Text style={[styles.statusText, { color: isActive ? colors.success : colors.textMuted }]}>{isActive ? 'ACTIVE' : 'EXPIRED'}</Text>
               </View>
             </View>
-          </BlurView>
+
+            <View style={styles.statsContainer}>
+               <View style={styles.statBox}>
+                  <Text style={[styles.statValue, { color: colors.textPrimary }]}>{daysLeft}</Text>
+                  <Text style={[styles.statLabel, { color: colors.textMuted }]}>DAYS LEFT</Text>
+               </View>
+               <View style={[styles.divider, { backgroundColor: colors.border }]} />
+               <View style={styles.statBox}>
+                  <Text style={[styles.statValue, { color: colors.textPrimary }]}>{item.vehicle_type.toUpperCase()}</Text>
+                  <Text style={[styles.statLabel, { color: colors.textMuted }]}>VEHICLE</Text>
+               </View>
+               <View style={[styles.divider, { backgroundColor: colors.border }]} />
+               <View style={styles.statBox}>
+                  <Text style={[styles.statValue, { color: colors.primary }]}>₹{item.price}</Text>
+                  <Text style={[styles.statLabel, { color: colors.textMuted }]}>VALUE</Text>
+               </View>
+            </View>
+
+            <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
+                <View style={styles.validityRow}>
+                   <Ionicons name="calendar-outline" size={12} color={colors.textMuted} />
+                   <Text style={[styles.validityText, { color: colors.textMuted }]}>
+                      {formatPassDate(item.start_date)} — {formatPassDate(item.end_date)}
+                   </Text>
+                </View>
+                {isActive && (
+                   <Ionicons name="finger-print" size={16} color={colors.primary} />
+                )}
+            </View>
+          </ProfessionalCard>
         </TouchableOpacity>
       </Animated.View>
     );
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-
-      {/* Immersive Background */}
-      <View style={styles.bgWrapper}>
-        <LinearGradient
-          colors={['#080a0f', '#020617']}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={[styles.glowPoint, { top: '20%', left: '-10%', backgroundColor: colors.premium.primary, opacity: 0.1 }]} />
-        <View style={[styles.glowPoint, { bottom: '20%', right: '-30%', backgroundColor: colors.premium.secondary, opacity: 0.05 }]} />
-      </View>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
 
       <Animated.View entering={SlideInUp.duration(600)} style={styles.header}>
-        <BlurView intensity={30} tint="dark" style={styles.headerContent}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={24} color="white" />
-          </TouchableOpacity>
-          <View>
-            <Text style={styles.headerLabel}>SUBSCRIPTIONS</Text>
-            <Text style={styles.headerTitle}>SECURE PASSES</Text>
+        <BlurView intensity={20} tint={colors.isDark ? 'dark' : 'light'} style={styles.headerContent}>
+          <View style={styles.headerTop}>
+            <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
+              <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+            </TouchableOpacity>
+            
+            <View style={styles.headerTitleSection}>
+               <Text style={[styles.headerLabel, { color: colors.textMuted }]}>SUBSCRIPTIONS</Text>
+               <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Member Passes</Text>
+            </View>
+
+            <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/(customer)')}>
+               <Ionicons name="add" size={24} color={colors.primary} />
+            </TouchableOpacity>
           </View>
-          <View style={{ width: 44 }} />
         </BlurView>
       </Animated.View>
 
       {isLoading ? (
-        <View style={styles.listContent}>
-          {[1, 2, 3].map(i => (
-            <Skeleton key={i} width="100%" height={200} borderRadius={30} style={{ marginBottom: 20 }} />
-          ))}
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={colors.primary} />
         </View>
       ) : (
         <FlatList
           data={passes}
           keyExtractor={(item) => item.id}
           renderItem={renderPass}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.premium.primary} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
           ListEmptyComponent={
-            <Animated.View entering={FadeIn.delay(400)}>
-              <EmptyState
-                icon="card-outline"
-                title="No Active Passes"
-                subtitle="Get a monthly pass at any partner facility to start seamless access."
-                actionLabel="Find Parking"
-                onAction={() => router.push('/(customer)')}
-              />
-            </Animated.View>
+            <EmptyState
+              icon="card-outline"
+              title="NO ACTIVE PASSES"
+              subtitle="You don't have any subscription passes currently. Purchase one at any facility to enjoy priority parking."
+              actionLabel="Explore Locations"
+              onAction={() => router.push('/(customer)')}
+            />
           }
         />
       )}
 
-      {/* QR Code Modal for Show Pass */}
-      <Modal
-        visible={showQR}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowQR(false)}
-      >
-        <BlurView intensity={60} tint="dark" style={styles.modalOverlay}>
-          <Animated.View entering={ZoomIn.duration(400).springify()}>
-            <BlurView intensity={40} tint="dark" style={styles.qrModalCard}>
+      {/* QR Code Authorization Modal */}
+      <Modal visible={showQR} transparent animationType="fade" onRequestClose={() => setShowQR(false)}>
+        <BlurView intensity={80} tint={colors.isDark ? 'dark' : 'light'} style={styles.modalBackdrop}>
+          <Animated.View entering={ZoomIn.duration(400)}>
+            <ProfessionalCard style={styles.qrCard}>
               <View style={styles.qrHeader}>
-                <Text style={styles.qrTitle}>HOLOGRAPHIC PASS</Text>
-                <TouchableOpacity onPress={() => setShowQR(false)} style={styles.modalCloseBtn}>
-                  <Ionicons name="close" size={22} color="white" />
+                <Text style={[styles.qrTitle, { color: colors.textMuted }]}>AUTHORIZATION TOKEN</Text>
+                <TouchableOpacity onPress={() => setShowQR(false)} style={styles.closeModalBtn}>
+                  <Ionicons name="close" size={20} color={colors.textPrimary} />
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.qrWrapper}>
-                <View style={styles.qrCornerLT} />
-                <View style={styles.qrCornerRT} />
-                <View style={styles.qrCornerLB} />
-                <View style={styles.qrCornerRB} />
-                <View style={styles.qrContent}>
-                  {selectedPass && (
-                    <QRCode
-                      value={selectedPass.id}
-                      size={200}
-                      color="white"
-                      backgroundColor="#000"
-                      quietZone={10}
-                    />
-                  )}
-                </View>
+              <View style={styles.qrContainer}>
+                 <View style={[styles.qrFrame, { borderColor: colors.primary }]}>
+                    {selectedPass && (
+                      <QRCode
+                        value={JSON.stringify({ ticketId: selectedPass.id, type: 'PASS' })}
+                        size={200}
+                        color={colors.textPrimary}
+                        backgroundColor="transparent"
+                        quietZone={10}
+                      />
+                    )}
+                 </View>
               </View>
 
-              <View style={styles.qrDetails}>
-                <Text style={styles.qrFacilityName}>{selectedPass?.facility.name.toUpperCase()}</Text>
-                <Text style={styles.qrVehicleInfo}>
-                  {selectedPass?.vehicle_type.toUpperCase()} • VALID UNTIL {formatPassEndDate(selectedPass)}
+              <View style={styles.qrInfo}>
+                <Text style={[styles.qrFacility, { color: colors.textPrimary }]}>{selectedPass?.facility.name}</Text>
+                <Text style={[styles.qrValidity, { color: colors.textSecondary }]}>
+                   VALID UNTIL {selectedPass && formatPassDate(selectedPass.end_date).toUpperCase()}
                 </Text>
-                <View style={styles.qrIdContainer}>
-                  <Text style={styles.qrIdLabel}>PASS TOKEN: </Text>
-                  <Text style={styles.qrIdValue}>{selectedPass?.id.substring(0, 14).toUpperCase()}</Text>
+                <View style={[styles.tokenBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                   <Text style={[styles.tokenText, { color: colors.textMuted }]}>TOKEN ID: {selectedPass?.id.substring(0, 12).toUpperCase()}</Text>
                 </View>
               </View>
 
-              <TouchableOpacity
-                style={styles.qrCloseBtn}
-                onPress={() => setShowQR(false)}
-              >
-                <Text style={styles.qrCloseBtnText}>TERMINATE VIEW</Text>
-              </TouchableOpacity>
-            </BlurView>
+              <ProfessionalButton
+                 label="Close Pass"
+                 onPress={() => setShowQR(false)}
+                 variant="outline"
+                 style={{ width: '100%' }}
+              />
+            </ProfessionalCard>
           </Animated.View>
         </BlurView>
       </Modal>
 
-      <Animated.View entering={FadeInUp.delay(600).springify()} style={styles.fab}>
-        <TouchableOpacity
-          style={styles.fabBtn}
-          onPress={() => router.push('/(customer)')}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={[colors.premium.primary, colors.premium.secondary]}
-            style={styles.fabGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="add" size={24} color="white" />
-            <Text style={styles.fabText}>INITIALIZE NEW PASS</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+      <Animated.View entering={FadeInDown.delay(800)} style={styles.ctaWrapper}>
+         <ProfessionalButton
+            label="Purchase New Pass"
+            onPress={() => router.push('/(customer)')}
+            variant="primary"
+            icon="add-circle-outline"
+         />
       </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#080a0f',
-  },
-  bgWrapper: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: 'hidden',
-  },
-  glowPoint: {
-    position: 'absolute',
-    width: 400,
-    height: 400,
-    borderRadius: 200,
-  },
-  header: {
-    zIndex: 100,
-  },
+  container: { flex: 1 },
+  header: { zIndex: 100 },
   headerContent: {
     paddingTop: Platform.OS === 'ios' ? 70 : 50,
-    paddingBottom: 24,
-    paddingHorizontal: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
-    overflow: 'hidden',
-    borderBottomWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    paddingBottom: 20,
+    borderBottomWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerLabel: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 2,
-    textAlign: 'center',
-  },
-  headerTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: 'white',
-    letterSpacing: 3,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  listContent: {
-    padding: 20,
-    paddingTop: 30,
-    paddingBottom: 150,
-  },
-  passCard: {
-    borderRadius: 30,
-    marginBottom: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  passGradientTop: {
-    padding: 24,
-  },
-  expiredTop: {
-    padding: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-  },
-  passTopContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 24,
-  },
-  facilityNameLight: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: 'white',
-    marginBottom: 6,
-    letterSpacing: -0.5,
-  },
-  facilityAddressLight: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
-    fontWeight: '600',
-  },
-  facilityNameDark: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: 'rgba(255,255,255,0.6)',
-    marginBottom: 6,
-  },
-  facilityAddressDark: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.3)',
-    fontWeight: '600',
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  activeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.premium.tertiary,
-    // iOS shadow
-    shadowColor: colors.premium.tertiary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 5,
-    // Android elevation (limited glow effect)
-    elevation: 4,
-  },
-  activeBadgeText: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: 'white',
-    letterSpacing: 1,
-  },
-  expiredBadge: {
-    backgroundColor: colors.error + '20',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  expiredBadgeText: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: colors.error,
-    letterSpacing: 1,
-  },
-  passStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  passStat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  passStatVal: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: 'white',
-  },
-  passStatLabel: {
-    fontSize: 8,
-    fontWeight: '800',
-    color: 'rgba(255,255,255,0.4)',
-    letterSpacing: 1.5,
-    marginTop: 4,
-  },
-  passStatDiv: {
-    width: 1,
-    height: 30,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  passActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingVertical: 18,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
-  },
-  dateRange: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dateText: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
-    fontWeight: '700',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  renewBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(28, 116, 233, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(28, 116, 233, 0.2)',
-  },
-  renewBtnText: {
-    color: colors.premium.primary,
-    fontWeight: '900',
-    fontSize: 10,
-    letterSpacing: 1,
-  },
-  tagWrapper: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 40,
-    left: 20,
-    right: 20,
-  },
-  fabBtn: {
-    borderRadius: 22,
-    overflow: 'hidden',
-    height: 64,
-  },
-  fabGradient: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  fabText: {
-    color: 'white',
-    fontWeight: '900',
-    fontSize: 12,
-    letterSpacing: 2,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  qrModalCard: {
-    width: width - 40,
-    borderRadius: 40,
-    padding: 32,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    overflow: 'hidden',
-  },
-  qrHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 40,
-  },
-  qrTitle: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: 'white',
-    letterSpacing: 4,
-    opacity: 0.8,
-  },
-  modalCloseBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qrWrapper: {
-    width: 260,
-    height: 260,
-    padding: 20,
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  qrContent: {
-    width: 220,
-    height: 220,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  qrCornerLT: { position: 'absolute', top: 0, left: 0, width: 30, height: 30, borderTopWidth: 2, borderLeftWidth: 2, borderColor: colors.premium.primary },
-  qrCornerRT: { position: 'absolute', top: 0, right: 0, width: 30, height: 30, borderTopWidth: 2, borderRightWidth: 2, borderColor: colors.premium.primary },
-  qrCornerLB: { position: 'absolute', bottom: 0, left: 0, width: 30, height: 30, borderBottomWidth: 2, borderLeftWidth: 2, borderColor: colors.premium.primary },
-  qrCornerRB: { position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderBottomWidth: 2, borderRightWidth: 2, borderColor: colors.premium.primary },
-  qrDetails: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  qrFacilityName: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: 'white',
-    marginBottom: 8,
-    letterSpacing: -0.5,
-  },
-  qrVehicleInfo: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
-    fontWeight: '800',
-    letterSpacing: 1.5,
-    marginBottom: 20,
-  },
-  qrIdContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  qrIdLabel: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: 'rgba(255,255,255,0.3)',
-  },
-  qrIdValue: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: colors.premium.primary,
-    letterSpacing: 2,
-  },
-  qrCloseBtn: {
-    width: '100%',
-    height: 58,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  qrCloseBtnText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 3,
-  },
+  headerTop: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, gap: 12 },
+  navBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  headerTitleSection: { flex: 1 },
+  headerLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
+  headerTitle: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
+  addBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  listContainer: { padding: 24, paddingBottom: 120 },
+  passCard: { padding: 24, borderRadius: 32, marginBottom: 20 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
+  headerInfo: { flex: 1, marginRight: 12 },
+  facilityName: { fontSize: 18, fontWeight: '900', letterSpacing: -0.5, marginBottom: 4 },
+  facilityAddress: { fontSize: 12, fontWeight: '600' },
+  statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1 },
+  statusText: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  statsContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 },
+  statBox: { flex: 1, alignItems: 'center' },
+  statValue: { fontSize: 22, fontWeight: '900', letterSpacing: -1 },
+  statLabel: { fontSize: 8, fontWeight: '800', letterSpacing: 1, marginTop: 4 },
+  divider: { width: 1, height: 30, opacity: 0.5 },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 18, borderTopWidth: 0.5 },
+  validityRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  validityText: { fontSize: 11, fontWeight: '700' },
+  ctaWrapper: { position: 'absolute', bottom: 40, left: 24, right: 24 },
+  modalBackdrop: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  qrCard: { width: width - 48, padding: 32, borderRadius: 40, alignItems: 'center' },
+  qrHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 32 },
+  qrTitle: { fontSize: 10, fontWeight: '900', letterSpacing: 2 },
+  closeModalBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  qrContainer: { width: 240, height: 240, padding: 20, marginBottom: 32 },
+  qrFrame: { flex: 1, borderWidth: 2, borderRadius: 24, padding: 16, alignItems: 'center', justifyContent: 'center' },
+  qrInfo: { alignItems: 'center', marginBottom: 32 },
+  qrFacility: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5, marginBottom: 4 },
+  qrValidity: { fontSize: 11, fontWeight: '800', opacity: 0.6, marginBottom: 16 },
+  tokenBadge: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, borderWidth: 1 },
+  tokenText: { fontSize: 10, fontWeight: '800', letterSpacing: 1 },
 });

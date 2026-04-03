@@ -55,7 +55,14 @@ apiClient.interceptors.response.use(
                     localStorage.removeItem('accessToken');
                     localStorage.removeItem('refreshToken');
                     localStorage.removeItem('user');
-                    window.location.href = '/login';
+                    const isAuthPage = window.location.pathname === '/login' || 
+                                     window.location.pathname === '/welcome' || 
+                                     window.location.pathname === '/signup' ||
+                                     window.location.pathname === '/';
+                    
+                    if (!isAuthPage) {
+                        window.location.href = '/login';
+                    }
                     return Promise.reject(refreshError);
                 }
             } else {
@@ -63,7 +70,15 @@ apiClient.interceptors.response.use(
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('refreshToken');
                 localStorage.removeItem('user');
-                window.location.href = '/login';
+                const isAuthPage = window.location.pathname === '/login' || 
+                                 window.location.pathname === '/welcome' || 
+                                 window.location.pathname === '/signup' ||
+                                 window.location.pathname === '/';
+                
+                if (!isAuthPage) {
+                    window.location.href = '/login';
+                }
+                return Promise.reject(error);
             }
         }
 
