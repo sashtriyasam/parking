@@ -99,7 +99,7 @@ export default function SignupScreen() {
           id: user.id,
           full_name: user.full_name,
           email: user.email,
-          phone_number: user.phone_number || phone || '',
+          phone_number: user.phone_number || sanitizedPhone || '',
           role: user.role
         };
         await login(mappedUser, accessToken, refreshToken);

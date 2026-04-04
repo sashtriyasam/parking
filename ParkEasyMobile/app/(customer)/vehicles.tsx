@@ -35,6 +35,14 @@ import { ProfessionalCard } from '../../components/ui/ProfessionalCard';
 import { ProfessionalButton } from '../../components/ui/ProfessionalButton';
 import { ProfessionalInput } from '../../components/ui/ProfessionalInput';
 
+function withAlpha(color: string, opacity: number): string {
+  if (!color.startsWith('#')) return color;
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
 const { height } = Dimensions.get('window');
 
 const VEHICLE_TYPES: { type: VehicleType; icon: any; label: string }[] = [
@@ -145,7 +153,7 @@ export default function VehiclesScreen() {
              size={24} 
              color={VEHICLE_TYPE_COLORS[item.vehicle_type]} 
            />
-           <View style={[styles.statusIndicator, { backgroundColor: VEHICLE_TYPE_COLORS[item.vehicle_type] }]} />
+           <View style={[styles.statusIndicator, { backgroundColor: VEHICLE_TYPE_COLORS[item.vehicle_type], borderColor: colors.surface }]} />
         </View>
         <View style={styles.vehicleInfo}>
            <Text style={[styles.plateNumber, { color: colors.textPrimary }]}>{item.vehicle_number.toUpperCase()}</Text>
@@ -168,7 +176,7 @@ export default function VehiclesScreen() {
       <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
       
       <Animated.View entering={SlideInUp.duration(600)} style={styles.header}>
-        <BlurView intensity={20} tint={colors.isDark ? 'dark' : 'light'} style={styles.headerContent}>
+        <BlurView intensity={20} tint={colors.isDark ? 'dark' : 'light'} style={[styles.headerContent, { borderColor: withAlpha(colors.border, 0.2) }]}>
           <View style={styles.headerTop}>
             <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
@@ -321,7 +329,7 @@ const styles = StyleSheet.create({
   listContainer: { padding: 24, paddingBottom: 120 },
   vehicleCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 32, marginBottom: 16 },
   vehicleIconWrapper: { width: 56, height: 56, borderRadius: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 1, position: 'relative' },
-  statusIndicator: { position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: '#FFF' },
+  statusIndicator: { position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
   vehicleInfo: { flex: 1, marginLeft: 16 },
   plateNumber: { fontSize: 18, fontWeight: '900', letterSpacing: 0.5 },
   nicknameLabel: { fontSize: 12, fontWeight: '700', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },

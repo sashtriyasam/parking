@@ -11,6 +11,7 @@ export interface User {
   phone_number: string;
   role: UserRole;
   avatar?: string;
+  balance?: number;
 }
 
 export interface PricingRule {

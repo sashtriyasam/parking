@@ -1,9 +1,15 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { useAuthStore } from '../store/authStore';
 
-// Derive base URL from API URL by stripping /api/v1
-// TODO: Update EXPO_PUBLIC_API_URL in .env to point to Render URL after deployment
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+// Derive base URL with production safety check
+const API_URL = (() => {
+  const url = process.env.EXPO_PUBLIC_API_URL;
+  if (!url && process.env.NODE_ENV === 'production') {
+    throw new Error('Infrastructure Failure: EXPO_PUBLIC_API_URL is missing in production. Cannot initialize API client.');
+  }
+  return url || 'http://localhost:5000/api/v1';
+})();
 
 const apiClient = axios.create({
   baseURL: API_URL,
@@ -56,12 +62,12 @@ apiClient.interceptors.response.use(
           // No refresh token available, force logout
           throw new Error('No refresh token');
         }
-      } catch (refreshError) {
+      } catch (refreshError: any) {
         // Professional Proactive Session Cleanup:
         // Automatically clears memory & store, then redirects via RootLayout.
-        const { logout } = require('../store/authStore').useAuthStore.getState();
-        await logout();
+        await useAuthStore.getState().logout();
         console.error('Session expired. Universal authentication gateway reset.');
+        return Promise.reject(new Error('AUTHENTICATION_EXPIRED'));
       }
     }
     return Promise.reject(error);

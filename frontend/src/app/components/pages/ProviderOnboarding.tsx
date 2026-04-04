@@ -23,8 +23,8 @@ export function ProviderOnboarding() {
         operating_hours: '24/7',
         total_floors: 1,
         description: '',
-        latitude: 0,
-        longitude: 0,
+        latitude: null as number | null,
+        longitude: null as number | null,
     });
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -35,7 +35,7 @@ export function ProviderOnboarding() {
         }));
     };
 
-    const handleLocationChange = (lat: number, lng: number) => {
+    const handleLocationChange = (lat: number | null, lng: number | null) => {
         setFormData(prev => ({
             ...prev,
             latitude: lat,
@@ -53,8 +53,8 @@ export function ProviderOnboarding() {
                 ...formData,
                 total_floors: parseInt(formData.total_floors as any, 10),
                 // If user didn't pick, backend will geocode address
-                latitude: formData.latitude || null,
-                longitude: formData.longitude || null,
+                latitude: formData.latitude ?? null,
+                longitude: formData.longitude ?? null,
             };
 
             await providerService.createFacility(payload);
@@ -172,7 +172,7 @@ export function ProviderOnboarding() {
                                     <LocationPicker 
                                         lat={formData.latitude} 
                                         lng={formData.longitude} 
-                                        onChange={handleLocationChange} 
+                                        onChange={handleLocationChange as any} 
                                     />
                                 </div>
                             </div>

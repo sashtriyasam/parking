@@ -70,6 +70,18 @@ export default function HomeScreen() {
     initLocationAndFetch();
   }, []);
 
+  // Animate map to location when it's first available
+  useEffect(() => {
+    if (location && mapRef.current) {
+      mapRef.current.animateToRegion({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      }, 1000);
+    }
+  }, [location]);
+
   const initLocationAndFetch = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
@@ -164,29 +176,42 @@ export default function HomeScreen() {
 
       {/* Modern High-Fidelity Floating Search */}
       <View style={[styles.floatingHeader, { top: insets.top + 10 }]}>
-         <ProfessionalCard 
-            style={styles.searchBar} 
-            hasVibrancy={true}
-            onPress={() => {
-                haptics.impactLight();
-                router.push('/(customer)/search');
-            }}
-         >
-            <View style={styles.searchInner}>
-               <Ionicons name="search" size={20} color={colors.primary} />
-               <Text style={[styles.searchPlaceholder, { color: colors.textMuted }]}>Find parking nearby...</Text>
-               <View style={[styles.divider, { backgroundColor: colors.border }]} />
-               <TouchableOpacity 
-                  onPress={() => {
-                     haptics.impactLight();
-                     router.push('/(customer)/profile');
-                  }}
-                  style={[styles.profileButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-               >
-                  <Ionicons name="person" size={16} color={colors.textPrimary} />
-               </TouchableOpacity>
-            </View>
-         </ProfessionalCard>
+         <View style={{ position: 'relative' }}>
+            <ProfessionalCard 
+               style={styles.searchBar} 
+               hasVibrancy={true}
+               onPress={() => {
+                   haptics.impactLight();
+                   router.push('/(customer)/search');
+               }}
+            >
+               <View style={styles.searchInner}>
+                  <Ionicons name="search" size={20} color={colors.primary} />
+                  <Text style={[styles.searchPlaceholder, { color: colors.textMuted }]}>Find parking nearby...</Text>
+                  <View style={{ width: 44 }} />
+               </View>
+            </ProfessionalCard>
+
+            <TouchableOpacity 
+               onPress={() => {
+                  haptics.impactLight();
+                  router.push('/(customer)/profile');
+               }}
+               style={[
+                  styles.profileButton, 
+                  { 
+                     position: 'absolute', 
+                     right: 12, 
+                     top: 12, 
+                     backgroundColor: colors.surface, 
+                     borderColor: colors.border,
+                     zIndex: 10
+                  }
+               ]}
+            >
+               <Ionicons name="person" size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
+         </View>
 
          <ScrollView
             horizontal

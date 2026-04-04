@@ -64,6 +64,15 @@ function formatPassDate(dateStr: string): string {
   });
 }
 
+function withAlpha(color: string, opacity: number): string {
+  // Simple hex to rgba conversion
+  if (!color.startsWith('#')) return color;
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
 export default function PassesScreen() {
   const router = useRouter();
   const colors = useThemeColors();
@@ -118,7 +127,10 @@ export default function PassesScreen() {
                 <Text style={[styles.facilityName, { color: colors.textPrimary }]}>{item.facility.name}</Text>
                 <Text style={[styles.facilityAddress, { color: colors.textMuted }]} numberOfLines={1}>{item.facility.address}</Text>
               </View>
-              <View style={[styles.statusBadge, { backgroundColor: isActive ? colors.success + '15' : colors.surface, borderColor: isActive ? colors.success + '30' : colors.border }]}>
+              <View style={[styles.statusBadge, { 
+                backgroundColor: isActive ? withAlpha(colors.success, 0.08) : colors.surface, 
+                borderColor: isActive ? withAlpha(colors.success, 0.2) : colors.border 
+              }]}>
                 <Text style={[styles.statusText, { color: isActive ? colors.success : colors.textMuted }]}>{isActive ? 'ACTIVE' : 'EXPIRED'}</Text>
               </View>
             </View>
@@ -130,7 +142,9 @@ export default function PassesScreen() {
                </View>
                <View style={[styles.divider, { backgroundColor: colors.border }]} />
                <View style={styles.statBox}>
-                  <Text style={[styles.statValue, { color: colors.textPrimary }]}>{item.vehicle_type.toUpperCase()}</Text>
+                  <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+                    {(item.vehicle_type || 'N/A').toUpperCase()}
+                  </Text>
                   <Text style={[styles.statLabel, { color: colors.textMuted }]}>VEHICLE</Text>
                </View>
                <View style={[styles.divider, { backgroundColor: colors.border }]} />

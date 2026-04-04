@@ -35,6 +35,14 @@ export interface Facility {
   provider_id?: string;
   verified?: boolean;
   is_active?: boolean;
+  is_24_7?: boolean;
+  is_premium?: boolean;
+  tier?: string;
+  hourly_rate?: number;
+  base_price?: number;
+  distance?: string;
+  reviewCountSummary?: string;
+  currency?: string;
 }
 
 export interface ParkingSlot {

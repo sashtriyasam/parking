@@ -185,8 +185,8 @@ export default function AnalyticsScreen() {
             <ProfessionalCard style={styles.sectionCard} hasVibrancy={true}>
               <BarChart
                 data={{
-                  labels: ["08:00", "12:00", "16:00", "20:00"],
-                  datasets: [{ data: Array.isArray(data?.occupancy) ? data.occupancy.slice(0, 4) : [0,0,0,0] }]
+                  labels: ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00", "23:59"],
+                  datasets: [{ data: Array.isArray(data?.occupancy) ? data.occupancy.slice(0, 7) : [0,0,0,0,0,0,0] }]
                 }}
                 width={width - 80}
                 height={160}
@@ -207,7 +207,7 @@ export default function AnalyticsScreen() {
           <Animated.View entering={FadeInUp.delay(600)}>
             <ProfessionalCard style={styles.sectionCard} hasVibrancy={true}>
               <PieChart
-                data={data.vehicles}
+                data={Array.isArray(data.vehicles) ? data.vehicles : []}
                 width={width - 80}
                 height={150}
                 chartConfig={chartConfig}

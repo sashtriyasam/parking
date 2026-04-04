@@ -41,7 +41,7 @@ interface PaymentMethod {
 }
 
 const PAYMENT_METHODS: PaymentMethod[] = [
-  { id: '1', type: 'upi', label: 'Apple Pay', value: 'shivam@okaxis', isDefault: true, icon: 'logo-apple', accent: '#000000' },
+  { id: '1', type: 'wallet', label: 'Apple Pay', value: 'Digital Wallet', isDefault: true, icon: 'logo-apple', accent: '#000000' },
   { id: '2', type: 'card', label: 'HDFC Priority Card', value: '•••• •••• •••• 4242', expiry: '12/28', isDefault: false, icon: 'card', accent: '#003366' },
 ];
 

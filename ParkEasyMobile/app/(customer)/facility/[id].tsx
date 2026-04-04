@@ -30,6 +30,8 @@ import { ProfessionalButton } from '../../../components/ui/ProfessionalButton';
 import { ProfessionalCard } from '../../../components/ui/ProfessionalCard';
 import { useThemeColors } from '../../../hooks/useThemeColors';
 import { useHaptics } from '../../../hooks/useHaptics';
+import { useBookingFlowStore } from '../../../store/bookingFlowStore';
+import { ParkingSlot } from '../../../types';
 
 const { width } = Dimensions.get('window');
 const HEADER_HEIGHT = 420;
@@ -46,13 +48,17 @@ interface Facility {
   image_url?: string;
   amenities?: string[];
   rating?: number;
+  reviewCount?: number;
+  slots?: ParkingSlot[];
 }
 
 export default function FacilityDetailsScreen() {
   const { id } = useLocalSearchParams();
+  const facilityId = Array.isArray(id) ? id[0] : id;
   const router = useRouter();
   const colors = useThemeColors();
   const haptics = useHaptics();
+  const { setFacility: setStoreFacility, setSlot, resetBookingFlow } = useBookingFlowStore();
   
   const [facility, setFacility] = useState<Facility | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,12 +67,13 @@ export default function FacilityDetailsScreen() {
   const scrollY = useSharedValue(0);
 
   useEffect(() => {
-    fetchFacility();
-  }, [id]);
+    if (facilityId) fetchFacility();
+  }, [facilityId]);
 
   const fetchFacility = async () => {
+    if (!facilityId) return;
     try {
-      const res = await get(`/facilities/${id}`);
+      const res = await get(`/facilities/${facilityId}`);
       if (res.data?.data) {
         setFacility(res.data.data);
       }
@@ -108,9 +115,26 @@ export default function FacilityDetailsScreen() {
 
   const handleBookNow = async () => {
     if (!facility) return;
-    haptics.impactMedium();
-    // Navigate to the structured booking flow
-    router.push(`/(customer)/booking/vehicle`);
+    setBookingLoading(true);
+    try {
+      haptics.impactMedium();
+      
+      // Initialize booking context
+      resetBookingFlow();
+      setStoreFacility(facility.id, facility.name);
+      
+      // Pre-select first available slot if present to avoid session errors
+      if (facility.slots && facility.slots.length > 0) {
+        const availableSlot = facility.slots.find(s => s.status === 'free');
+        if (availableSlot) setSlot(availableSlot);
+      }
+
+      // Navigate to the structured booking flow
+      router.push(`/(customer)/booking/vehicle`);
+    } finally {
+      // Small timeout to allow navigation to start before clearing loading
+      setTimeout(() => setBookingLoading(false), 500);
+    }
   };
 
   if (loading) {
@@ -181,9 +205,11 @@ export default function FacilityDetailsScreen() {
             <View style={styles.metaRow}>
                <View style={styles.ratingBox}>
                   <Ionicons name="star" size={14} color="#FFB800" />
-                  <Text style={[styles.ratingText, { color: colors.textPrimary }]}>4.9</Text>
+                  <Text style={[styles.ratingText, { color: colors.textPrimary }]}>{facility.rating || '4.9'}</Text>
                </View>
-               <Text style={[styles.reviewCount, { color: colors.textMuted }]}>• OVER 2.4K REVIEWS</Text>
+               <Text style={[styles.reviewCount, { color: colors.textMuted }]}>
+                  • {facility.reviewCount ? (facility.reviewCount >= 1000 ? `OVER ${(facility.reviewCount / 1000).toFixed(1)}K` : facility.reviewCount) : 'OVER 2.4K'} REVIEWS
+               </Text>
             </View>
 
             <View style={[styles.locationRow, { borderBottomColor: colors.border }]}>
@@ -223,7 +249,7 @@ export default function FacilityDetailsScreen() {
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Amenities & Services</Text>
             <View style={styles.amenityContainer}>
-               {['Automated Valet', 'EV Fast Charge', 'CCTV Grid', 'Climate Controlled', 'Underground'].map((item) => (
+               {(facility?.amenities ?? ['Automated Valet', 'EV Fast Charge', 'CCTV Grid', 'Climate Controlled', 'Underground']).map((item) => (
                  <View key={item} style={[styles.amenityPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <Text style={[styles.amenityText, { color: colors.textPrimary }]}>{item}</Text>
                  </View>

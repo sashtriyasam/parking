@@ -33,22 +33,22 @@ router.post('/favorites/:facilityId', restrictTo('CUSTOMER', 'ADMIN'), customerC
 router.delete('/favorites/:facilityId', restrictTo('CUSTOMER', 'ADMIN'), customerController.removeFavorite);
 router.get('/favorites', restrictTo('CUSTOMER', 'ADMIN'), customerController.getFavorites);
 
-// --- TICKETS (Shared Access) ---
-router.get('/tickets/active', ticketController.getActiveTickets);
-router.get('/tickets/history', ticketController.getTicketHistory);
-router.get('/tickets/:ticketId', ticketController.getTicketById);
+// --- TICKETS ---
+router.get('/tickets/active', restrictTo('CUSTOMER', 'ADMIN'), ticketController.getActiveTickets);
+router.get('/tickets/history', restrictTo('CUSTOMER', 'ADMIN'), ticketController.getTicketHistory);
+router.get('/tickets/:ticketId', restrictTo('CUSTOMER', 'ADMIN'), ticketController.getTicketById);
 router.post('/tickets/:ticketId/extend', restrictTo('CUSTOMER', 'ADMIN'), ticketController.extendTicket);
 
 // --- BOOKING FLOW (NEW) ---
 const bookingController = require('../controllers/booking.controller');
-router.post('/booking/confirm', bookingController.createBookingWithPayment);
+router.post('/booking/confirm', restrictTo('CUSTOMER', 'ADMIN'), bookingController.createBookingWithPayment);
 router.post('/tickets/:ticketId/cancel', restrictTo('CUSTOMER', 'PROVIDER', 'ADMIN'), bookingController.cancelBooking);
-router.get('/booking/:ticketId/pdf', bookingController.downloadTicketPDF);
-router.get('/booking/:ticketId/invoice.pdf', bookingController.downloadTicketPDF);
+router.get('/booking/:ticketId/pdf', restrictTo('CUSTOMER', 'ADMIN'), bookingController.downloadTicketPDF);
+router.get('/booking/:ticketId/invoice.pdf', restrictTo('CUSTOMER', 'ADMIN'), bookingController.downloadTicketPDF);
 
 // --- MONTHLY PASSES ---
-router.get('/passes/available', passController.getAvailablePasses);
-router.post('/passes/purchase', passController.purchasePass);
-router.get('/passes/active', passController.getMyPasses);
+router.get('/passes/available', restrictTo('CUSTOMER', 'ADMIN'), passController.getAvailablePasses);
+router.post('/passes/purchase', restrictTo('CUSTOMER', 'ADMIN'), passController.purchasePass);
+router.get('/passes/active', restrictTo('CUSTOMER', 'ADMIN'), passController.getMyPasses);
 
 module.exports = router;

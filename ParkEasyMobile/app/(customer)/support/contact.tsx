@@ -11,6 +11,14 @@ import { ProfessionalCard } from '../../../components/ui/ProfessionalCard';
 import { ProfessionalButton } from '../../../components/ui/ProfessionalButton';
 import { ProfessionalInput } from '../../../components/ui/ProfessionalInput';
 
+function withAlpha(color: string, opacity: number): string {
+  if (!color.startsWith('#')) return color;
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
 export default function ContactSupportScreen() {
   const [message, setMessage] = useState('');
   const [subject, setSubject] = useState('');
@@ -40,13 +48,26 @@ export default function ContactSupportScreen() {
     }, 1500);
   };
 
-  const openChannel = (type: 'call' | 'wa' | 'mail') => {
+  const openChannel = async (type: 'call' | 'wa' | 'mail') => {
     haptics.impactLight();
     let url = '';
     if (type === 'call') url = 'tel:+919876543210';
     if (type === 'wa') url = 'https://wa.me/919876543210';
     if (type === 'mail') url = 'mailto:concierge@parkeasy.com';
-    Linking.openURL(url);
+    
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert(
+          'Channel Unavailable', 
+          `Your device cannot open this channel. Please ensure the ${type === 'wa' ? 'WhatsApp' : type === 'call' ? 'Phone' : 'Mail'} app is correctly configured.`
+        );
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Failed to open the support channel. Please try again later.');
+    }
   };
 
   return (
@@ -65,7 +86,10 @@ export default function ContactSupportScreen() {
                <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Connect with Us</Text>
             </View>
 
-            <View style={[styles.statusBadge, { backgroundColor: colors.success + '15', borderColor: colors.success + '30' }]}>
+            <View style={[styles.statusBadge, { 
+              backgroundColor: withAlpha(colors.success, 0.08), 
+              borderColor: withAlpha(colors.success, 0.2) 
+            }]}>
                <View style={[styles.onlineDot, { backgroundColor: colors.success }]} />
                <Text style={[styles.statusText, { color: colors.success }]}>ONLINE</Text>
             </View>

@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   Modal,
   ActivityIndicator,
-  Dimensions,
+  useWindowDimensions,
   StatusBar
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -34,13 +34,12 @@ import { ProfessionalInput } from '../../components/ui/ProfessionalInput';
 
 import { MapView, Marker } from '../../components/MapPlaceholder';
 
-const { width, height } = Dimensions.get('window');
-
 export default function AddFacility() {
   const router = useRouter();
   const colors = useThemeColors();
   const haptics = useHaptics();
   const { showToast } = useToast();
+  const { height } = useWindowDimensions();
 
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -353,7 +352,7 @@ export default function AddFacility() {
       {/* Map Verification Modal */}
       <Modal visible={showMap} animationType="slide" transparent>
         <BlurView intensity={100} tint={colors.isDark ? 'dark' : 'light'} style={styles.modalOverlay}>
-           <Animated.View entering={SlideInRight} style={[styles.modalContent, { backgroundColor: colors.background }]}>
+           <Animated.View entering={SlideInRight} style={[styles.modalContent, { backgroundColor: colors.background, height: height * 0.85 }]}>
               <View style={styles.modalHeader}>
                  <View>
                     <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Confirm Pin</Text>
@@ -434,7 +433,7 @@ const styles = StyleSheet.create({
   backBtnFooter: { flex: 1, height: 60, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   backBtnTxt: { fontSize: 16, fontWeight: '800' },
   modalOverlay: { flex: 1, justifyContent: 'flex-end' },
-  modalContent: { borderTopLeftRadius: 40, borderTopRightRadius: 40, height: height * 0.85, padding: 24 },
+  modalContent: { borderTopLeftRadius: 40, borderTopRightRadius: 40, padding: 24 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   modalTitle: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
   modalSubtitle: { fontSize: 14, fontWeight: '600', marginTop: 4 },

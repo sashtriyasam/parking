@@ -13,12 +13,17 @@ async function main() {
         }
     });
     console.log('Providers found:');
-    console.log(JSON.stringify(providers, null, 2));
+    const sanitized = providers.map(p => ({
+        ...p,
+        email: p.email ? `${p.email.charAt(0)}***@${p.email.split('@')[1]}` : 'N/A'
+    }));
+    console.log(JSON.stringify(sanitized, null, 2));
 }
 
 main()
     .catch((err) => {
         console.error('Error fetching providers:', err);
+        process.exitCode = 1;
     })
     .finally(async () => {
         await prisma.$disconnect();

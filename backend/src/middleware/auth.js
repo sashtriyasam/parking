@@ -12,7 +12,19 @@ const protect = asyncHandler(async (req, res, next) => {
     ) {
         token = req.headers.authorization.split(' ')[1];
     } else if (req.query.token) {
-        token = req.query.token;
+        // Only allow query tokens for PDF/Invoice downloads as they are often accessed via direct browser links
+        const allowedQueryTokenPaths = [
+            /\/api\/v1\/customer\/booking\/.*\/pdf/,
+            /\/api\/v1\/customer\/booking\/.*\/invoice\.pdf/
+        ];
+        
+        const isWhitelisted = allowedQueryTokenPaths.some(pattern => pattern.test(req.originalUrl));
+        
+        if (isWhitelisted) {
+            token = req.query.token;
+        } else {
+            return next(new AppError('Query tokens are not allowed for this endpoint. Please use Authorization header.', 401));
+        }
     }
 
     if (!token) {

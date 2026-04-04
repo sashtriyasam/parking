@@ -20,7 +20,17 @@ async function test() {
     // 2. Search Mumbai
     console.log('\nStep 2: Searching for facilities in Mumbai...');
     const searchRes = await axios.get(`${API_URL}/customer/search?city=Mumbai&latitude=19.0760&longitude=72.8777`, { headers });
+    
+    if (!searchRes?.data?.data) {
+      throw new Error('Invalid or empty response from search API');
+    }
+    
     const facilities = searchRes.data.data.facilities || searchRes.data.data; 
+    
+    if (!Array.isArray(facilities)) {
+       console.error('Search API did not return an array of facilities:', searchRes.data.data);
+       throw new Error('Search API did not return an array of facilities');
+    }
     
     const garage = facilities.find(f => f.name === 'LOCAL TEST GARAGE');
     if (garage) {

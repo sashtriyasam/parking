@@ -4,6 +4,13 @@ const asyncHandler = require('../utils/asyncHandler');
 const geocodingService = require('../services/geocoding.service');
 const socketService = require('../services/socket.service');
 
+// Helper for safe numeric parsing
+const parseNumeric = (value, parser = parseFloat) => {
+    if (value === undefined || value === null || value === '') return undefined;
+    const parsed = parser(value);
+    return isNaN(parsed) ? undefined : parsed;
+};
+
 // --- Facilities ---
 
 const createFacility = asyncHandler(async (req, res, next) => {
@@ -30,9 +37,9 @@ const createFacility = asyncHandler(async (req, res, next) => {
             name,
             address,
             city,
-            latitude: finalLatitude ? parseFloat(finalLatitude) : null,
-            longitude: finalLongitude ? parseFloat(finalLongitude) : null,
-            total_floors: parseInt(total_floors, 10) || 1,
+            latitude: parseNumeric(finalLatitude),
+            longitude: parseNumeric(finalLongitude),
+            total_floors: parseNumeric(total_floors, (v) => parseInt(v, 10)) || 1,
             operating_hours,
             description,
             is_active: is_active !== undefined ? is_active : true,
@@ -49,10 +56,7 @@ const createFacility = asyncHandler(async (req, res, next) => {
 
 const getMyFacilities = asyncHandler(async (req, res) => {
     const facilities = await prisma.parkingFacility.findMany({
-        where: { 
-            provider_id: req.user.id,
-            is_active: true 
-        },
+        where: { provider_id: req.user.id },
         include: { 
             floors: {
                 include: {

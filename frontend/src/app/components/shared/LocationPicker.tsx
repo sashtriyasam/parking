@@ -21,17 +21,21 @@ const DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 
 interface LocationPickerProps {
-    lat: number;
-    lng: number;
+    lat: number | null;
+    lng: number | null;
     onChange: (lat: number, lng: number) => void;
 }
+
+const MUMBAI_CENTER: [number, number] = [19.0760, 72.8777];
 
 // Internal component to handle map movement
 function MapController({ center }: { center: [number, number] }) {
     const map = useMap();
     useEffect(() => {
-        if (center[0] !== 0 && center[1] !== 0) {
-            map.setView(center, map.getZoom());
+        // Only set view if not Mumbai fallback (or if map just loaded)
+        const isMumbaiFallback = center[0] === MUMBAI_CENTER[0] && center[1] === MUMBAI_CENTER[1];
+        if (!isMumbaiFallback || map.getZoom() === 0) {
+            map.setView(center, map.getZoom() || 15);
         }
     }, [center, map]);
     return null;
@@ -49,9 +53,9 @@ function LocationEvents({ onLocationSelected }: { onLocationSelected: (lat: numb
 
 export function LocationPicker({ lat, lng, onChange }: LocationPickerProps) {
     const position = useMemo((): [number, number] => {
-        // Fallback to Mumbai center if no coordinates
-        if (!lat || !lng || (lat === 0 && lng === 0)) {
-            return [19.0760, 72.8777];
+        // Use explicit null check to allow 0 coordinates
+        if (lat == null || lng == null) {
+            return MUMBAI_CENTER;
         }
         return [lat, lng];
     }, [lat, lng]);
@@ -75,7 +79,7 @@ export function LocationPicker({ lat, lng, onChange }: LocationPickerProps) {
             <div className="flex justify-between items-center bg-gray-50 p-2 rounded-lg border border-gray-100">
                 <div className="flex items-center text-[10px] font-mono text-gray-500">
                     <MapPin className="w-3 h-3 mr-1 text-primary" />
-                    <span>{lat ? lat.toFixed(6) : '0.000000'}, {lng ? lng.toFixed(6) : '0.000000'}</span>
+                    <span>{lat != null ? lat.toFixed(6) : '0.000000'}, {lng != null ? lng.toFixed(6) : '0.000000'}</span>
                 </div>
                 <Button 
                     type="button" 

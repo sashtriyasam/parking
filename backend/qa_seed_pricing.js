@@ -28,7 +28,7 @@ async function main() {
   
   // Also seed pricing for LOCAL TEST GARAGE
   const garages = await prisma.parkingFacility.findMany({
-    where: { name: { contains: 'LOCAL' } },
+    where: { name: { contains: 'LOCAL', mode: 'insensitive' } },
     select: { id: true, name: true }
   });
   

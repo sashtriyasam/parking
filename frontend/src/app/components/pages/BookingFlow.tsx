@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Car, Bike, Truck, CreditCard, Smartphone, Clock, Check, ChevronLeft, Navigation, MapPin, CalendarClock, ArrowRight } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
@@ -93,12 +93,17 @@ export function BookingVehicle() {
       return;
     }
 
+    if (!user?.id || !id) {
+      toast.error('Session error. Please try again.');
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
       const booking = await createBooking({
-        customerId: user!.id,
-        facilityId: id!,
+        customerId: user.id,
+        facilityId: id,
         slotId: slotId || '',
         vehicleNumber: vehicleNumber.toUpperCase(),
         vehicleType,
@@ -362,8 +367,13 @@ export function BookingSuccess() {
   const lat = facilityLat || facility?.latitude;
   const lng = facilityLng || facility?.longitude;
 
+  useEffect(() => {
+    if (!booking) {
+      navigate('/customer/search');
+    }
+  }, [booking, navigate]);
+
   if (!booking) {
-    navigate('/customer/search');
     return null;
   }
 

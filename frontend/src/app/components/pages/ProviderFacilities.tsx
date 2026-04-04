@@ -141,7 +141,6 @@ export function ProviderFacilities() {
     };
 
     const handleDelete = async (id: string) => {
-        console.log("Delete triggered for:", id);
         setIsDeleting(true);
         try {
             await providerService.deleteFacility(id);
@@ -251,7 +250,6 @@ export function ProviderFacilities() {
                                                 size="icon" 
                                                 className="text-red-500 hover:text-red-700 hover:bg-red-50" 
                                                 onClick={() => {
-                                                    console.log("Trash icon clicked for id:", facility.id);
                                                     setDeleteConfirmId(facility.id);
                                                 }}
                                             >
@@ -339,7 +337,10 @@ export function ProviderFacilities() {
                         <AlertDialogFooter>
                             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
                             <AlertDialogAction 
-                                onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    if (deleteConfirmId) handleDelete(deleteConfirmId);
+                                }}
                                 className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
                                 disabled={isDeleting}
                             >

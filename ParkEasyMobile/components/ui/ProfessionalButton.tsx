@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useHaptics } from '../../hooks/useHaptics';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'vibrant';
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'vibrant' | 'outline';
 
 interface ProfessionalButtonProps {
   label: string;
@@ -87,6 +87,13 @@ export const ProfessionalButton: React.FC<ProfessionalButtonProps> = ({
         };
       case 'ghost':
         return { backgroundColor: 'transparent' };
+      case 'outline':
+        return {
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderColor: colors.primary,
+          shadowOpacity: 0
+        };
       default:
         return { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border };
     }
@@ -94,7 +101,7 @@ export const ProfessionalButton: React.FC<ProfessionalButtonProps> = ({
 
   const getTextColor = () => {
     if (variant === 'primary' || variant === 'danger') return '#FFFFFF';
-    if (variant === 'ghost') return colors.primary;
+    if (variant === 'ghost' || variant === 'outline') return colors.primary;
     return colors.textPrimary;
   };
 

@@ -103,7 +103,7 @@ export default function EditFacility() {
       <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
       
       <Animated.View entering={FadeInDown.duration(600)} style={styles.header}>
-        <BlurView intensity={20} tint={colors.isDark ? 'dark' : 'light'} style={styles.headerContent}>
+        <BlurView intensity={20} tint={colors.isDark ? 'dark' : 'light'} style={[styles.headerContent, { borderBottomColor: colors.border }]}>
           <View style={styles.headerTop}>
             <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
@@ -207,7 +207,6 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 70 : 50,
     paddingBottom: 20,
     borderBottomWidth: 0.5,
-    borderColor: 'rgba(0,0,0,0.05)',
   },
   headerTop: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, gap: 12 },
   navBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },

@@ -88,7 +88,7 @@ export const ProfessionalInput: React.FC<ProfessionalInputProps> = ({
         )}
         
         <TextInput
-          style={[styles.input, { color: colors.textPrimary }]}
+          style={[styles.input, { color: colors.textPrimary }, props.style]}
           placeholderTextColor={colors.textMuted}
           onFocus={handleFocus}
           onBlur={handleBlur}

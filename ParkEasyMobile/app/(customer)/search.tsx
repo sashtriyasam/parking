@@ -24,6 +24,7 @@ import { searchLocation, LocationSuggestion } from '../../services/geocoding';
 import { ParkingFacilityCard } from '../../components/ParkingFacilityCard';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useHaptics } from '../../hooks/useHaptics';
+import { useToast } from '../../components/Toast';
 import { ParkingFacility, VehicleType } from '../../types';
 import { EmptyState } from '../../components/EmptyState';
 import { ProfessionalCard } from '../../components/ui/ProfessionalCard';
@@ -41,9 +42,10 @@ const VEHICLE_FILTERS: { label: string; value: VehicleType; icon: any }[] = [
 ];
 
 export default function SearchScreen() {
-  const router = useRouter();
   const colors = useThemeColors();
   const haptics = useHaptics();
+  const { showToast } = useToast();
+  const router = useRouter();
   
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<SearchMode>('COORD');
@@ -111,8 +113,13 @@ export default function SearchScreen() {
       setSuggestions([]);
       setMode('NAME'); 
       setQuery(suggestion.display_name.split(',')[0]);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Suggestion fetch error', e);
+      haptics.notificationError();
+      const errorMsg = e.message === 'Invalid coordinates received from suggestion' 
+        ? "Unable to find location — please try again"
+        : "Failed to fetch parking data";
+      showToast(errorMsg, 'error');
     } finally {
       setLoading(false);
     }

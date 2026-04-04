@@ -5,6 +5,13 @@ const analyticsService = require('../services/analytics.service');
 const bookingService = require('../services/booking.service');
 const logger = require('../utils/logger');
 
+// Helper for safe numeric parsing
+const parseNumeric = (value, parser = parseFloat) => {
+    if (value === undefined || value === null || value === '') return undefined;
+    const parsed = parser(value);
+    return isNaN(parsed) ? undefined : parsed;
+};
+
 // --- Facility Management ---
 
 const updateFacility = asyncHandler(async (req, res, next) => {
@@ -34,11 +41,11 @@ const updateFacility = asyncHandler(async (req, res, next) => {
             name, 
             address, 
             city, 
-            latitude: latitude !== undefined ? parseFloat(latitude) : undefined, 
-            longitude: longitude !== undefined ? parseFloat(longitude) : undefined,
+            latitude: parseNumeric(latitude), 
+            longitude: parseNumeric(longitude),
             operating_hours, 
             description,
-            total_floors: total_floors !== undefined ? parseInt(total_floors, 10) : undefined,
+            total_floors: parseNumeric(total_floors, (v) => parseInt(v, 10)),
             is_active,
             image_url
         }
@@ -405,11 +412,12 @@ const getRecentBookings = asyncHandler(async (req, res) => {
         customer_phone: booking.customer?.phone_number || 'N/A',
         vehicle_number: booking.vehicle_number,
         vehicle_type: booking.vehicle_type,
+        facility_id: booking.facility_id,
         slot_number: booking.slot?.slot_number || 'N/A',
         entry_time: booking.entry_time,
         exit_time: booking.exit_time,
         amount: booking.total_fee || 0,
-        status: booking.status.toLowerCase(),
+        status: booking.status ? booking.status.toLowerCase() : 'active',
         booking_type: booking.booking_type,
         payment_method: booking.payment_method || 'N/A'
     }));
@@ -612,11 +620,12 @@ const getAllBookings = asyncHandler(async (req, res) => {
         customer_phone: booking.customer?.phone_number || 'N/A',
         vehicle_number: booking.vehicle_number,
         vehicle_type: booking.vehicle_type,
+        facility_id: booking.facility_id,
         slot_number: booking.slot?.slot_number || 'N/A',
         entry_time: booking.entry_time,
         exit_time: booking.exit_time,
         amount: booking.total_fee || 0,
-        status: booking.status.toLowerCase(),
+        status: booking.status ? booking.status.toLowerCase() : 'active',
         booking_type: booking.booking_type,
         payment_method: booking.payment_method || 'N/A'
     }));
@@ -992,7 +1001,21 @@ const createOfflineBooking = asyncHandler(async (req, res, next) => {
         return next(new AppError('Missing required fields: facility, vehicle number, and type are mandatory.', 400));
     }
 
-    // 2. Auto-allot slot if not provided
+    // Verify Ownership
+    const facility = await prisma.parkingFacility.findUnique({ 
+        where: { id: facilityId },
+        select: { provider_id: true }
+    });
+    
+    if (!facility) {
+        return next(new AppError('Facility not found', 404));
+    }
+    
+    if (facility.provider_id !== providerId) {
+        return next(new AppError('Unauthorized to create bookings for this facility', 403));
+    }
+
+    // 2. Auto-allot slot if not provided OR verify provided slot
     if (!slotId || slotId === 'Auto' || slotId === 'undefined') {
         const freeSlot = await prisma.parkingSlot.findFirst({
             where: {
@@ -1008,6 +1031,28 @@ const createOfflineBooking = asyncHandler(async (req, res, next) => {
             return next(new AppError(`No free slots available for ${vehicleType} in this facility.`, 404));
         }
         slotId = freeSlot.id;
+    } else {
+        // Verify provided slot exists and belongs to this facility
+        const slot = await prisma.parkingSlot.findUnique({
+            where: { id: slotId },
+            include: { floor: { select: { facility_id: true } } }
+        });
+
+        if (!slot || slot.floor.facility_id !== facilityId) {
+            return next(new AppError('The selected slot does not exist or does not belong to this facility.', 400));
+        }
+
+        if (!slot.is_active) {
+            return next(new AppError('The selected slot is currently inactive.', 400));
+        }
+
+        if (slot.vehicle_type !== vehicleType.toUpperCase()) {
+            return next(new AppError(`Selected slot is for ${slot.vehicle_type}, but vehicle is a ${vehicleType}.`, 400));
+        }
+
+        if (slot.status !== 'FREE') {
+            return next(new AppError('The selected slot is already occupied.', 400));
+        }
     }
 
     // 3. Create booking

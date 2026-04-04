@@ -185,8 +185,8 @@ export default function LoginScreen() {
               </View>
 
               <View style={styles.socialRow}>
-                <SocialButton icon="logo-google" label="Google" onPress={() => haptics.impactLight()} colors={colors} />
-                <SocialButton icon="logo-apple" label="Apple" onPress={() => haptics.impactLight()} colors={colors} />
+                <SocialButton icon="logo-google" label="Google (Coming soon)" onPress={() => {}} disabled={true} colors={colors} />
+                <SocialButton icon="logo-apple" label="Apple (Coming soon)" onPress={() => {}} disabled={true} colors={colors} />
               </View>
             </ProfessionalCard>
           </Animated.View>
@@ -205,8 +205,13 @@ export default function LoginScreen() {
   );
 }
 
-const SocialButton = ({ icon, label, onPress, colors }: any) => (
-  <TouchableOpacity style={styles.socialBtn} onPress={onPress} activeOpacity={0.7}>
+const SocialButton = ({ icon, label, onPress, colors, disabled }: any) => (
+  <TouchableOpacity 
+    style={[styles.socialBtn, disabled && { opacity: 0.5 }]} 
+    onPress={onPress} 
+    activeOpacity={disabled ? 0.5 : 0.7}
+    disabled={disabled}
+  >
     <BlurView intensity={10} tint={colors.isDark ? 'dark' : 'light'} style={[styles.socialBlur, { borderColor: colors.border, borderWidth: 1, borderRadius: 20 }]}>
       <Ionicons name={icon} size={18} color={colors.textPrimary} />
       <Text style={[styles.socialText, { color: colors.textPrimary }]}>{label}</Text>

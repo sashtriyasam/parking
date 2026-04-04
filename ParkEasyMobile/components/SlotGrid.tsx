@@ -64,13 +64,16 @@ const SlotItem: React.FC<{
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulse.value }],
-    borderColor: isSelectedSV.value 
+  }));
+
+  const dynamicItemStyle = {
+    borderColor: isSelected 
       ? colors.primary 
-      : isHighlightedSV.value 
+      : isHighlighted 
         ? colors.premium.primary 
         : colors.border,
-    borderWidth: (isSelectedSV.value || isHighlightedSV.value) ? 2 : 1,
-  }));
+    borderWidth: (isSelected || isHighlighted) ? 2 : 1,
+  };
 
   const isFree = item.status.toUpperCase() === 'FREE' || item.status === 'free';
   const statusKey = item.status.toLowerCase() as keyof typeof SLOT_STATUS_COLORS;
@@ -93,7 +96,7 @@ const SlotItem: React.FC<{
         disabled={!isFree}
         style={styles.touchable}
       >
-        <Animated.View style={[styles.slotContainer, { backgroundColor: colors.surface }, animatedStyle]}>
+        <Animated.View style={[styles.slotContainer, { backgroundColor: colors.surface }, dynamicItemStyle, animatedStyle]}>
           <BlurView intensity={isSelected ? 30 : 10} tint={colors.isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
           {!isFree && <View style={[styles.disabledOverlay, { backgroundColor: statusColor, opacity: 0.1 }]} />}
           <View style={[styles.statusIndicator, { backgroundColor: statusColor }]} />

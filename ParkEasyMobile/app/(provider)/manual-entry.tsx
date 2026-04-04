@@ -31,7 +31,7 @@ export default function ManualEntryScreen() {
   const [formData, setFormData] = useState({
     facility_id: '',
     vehicle_number: '',
-    vehicle_type: 'car' as 'car' | 'bike' | 'scooter' | 'truck',
+    vehicle_type: 'car' as 'car' | 'bike' | 'truck',
     slot_id: ''
   });
 
@@ -42,7 +42,7 @@ export default function ManualEntryScreen() {
         if (res.data?.data) {
           setFacilities(res.data.data);
           if (res.data.data.length > 0) {
-            setFormData(prev => ({ ...prev, facility_id: res.data.data[0].id }));
+            setFormData((prev: any) => ({ ...prev, facility_id: res.data.data[0].id }));
           }
         }
       } catch (error) {
@@ -74,6 +74,9 @@ export default function ManualEntryScreen() {
         Alert.alert('Success', 'Offline check-in confirmed', [
             { text: 'OK', onPress: () => router.back() }
         ]);
+      } else {
+        haptics.notificationError();
+        Alert.alert('Operation Failed', res.data?.message || 'The server rejected the manual check-in.');
       }
     } catch (error: any) {
       console.error('Offline check-in error:', error);
@@ -83,18 +86,18 @@ export default function ManualEntryScreen() {
     }
   };
 
-  const VehicleTypeBtn = ({ type, icon, label }: any) => {
+  const VehicleTypeBtn = ({ type, icon, label }: { type: 'car' | 'bike' | 'truck', icon: any, label: string }) => {
     const isActive = formData.vehicle_type === type;
     return (
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={() => {
           haptics.impactLight();
-          setFormData(prev => ({ ...prev, vehicle_type: type }));
+          setFormData((prev: any) => ({ ...prev, vehicle_type: type }));
         }}
         style={[
           styles.typeBtn,
-          { 
+          {
             backgroundColor: isActive ? colors.primary : (colors.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
             borderColor: isActive ? colors.primary : colors.border
           }
@@ -115,50 +118,58 @@ export default function ManualEntryScreen() {
   }
 
   return (
-    <KeyboardAvoidingView 
-      style={{ flex: 1, backgroundColor: colors.background }} 
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView 
+      <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>FACILITY SELECTION</Text>
         <View style={styles.facilityGrid}>
-          {facilities.map(f => (
-            <ProfessionalCard 
-              key={f.id}
-              onPress={() => {
-                haptics.impactLight();
-                setFormData(prev => ({ ...prev, facility_id: f.id }));
-              }}
-              style={[
-                styles.facilityCard, 
-                formData.facility_id === f.id && { borderColor: colors.primary, borderWidth: 2 }
-              ]}
-              hasVibrancy={true}
-            >
-              <View style={styles.facilityInfo}>
-                <Text style={[styles.facilityName, { color: colors.textPrimary }]}>{f.name}</Text>
-                <Text style={[styles.facilityAddr, { color: colors.textMuted }]}>{f.address}</Text>
-              </View>
-              {formData.facility_id === f.id && (
-                <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
-              )}
-            </ProfessionalCard>
-          ))}
+          {facilities.length === 0 ? (
+            <View style={styles.emptyContainer}>
+               <Ionicons name="business-outline" size={32} color={colors.textMuted} />
+               <Text style={[styles.emptyText, { color: colors.textMuted }]}>No Facilities Found</Text>
+               <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>Link facilities to your account via provider console.</Text>
+            </View>
+          ) : (
+            facilities.map((f: any) => (
+              <ProfessionalCard 
+                key={f.id}
+                onPress={() => {
+                  haptics.impactLight();
+                  setFormData((prev: any) => ({ ...prev, facility_id: f.id }));
+                }}
+                style={[
+                  styles.facilityCard, 
+                  formData.facility_id === f.id && { borderColor: colors.primary, borderWidth: 2 }
+                ]}
+                hasVibrancy={true}
+              >
+                <View style={styles.facilityInfo}>
+                  <Text style={[styles.facilityName, { color: colors.textPrimary }]}>{f.name}</Text>
+                  <Text style={[styles.facilityAddr, { color: colors.textMuted }]}>{f.address}</Text>
+                </View>
+                {formData.facility_id === f.id && (
+                  <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                )}
+              </ProfessionalCard>
+            ))
+          )}
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.textMuted, marginTop: 32 }]}>VEHICLE DETAILS</Text>
         <ProfessionalCard style={styles.formCard} hasVibrancy={false}>
-          <ProfessionalInput 
-             label="Registration Number"
-             placeholder="MH 12 AB 1234"
-             value={formData.vehicle_number}
-             onChangeText={v => setFormData(p => ({ ...p, vehicle_number: v }))}
-             autoCapitalize="characters"
-             icon="car-outline"
+          <ProfessionalInput
+            label="Registration Number"
+            placeholder="MH 12 AB 1234"
+            value={formData.vehicle_number}
+            onChangeText={(v: string) => setFormData((p: any) => ({ ...p, vehicle_number: v }))}
+            autoCapitalize="characters"
+            icon="car-outline"
           />
 
           <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 12 }]}>Vehicle Category</Text>
@@ -169,22 +180,22 @@ export default function ManualEntryScreen() {
           </View>
 
           <View style={{ marginTop: 24 }}>
-            <ProfessionalInput 
+            <ProfessionalInput
               label="Direct Slot ID (Optional)"
               placeholder="e.g. SLT-001"
               value={formData.slot_id}
-              onChangeText={v => setFormData(p => ({ ...p, slot_id: v }))}
+              onChangeText={(v: string) => setFormData((p: any) => ({ ...p, slot_id: v }))}
               icon="navigate-outline"
             />
           </View>
         </ProfessionalCard>
 
-        <ProfessionalButton 
-            label="Confirm Entry"
-            onPress={handleSubmit}
-            loading={loading}
-            style={styles.submitBtn}
-            icon="checkmark-done-circle-outline"
+        <ProfessionalButton
+          label="Confirm Entry"
+          onPress={handleSubmit}
+          loading={loading}
+          style={styles.submitBtn}
+          icon="checkmark-done-circle-outline"
         />
       </ScrollView>
     </KeyboardAvoidingView>
@@ -197,9 +208,9 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   sectionTitle: { fontSize: 11, fontWeight: '900', letterSpacing: 2, marginBottom: 16 },
   facilityGrid: { gap: 12 },
-  facilityCard: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
+  facilityCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     borderRadius: 24,
     borderWidth: 0,
@@ -228,4 +239,15 @@ const styles = StyleSheet.create({
     shadowRadius: 15,
     shadowOffset: { width: 0, height: 8 }
   },
+  emptyContainer: {
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(0,0,0,0.1)'
+  },
+  emptyText: { fontSize: 16, fontWeight: '900', marginTop: 12 },
+  emptySubtext: { fontSize: 13, fontWeight: '500', textAlign: 'center', marginTop: 4, opacity: 0.8 }
 });

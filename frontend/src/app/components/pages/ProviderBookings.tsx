@@ -112,6 +112,18 @@ export function ProviderBookings() {
         }
     };
 
+    const formatDate = (dateValue: any, type: 'date' | 'time' | 'full' = 'full') => {
+        if (!dateValue) return 'N/A';
+        const date = new Date(dateValue);
+        if (isNaN(date.getTime())) return 'Invalid';
+        
+        switch (type) {
+            case 'date': return date.toLocaleDateString();
+            case 'time': return date.toLocaleTimeString();
+            default: return date.toLocaleString();
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 pt-20 pb-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -198,10 +210,10 @@ export function ProviderBookings() {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm text-gray-900">
-                                                    {new Date(booking.entry_time || booking.entryTime).toLocaleDateString()}
+                                                    {formatDate(booking.entry_time || booking.entryTime, 'date')}
                                                 </div>
                                                 <div className="text-xs text-gray-500">
-                                                    {new Date(booking.entry_time || booking.entryTime).toLocaleTimeString()}
+                                                    {formatDate(booking.entry_time || booking.entryTime, 'time')}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
@@ -319,17 +331,17 @@ export function ProviderBookings() {
                                         <span className="text-xs font-medium text-gray-500">Entry</span>
                                     </div>
                                     <p className="text-sm font-medium">
-                                        {new Date(selectedBooking.entry_time || selectedBooking.entryTime).toLocaleString()}
+                                        {formatDate(selectedBooking.entry_time || selectedBooking.entryTime)}
                                     </p>
                                 </div>
-                                {selectedBooking.exit_time && (
+                                {(selectedBooking.exit_time || selectedBooking.exitTime) && (
                                     <div className="flex justify-between items-center">
                                         <div className="flex items-center gap-2">
                                             <div className="w-2 h-2 rounded-full bg-rose-500" />
                                             <span className="text-xs font-medium text-gray-500">Exit</span>
                                         </div>
                                         <p className="text-sm font-medium">
-                                            {new Date(selectedBooking.exit_time).toLocaleString()}
+                                            {formatDate(selectedBooking.exit_time || selectedBooking.exitTime)}
                                         </p>
                                     </div>
                                 )}

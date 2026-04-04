@@ -8,7 +8,6 @@ import {
   StyleSheet, 
   KeyboardAvoidingView, 
   Platform, 
-  Dimensions, 
   ActivityIndicator,
   StatusBar
 } from 'react-native';
@@ -26,7 +25,17 @@ import { VEHICLE_TYPE_COLORS } from '../../../constants/colors';
 import { ProfessionalCard } from '../../../components/ui/ProfessionalCard';
 import { ProfessionalButton } from '../../../components/ui/ProfessionalButton';
 
-const { height } = Dimensions.get('window');
+
+
+const withAlpha = (hex: string, alpha: number): string => {
+  if (!hex || !hex.startsWith('#')) return hex;
+  let normalized = hex.slice(1);
+  if (normalized.length === 3) {
+    normalized = normalized.split('').map(c => c + c).join('');
+  }
+  const alphaHex = Math.round(alpha * 255).toString(16).padStart(2, '0');
+  return `#${normalized}${alphaHex}`;
+};
 
 export default function SelectVehicleScreen() {
   const router = useRouter();
@@ -123,7 +132,7 @@ export default function SelectVehicleScreen() {
                   <Animated.View key={vehicle.id} entering={FadeInRight.delay(i * 100)}>
                     <TouchableOpacity onPress={() => handleSavedSelect(vehicle)} activeOpacity={0.7}>
                       <ProfessionalCard style={styles.vehicleCard} hasVibrancy={true}>
-                        <View style={[styles.vehicleIcon, { backgroundColor: VEHICLE_TYPE_COLORS[vehicle.vehicle_type] + '15' }]}>
+                        <View style={[styles.vehicleIcon, { backgroundColor: withAlpha(VEHICLE_TYPE_COLORS[vehicle.vehicle_type], 0.08) }]}>
                           <Ionicons 
                             name={vehicleTypes.find(t => t.value === vehicle.vehicle_type)?.icon || 'car-outline'} 
                             size={24} 
@@ -151,10 +160,10 @@ export default function SelectVehicleScreen() {
               <Text style={[styles.inputLabel, { color: colors.textMuted }]}>VEHICLE REGISTRATION NUMBER</Text>
               <TextInput
                 style={[styles.input, { color: colors.textPrimary, borderColor: colors.border }]}
-                placeholder="Ex: MH 12 AB 1234"
+                placeholder="Ex: MH12AB1234"
                 placeholderTextColor={colors.textMuted}
                 value={manualNumber}
-                onChangeText={(val) => setManualNumber(val.toUpperCase())}
+                onChangeText={(val) => setManualNumber(val.replace(/\s+/g, '').toUpperCase())}
                 autoCapitalize="characters"
                 maxLength={10}
               />
@@ -169,7 +178,7 @@ export default function SelectVehicleScreen() {
                       style={[
                         styles.typeChip,
                         { backgroundColor: colors.surface, borderColor: colors.border },
-                        isActive && { borderColor: colors.primary, backgroundColor: colors.primary + '10' }
+                        isActive && { borderColor: colors.primary, backgroundColor: withAlpha(colors.primary, 0.08) }
                       ]}
                       onPress={() => {
                         haptics.impactLight();

@@ -36,22 +36,26 @@ export function FacilityDetails() {
         setSlotsLoading(true);
         const slotsData = await customerService.getAvailableSlots(id);
         // slotsData is { "Floor 1": [...], "Floor 2": [...] }
-        const names = Object.keys(slotsData);
+        const slotsDataSafe = (typeof slotsData === 'object' && slotsData) ? slotsData : {};
+        const names = Object.keys(slotsDataSafe);
         setFloorNames(names);
         if (names.length > 0) setSelectedFloor(names[0]); // default to first floor
 
         const allSlots: any[] = [];
         names.forEach(floorName => {
-          (slotsData[floorName] as any[]).forEach(slot => {
-            allSlots.push({
-              ...slot,
-              floorName,
-              // Normalize fields for frontend
-              status: (slot.status || 'free').toLowerCase(),
-              vehicleType: (slot.vehicle_type || 'car').toLowerCase(),
-              pricePerHour: slot.price_per_hour || 20
+          const floorSlots = slotsDataSafe[floorName];
+          if (Array.isArray(floorSlots)) {
+            floorSlots.forEach(slot => {
+              allSlots.push({
+                ...slot,
+                floorName,
+                // Normalize fields for frontend
+                status: (slot.status || 'free').toLowerCase(),
+                vehicleType: (slot.vehicle_type || 'car').toLowerCase(),
+                pricePerHour: slot.price_per_hour || 20
+              });
             });
-          });
+          }
         });
         setFacilitySlots(allSlots);
       } catch (error) {
@@ -188,7 +192,10 @@ export function FacilityDetails() {
                 {floorNames.map((floorName) => (
                   <button
                     key={floorName}
-                    onClick={() => setSelectedFloor(floorName)}
+                    onClick={() => {
+                      setSelectedFloor(floorName);
+                      setSelectedSlot(null);
+                    }}
                     className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all ${
                       selectedFloor === floorName
                         ? 'bg-primary text-white shadow-md'

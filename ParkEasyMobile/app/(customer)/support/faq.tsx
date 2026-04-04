@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 
 import { useThemeColors } from '../../../hooks/useThemeColors';
 import { useHaptics } from '../../../hooks/useHaptics';
+import { applyAlpha } from '../../../utils/colorUtils';
 import { ProfessionalCard } from '../../../components/ui/ProfessionalCard';
 import { ProfessionalButton } from '../../../components/ui/ProfessionalButton';
 
@@ -93,12 +94,12 @@ export default function FAQScreen() {
                   activeOpacity={0.9}
                 >
                   <ProfessionalCard 
-                    style={[styles.faqCard, isExpanded && { borderColor: colors.primary + '40' }]} 
+                    style={[styles.faqCard, isExpanded && { borderColor: applyAlpha(colors.primary, 0.25) }]} 
                     hasVibrancy={isExpanded}
                   >
                     <View style={styles.qRow}>
                       <Text style={[styles.questionText, { color: colors.textPrimary }]}>{item.q}</Text>
-                      <View style={[styles.chevronWrapper, { backgroundColor: isExpanded ? colors.primary + '10' : colors.surface }]}>
+                      <View style={[styles.chevronWrapper, { backgroundColor: isExpanded ? applyAlpha(colors.primary, 0.1) : colors.surface }]}>
                          <Ionicons 
                            name={isExpanded ? 'chevron-up' : 'chevron-down'} 
                            size={16} 

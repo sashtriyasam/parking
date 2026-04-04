@@ -184,7 +184,7 @@ export function ProviderDashboard() {
                          <div>
                             <p className="text-sm font-bold text-gray-900">{booking.vehicleNumber}</p>
                             <p className="text-[10px] text-gray-400 font-medium">
-                              {booking.bookingType === 'OFFLINE' ? 'MANUAL' : 'APP'} • {facility?.name.split(' ')[0]}
+                              {booking.bookingType === 'OFFLINE' ? 'MANUAL' : 'APP'} • {facility?.name?.split(' ')[0] || 'Facility'}
                             </p>
                          </div>
                       </div>
@@ -209,9 +209,9 @@ export function ProviderDashboard() {
            <div className="lg:col-span-2">
               <Card className="p-6 border-gray-100 shadow-sm h-full">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="font-black text-gray-900 flex items-center uppercase tracking-tighter text-sm">
+                  <h3 className="font-black text-gray-900 flex items-center uppercase tracking-tighter text-sm italic opacity-80">
                     <TrendingUp className="w-4 h-4 mr-2 text-indigo-500" />
-                    Revenue Analytics
+                    Revenue Analytics (Sample Data)
                   </h3>
                 </div>
                 <div className="h-[300px] w-full">

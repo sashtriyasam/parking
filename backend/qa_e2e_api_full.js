@@ -27,7 +27,7 @@ async function runTests() {
     report.warnings.push(msg);
   };
 
-  let CUSTOMER_TOKEN, PROVIDER_TOKEN, FACILITY_ID, SLOT_ID, VEHICLE_ID, TICKET_ID;
+  let CUSTOMER_TOKEN, PROVIDER_TOKEN, FACILITY_ID, SLOT_ID, VEHICLE_ID, VEHICLE_NUMBER, TICKET_ID;
   const unique_id = Math.random().toString(36).substring(7);
   const C_EMAIL = `qa_c_${unique_id}@test.com`;
   const P_EMAIL = `qa_p_${unique_id}@test.com`;
@@ -75,8 +75,15 @@ async function runTests() {
         full_name: "QA Provider", 
         role: "PROVIDER" 
     });
-    if (res.status === 201) logPass('2B: Provider Reg');
-    else logFail('2B: Provider Reg', 201, res.status, res.data.message);
+    if (res.status === 201) {
+      logPass('2B: Provider Reg');
+      // Login to get provider token
+      const loginRes = await api('/auth/login', 'POST', { email: P_EMAIL, password: "QATest@1234" });
+      if (loginRes.status === 200) {
+        PROVIDER_TOKEN = loginRes.data.data.accessToken;
+        console.log('DEBUG: Captured Provider Token');
+      }
+    } else logFail('2B: Provider Reg', 201, res.status, res.data.message);
   } catch (err) { logFail('2B: Provider Reg', 201, 'ERR', err.message); }
 
   // 2C - Login Customer
@@ -93,25 +100,26 @@ async function runTests() {
     // 3A - Search Facilities
     try {
       const res = await api('/customer/search?latitude=19.0662&longitude=72.8659&radius=50', 'GET', null, CUSTOMER_TOKEN);
-      if (res.status === 200 && res.data.data.length > 0) {
+      if (res.status === 200 && Array.isArray(res.data.data) && res.data.data.length > 0) {
         FACILITY_ID = res.data.data[0].id;
         console.log(`DEBUG: Found Facility ID: ${FACILITY_ID}`);
         logPass('3A: Facility Search');
       } else logFail('3A: Facility Search', 200, res.status, 'No facilities found nearby');
     } catch (err) { logFail('3A: Facility Search', 200, 'ERR', err.message); }
 
-    // 3B - Add Vehicle
     try {
+      const vNum = `MH01QA${Math.floor(1000 + Math.random() * 8999)}`;
       const res = await api('/customer/vehicles', 'POST', { 
-          vehicle_number: `MH01QA${Math.floor(Math.random()*9999)}`, 
+          vehicle_number: vNum, 
           vehicle_type: "CAR", 
           nickname: "QA Mobile" 
       }, CUSTOMER_TOKEN);
       if (res.status === 201) {
         VEHICLE_ID = res.data.data.id;
+        VEHICLE_NUMBER = vNum;
         logPass('3B: Add Vehicle');
       } else logFail('3B: Add Vehicle', 201, res.status, res.data.message);
-    } catch (err) { logFail('3B: Add Vehicle', 201, 'ERR', err.message); }
+  } catch (err) { logFail('3B: Add Vehicle', 201, 'ERR', err.message); }
 
     // 3C - Get Slots
     if (FACILITY_ID) {
@@ -148,7 +156,7 @@ async function runTests() {
         const res = await api('/customer/booking/confirm', 'POST', {
             slot_id: SLOT_ID,
             vehicle_type: "CAR",
-            vehicle_number: "MH01QA1234",
+            vehicle_number: VEHICLE_NUMBER || "MH01QA1234",
             entry_time: new Date().toISOString(),
             duration: 2,
             payment_method: "PAY_AT_EXIT",

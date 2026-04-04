@@ -9,7 +9,8 @@ import {
   Dimensions,
   TouchableOpacity,
   Platform,
-  StatusBar
+  StatusBar,
+  Alert
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,6 +49,7 @@ export default function TicketsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Booking | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchBookings();
@@ -60,8 +62,11 @@ export default function TicketsScreen() {
       if (res.data?.data) {
         setBookings(res.data.data);
       }
-    } catch (error) {
-      console.error('Error fetching bookings:', error);
+    } catch (error: any) {
+      setError(error.message || 'Failed to load bookings');
+      if (showLoading) {
+        Alert.alert('Connection Error', 'We couldn\'t load your digital tickets. Please pull down to refresh and try again.');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -149,7 +154,9 @@ export default function TicketsScreen() {
                           <Text style={[styles.modalAddress, { color: colors.textMuted }]} numberOfLines={1}>{selectedTicket.facility.address}</Text>
                        </View>
                        <View style={[styles.statusTag, { backgroundColor: selectedTicket.status === 'ACTIVE' ? colors.success : colors.surface }]}>
-                          <Text style={styles.statusTagText}>{selectedTicket.status}</Text>
+                          <Text style={[styles.statusTagText, { color: selectedTicket.status === 'ACTIVE' ? '#FFF' : colors.textPrimary }]}>
+                            {selectedTicket.status}
+                          </Text>
                        </View>
                     </View>
                     

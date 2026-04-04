@@ -233,6 +233,14 @@ const getSlotAvailability = asyncHandler(async (req, res) => {
     const { date } = req.query;
 
     const queryDate = date ? new Date(date) : new Date();
+    
+    if (isNaN(queryDate.getTime())) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'Invalid date format provided'
+        });
+    }
+
     const bookedWindows = await bookingService.getSlotAvailabilityForDay(slotId, queryDate);
 
     res.status(200).json({

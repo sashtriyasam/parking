@@ -9,8 +9,13 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 
 // Derive base URL from API URL by stripping /api/v1
-// TODO: Update EXPO_PUBLIC_API_URL in .env to point to Render URL after deployment
-const BASE_API = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+const BASE_API = (() => {
+  const url = process.env.EXPO_PUBLIC_API_URL;
+  if (!url && process.env.NODE_ENV === 'production') {
+    throw new Error('Infrastructure Failure: EXPO_PUBLIC_API_URL is missing in production. Cannot initialize Socket connection.');
+  }
+  return url || 'http://localhost:5000/api/v1';
+})();
 const SOCKET_URL = BASE_API.replace(/\/api\/v1\/?$/, '');
 
 let socketInstance: Socket | null = null;

@@ -96,7 +96,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         // 3. Role-specific data loading
         if (frontendUser.role === 'provider') {
-          await providerService.getMyFacilities(); // ensure fresh access
+          // Sync provider's own facilities to global state
+          const providerFacilities = await providerService.getMyFacilities(); 
+          const normalizedProviderFacilities = providerFacilities.map(mapBackendFacilityToFrontend);
+          setFacilities(normalizedProviderFacilities);
+
           const providerBookings = await providerService.getBookings(); 
           setBookings(providerBookings.map(mapBackendTicketToBooking));
         } else {
@@ -213,20 +217,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const vehicleTypeMap: Record<string, string> = {
         'car': 'CAR', 'bike': 'BIKE', 'truck': 'TRUCK', 'scooter': 'BIKE'
       };
-      const paymentMethodMap: Record<string, string> = {
+      const paymentMethodMap: Record<string, any> = {
         'upi': 'UPI', 'card': 'CARD', 'pay-at-exit': 'PAY_AT_EXIT', 'cash': 'PAY_AT_EXIT'
       };
-      const ticket = await (customerService as any).confirmBooking({
+
+      // Guard date fields to prevent NaN
+      const entryDate = bookingData.entryTime ? new Date(bookingData.entryTime) : new Date();
+      const startTime = bookingData.startTime || entryDate.toISOString();
+      const duration = bookingData.duration || 2;
+      const endTime = bookingData.endTime || new Date(new Date(startTime).getTime() + duration * 60 * 60 * 1000).toISOString();
+
+      const ticket = await customerService.confirmBooking({
         facility_id: bookingData.facilityId,
         slot_id: bookingData.slotId,
         vehicle_number: bookingData.vehicleNumber,
-        vehicle_type: vehicleTypeMap[bookingData.vehicleType] || bookingData.vehicleType.toUpperCase(),
-        start_time: bookingData.startTime || bookingData.entryTime,
-        end_time: bookingData.endTime || new Date(new Date(bookingData.entryTime).getTime() + (bookingData.duration || 2) * 60 * 60 * 1000).toISOString(),
-        entry_time: bookingData.entryTime,
-        duration: bookingData.duration,
-        payment_method: paymentMethodMap[bookingData.paymentMethod] || bookingData.paymentMethod.toUpperCase(),
-        amount: bookingData.amount
+        vehicle_type: (vehicleTypeMap[bookingData.vehicleType] || bookingData.vehicleType.toUpperCase()) as any,
+        start_time: startTime,
+        end_time: endTime,
+        entry_time: bookingData.entryTime || entryDate.toISOString(),
+        duration: duration,
+        payment_method: (paymentMethodMap[bookingData.paymentMethod] || bookingData.paymentMethod.toUpperCase()) as any,
+        amount: bookingData.amount || 0
       });
 
       // Map back ticket to Booking type to update local state

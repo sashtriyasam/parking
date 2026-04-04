@@ -8,7 +8,8 @@ import {
   Animated, 
   Dimensions, 
   ActivityIndicator,
-  Pressable
+  Pressable,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -20,6 +21,7 @@ import { ProfessionalCard } from './ui/ProfessionalCard';
 import { post } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { VehicleType } from '../types';
+import { useRef } from 'react';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -62,6 +64,8 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('upi');
   const slideAnim = useState(new Animated.Value(SCREEN_HEIGHT))[0];
   const { user } = useAuthStore();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const secondTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -79,6 +83,11 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
         useNativeDriver: true
       }).start();
     }
+
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (secondTimeoutRef.current) clearTimeout(secondTimeoutRef.current);
+    };
   }, [visible]);
 
   const handlePayment = async () => {
@@ -115,16 +124,25 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
                                   typeof RazorpayCheckout.open === 'function';
 
       if (!isRazorpayAvailable) {
-        console.warn('ParkEasy: Razorpay native module not detected. Initiating Professional Demo Fallback.');
-        // SIMULATE SUCCESS FOR DEMO PURPOSES
-        setTimeout(() => {
-           setStep('success');
-           haptics.notificationSuccess();
-           setTimeout(() => {
-             onSuccess();
-             onClose();
-           }, 2500);
-        }, 1800);
+        if (__DEV__) {
+          console.warn('ParkEasy: Razorpay native module not detected. Initiating Professional Demo Fallback (DEV ONLY).');
+          // SIMULATE SUCCESS FOR DEMO PURPOSES
+          timeoutRef.current = setTimeout(() => {
+             setStep('success');
+             haptics.notificationSuccess();
+             secondTimeoutRef.current = setTimeout(() => {
+               onSuccess();
+               onClose();
+             }, 2500);
+          }, 1800);
+        } else {
+          setStep('selection');
+          haptics.notificationError();
+          Alert.alert(
+            'Payment unavailable', 
+            'The secure payment module (Razorpay) could not be initialized on this device. Please use another device or contact support.'
+          );
+        }
         return;
       }
 
@@ -160,7 +178,7 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
       if (verifyRes.data?.success) {
         setStep('success');
         haptics.notificationSuccess();
-        setTimeout(() => {
+        timeoutRef.current = setTimeout(() => {
           onSuccess();
           onClose();
         }, 2200);
@@ -241,7 +259,7 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
                 <View style={styles.methodsContainer}>
                   {renderMethod('upi', 'Instant UPI', 'flash', 'Lightning-fast mobile payments')}
                   {renderMethod('card', 'Payment Card', 'card', 'Visa, Mastercard, Amex, RuPay')}
-                  {renderMethod('wallet', 'ParkEasy Credits', 'wallet', 'Balance: ₹450.00 available')}
+                  {renderMethod('wallet', 'ParkEasy Credits', 'wallet', `Balance: ₹${(user?.balance || 0).toFixed(2)} available`)}
                 </View>
 
                 <ProfessionalButton 

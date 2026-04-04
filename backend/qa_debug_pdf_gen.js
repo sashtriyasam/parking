@@ -33,8 +33,12 @@ async function debugPDF() {
         const buffer = await generateTicketPDF(ticket);
         console.log('PDF Generated. Buffer Result:', buffer ? `Length: ${buffer.length}` : 'NULL');
         
-        fs.writeFileSync('debug_ticket.pdf', buffer);
-        console.log('File saved to debug_ticket.pdf');
+        if (buffer && Buffer.isBuffer(buffer)) {
+          fs.writeFileSync('debug_ticket.pdf', buffer);
+          console.log('File saved to debug_ticket.pdf');
+        } else {
+          console.error('❌ PDF Buffer is invalid or empty. Skipping file write.');
+        }
 
     } catch (error) {
         console.error('Error during PDF debug:', error);

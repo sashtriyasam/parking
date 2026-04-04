@@ -157,18 +157,35 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
     const customer_id = req.user.id;
 
     // Resolve start/end times (support both new and legacy formats)
-    const bookingStart = new Date(start_time || entry_time || Date.now());
+    const now = new Date();
+    const bookingStart = new Date(start_time || entry_time || now);
+    
+    // Validate start date parsing
+    if (isNaN(bookingStart.getTime())) {
+        return next(new AppError('Invalid start_time format', 400));
+    }
+
+    // DISALLOW PAST BOOKINGS
+    if (bookingStart.getTime() < now.getTime() - (5 * 60 * 1000)) { // 5 min grace for clock drift
+        return next(new AppError('Booking start time cannot be in the past', 400));
+    }
+
     let bookingEnd;
     if (end_time) {
         bookingEnd = new Date(end_time);
-    } else if (duration) {
+    } else if (duration && isFinite(duration)) {
         bookingEnd = new Date(bookingStart.getTime() + (duration * 60 * 60 * 1000));
     } else {
         bookingEnd = new Date(bookingStart.getTime() + (2 * 60 * 60 * 1000)); // Default 2h
     }
 
+    // Validate end date parsing
+    if (isNaN(bookingEnd.getTime())) {
+        return next(new AppError('Invalid end_time or duration', 400));
+    }
+
     // Validate time window
-    if (bookingEnd <= bookingStart) {
+    if (bookingEnd.getTime() <= bookingStart.getTime()) {
         return next(new AppError('End time must be after start time', 400));
     }
 
@@ -245,7 +262,6 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
 
     // Determine if slot should be marked OCCUPIED now
     // Only mark OCCUPIED if booking starts within 15 minutes
-    const now = new Date();
     const startsWithin15Min = (bookingStart.getTime() - now.getTime()) <= 15 * 60 * 1000;
 
     // Transaction to ensure slot is locked and ticket is created
@@ -383,8 +399,6 @@ const cancelBooking = asyncHandler(async (req, res, next) => {
     const { ticketId } = req.params;
     const customer_id = req.user.id;
 
-    console.log(`[DEBUG] Attempting to cancel ticket: ${ticketId} for customer: ${customer_id}`);
-
     // Find the ticket
     const ticket = await prisma.ticket.findUnique({
         where: { id: ticketId },
@@ -392,7 +406,6 @@ const cancelBooking = asyncHandler(async (req, res, next) => {
     });
 
     if (!ticket) {
-        console.log(`[DEBUG] Ticket ${ticketId} not found`);
         return next(new AppError('Ticket not found', 404));
     }
 
@@ -401,50 +414,53 @@ const cancelBooking = asyncHandler(async (req, res, next) => {
     const isProvider = req.user.role === 'PROVIDER' && ticket.facility.provider_id === req.user.id;
 
     if (!isOwner && !isProvider) {
-        console.log(`[DEBUG] Unauthorized attempt to cancel ticket ${ticketId}. Role: ${req.user.role}, Requester: ${req.user.id}`);
         return next(new AppError('Not authorized to cancel this booking', 403));
     }
 
     // Check if the ticket is active
     if (ticket.status !== 'ACTIVE') {
-        console.log(`[DEBUG] Cannot cancel ticket ${ticketId}. Current status: ${ticket.status}`);
         return next(new AppError(`Ticket cannot be cancelled in its current status: ${ticket.status}`, 400));
     }
 
-    console.log(`[DEBUG] Ticket ${ticketId} is valid for cancellation. Starting transaction...`);
+
 
     // Transaction to update ticket and slot
+    let shouldEmitFree = false;
     try {
-        console.log(`[DEBUG] Starting transaction for ticket ${ticketId}...`);
         await prisma.$transaction(async (tx) => {
             // Update ticket status
-            const updatedTicket = await tx.ticket.update({
+            await tx.ticket.update({
                 where: { id: ticketId },
                 data: { status: 'CANCELLED' }
             });
-            console.log(`[DEBUG] Ticket status updated to CANCELLED in transaction`);
 
-            // If the slot is currently OCCUPIED by this ticket, free it.
-            if (ticket.slot && ticket.slot.status === 'OCCUPIED' && ticket.slot_id) {
-                console.log(`[DEBUG] Releasing slot ${ticket.slot_id} as it was OCCUPIED`);
-                await tx.parkingSlot.update({
+            // Re-fetch slot inside transaction to ensure accurate status
+            if (ticket.slot_id) {
+                const currentSlot = await tx.parkingSlot.findUnique({
                     where: { id: ticket.slot_id },
-                    data: { status: 'FREE' }
+                    select: { id: true, status: true }
                 });
 
-                // Emit socket update
-                emitSlotUpdate(ticket.facility_id, {
-                    slot_id: ticket.slot_id,
-                    status: 'FREE',
-                    facility_id: ticket.facility_id
-                });
-            } else {
-                console.log(`[DEBUG] No slot to release or slot not OCCUPIED. (Slot exists: ${!!ticket.slot})`);
+                // If the slot is currently OCCUPIED, and this was the active ticket, free it.
+                if (currentSlot && currentSlot.status === 'OCCUPIED') {
+                    await tx.parkingSlot.update({
+                        where: { id: ticket.slot_id },
+                        data: { status: 'FREE' }
+                    });
+                    shouldEmitFree = true;
+                }
             }
         });
-        console.log(`[DEBUG] Transaction committed successfully for ticket ${ticketId}`);
+
+        // Emit socket update AFTER successful commit
+        if (shouldEmitFree && ticket.slot_id) {
+            emitSlotUpdate(ticket.facility_id, {
+                slot_id: ticket.slot_id,
+                status: 'FREE',
+                facility_id: ticket.facility_id
+            });
+        }
     } catch (err) {
-        console.error(`[DEBUG] Transaction failed for ticket ${ticketId}:`, err);
         return next(new AppError(`Failed to cancel booking: ${err.message}`, 500));
     }
 

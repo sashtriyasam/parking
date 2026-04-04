@@ -41,6 +41,7 @@ interface Booking {
   id: string;
   vehicle_number: string;
   booking_type?: 'ONLINE' | 'OFFLINE';
+  facility_id: string;
   facility?: { name: string };
   status: string;
   entry_time: string;
@@ -103,24 +104,24 @@ export default function ProviderDashboard() {
   }, [fetchDashboardData]);
 
   // Socket Real-time Sync
+  const handleSocketRefresh = useCallback(() => {
+    haptics.impactLight();
+    fetchDashboardData(false);
+  }, [haptics, fetchDashboardData]);
+
   useEffect(() => {
     if (!socket || !user?.id) return;
     
     joinProvider(user.id);
 
-    const handleRefresh = () => {
-      haptics.impactLight();
-      fetchDashboardData(false);
-    };
-
-    socket.on('booking_updated', handleRefresh);
-    socket.on('facility_created', handleRefresh);
+    socket.on('booking_updated', handleSocketRefresh);
+    socket.on('facility_created', handleSocketRefresh);
     
     return () => {
-      socket.off('booking_updated', handleRefresh);
-      socket.off('facility_created', handleRefresh);
+      socket.off('booking_updated', handleSocketRefresh);
+      socket.off('facility_created', handleSocketRefresh);
     };
-  }, [socket, user?.id, joinProvider, fetchDashboardData]);
+  }, [socket, user?.id, joinProvider, handleSocketRefresh]);
 
   const onRefresh = () => {
     haptics.impactLight();
@@ -129,12 +130,14 @@ export default function ProviderDashboard() {
   };
 
   const totalSlots = useMemo(() => 
-    facilities.reduce((acc, f) => acc + (f.total_slots || 0), 0) || 1
+    facilities.reduce((acc, f) => acc + (f.total_slots || 0), 0)
   , [facilities]);
 
-  const occupancyRate = useMemo(() => 
-    Math.round((activeBookings.length / totalSlots) * 100)
-  , [activeBookings, totalSlots]);
+  const occupancyRate = useMemo(() => {
+    if (totalSlots === 0) return 0;
+    const rate = Math.round((activeBookings.length / totalSlots) * 100);
+    return Math.min(rate, 100);
+  }, [activeBookings, totalSlots]);
 
   if (loading && !refreshing) {
     return (
@@ -259,7 +262,13 @@ export default function ProviderDashboard() {
               >
                 <ProfessionalCard 
                   style={styles.activityItem} 
-                  onPress={() => router.push(`/(provider)/facility/${booking.facility_id}`)}
+                  onPress={() => {
+                    if (booking.facility_id) {
+                      router.push(`/(provider)/facility/${booking.facility_id}`);
+                    } else {
+                      console.warn('Booking missing facility_id:', booking.id);
+                    }
+                  }}
                   hasVibrancy={true}
                 >
                   <View style={styles.activityLeft}>

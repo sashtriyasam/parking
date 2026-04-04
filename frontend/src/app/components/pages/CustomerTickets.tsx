@@ -109,15 +109,33 @@ export function CustomerTickets() {
       const token = localStorage.getItem('accessToken');
       if (!token) throw new Error('No authentication token found');
 
-      const apiUrl = import.meta.env.VITE_API_URL.replace(/\/$/, '');
-      // USE THE NEW .PDF SUFFIXED ROUTE FOR BETTER BROWSER HANDLING
-      const downloadUrl = `${apiUrl}/customer/booking/${ticketId}/invoice.pdf?token=${token}`;
+      const apiUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
+      if (!apiUrl) throw new Error('API Base URL is not configured');
+
+      toast.info('Generating secure invoice...');
       
-      toast.info('Downloading invoice...');
-      window.location.assign(downloadUrl);
+      const response = await fetch(`${apiUrl}/customer/booking/${ticketId}/invoice.pdf`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to download invoice');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `parkeasy-invoice-${ticketId.slice(0, 8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success('Invoice downloaded successfully');
     } catch (error: any) {
       console.error('Download failed:', error);
-      toast.error('Failed to start download');
+      toast.error(error.message || 'Failed to download invoice');
     }
   };
 
@@ -128,6 +146,8 @@ export function CustomerTickets() {
     if (lat && lng) {
       const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
       window.open(url, '_blank');
+    } else {
+      toast.error('Location coordinates unavailable for this facility');
     }
   };
 
@@ -288,7 +308,6 @@ export function CustomerTickets() {
                           size="sm" 
                           className="border-red-200 text-red-600 hover:bg-red-50"
                           onClick={() => {
-                            console.log(`[DEBUG] Button clicked for ticket: ${ticket.id}`);
                             setTicketToCancel(ticket.id);
                           }}
                           disabled={isLoading}
@@ -410,7 +429,7 @@ export function CustomerTickets() {
                           </div>
                           <div>
                             <p className="text-xs font-bold text-gray-900">Vehicle Info</p>
-                            <p className="text-sm text-gray-500">{(viewingTicket as any).vehicle_number || 'UP 16 AB 1234'}</p>
+                            <p className="text-sm text-gray-500">{(viewingTicket as any).vehicle_number || 'N/A'}</p>
                           </div>
                         </div>
                       </div>

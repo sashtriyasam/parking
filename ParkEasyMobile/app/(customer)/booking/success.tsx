@@ -37,7 +37,7 @@ export default function BookingSuccessScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const haptics = useHaptics();
-  const { created_ticket_id = 'ORD-' + Math.random().toString(36).substring(7).toUpperCase(), facility_name = 'City Center Parking', vehicle_number = 'MH-01-AB-1234', resetBookingFlow } = useBookingFlowStore();
+  const { created_ticket_id, facility_name = 'City Center Parking', vehicle_number = 'MH-01-AB-1234', resetBookingFlow } = useBookingFlowStore();
   const qrRef = useRef<View>(null);
 
   const [status, requestPermission] = MediaLibrary.usePermissions();

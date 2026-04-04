@@ -15,26 +15,24 @@ export const captureException = (error: Error, extra?: any) => {
   }
 
   try {
-    // TODO: Wire up your production provider here
-    // Example (Sentry):
-    // Sentry.Native.captureException(error, { extra });
-    
-    // Example (Firebase Crashlytics):
-    // crashlytics().recordError(error);
-
-    console.info('[Reporting] PROD: Error would be sent to provider:', error.message);
+    /** 
+     * PRODUCTION INTEGRATION POINT:
+     * To enable remote crash monitoring, integrate a provider here.
+     * Example (Sentry): Sentry.Native.captureException(error, { extra });
+     */
+    if (process.env.NODE_ENV === 'production') {
+      console.info('[Reporting] PROD_SIGNAL: Intercepted system exception for monitoring:', error.message);
+    }
   } catch (reportingError) {
     console.error('[Reporting] Failed to send error to provider:', reportingError);
   }
 };
 
-/**
- * Initialize the error reporting service (call this during app bootstrap).
- */
 export const initReporting = () => {
   if (__DEV__) return;
 
-  // TODO: Initialize your provider here
-  // Example (Sentry):
-  // Sentry.init({ dsn: 'YOUR_SENTRY_DSN' });
+  /** 
+   * PRODUCTION INITIALIZATION POINT:
+   * Initialize monitoring services (e.g. Sentry.init()) here.
+   */
 };

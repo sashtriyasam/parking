@@ -1,10 +1,8 @@
-const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
   const users = await prisma.user.findMany({ 
-    select: { id: true, email: true, role: true, full_name: true } 
+    select: { id: true, role: true, full_name: true } 
   });
   const tickets = await prisma.ticket.findMany({
     select: { id: true, status: true, vehicle_number: true, facility_id: true }

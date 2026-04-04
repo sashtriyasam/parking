@@ -138,7 +138,17 @@ const styles = StyleSheet.create({
     height: 15,
     borderRadius: 30,
     backgroundColor: 'rgba(0,0,0,0.1)',
-    filter: 'blur(8px)' as any,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      }
+    })
   },
   textContainer: {
     alignItems: 'center',
