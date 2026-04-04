@@ -240,38 +240,30 @@ const switchRole = asyncHandler(async (req, res, next) => {
     });
 });
 
-// TEMPORARY: Seed admin in production if it doesn't exist
+// TEMPORARY: Seed admin in production and ensure password is correct
 const seedProductionAdmin = asyncHandler(async (req, res, next) => {
     const email = 'admin@parkeasy.com';
     const password = 'password123';
     
-    let user = await prisma.user.findUnique({ where: { email } });
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(password, salt);
     
-    if (!user) {
-        const salt = await bcrypt.genSalt(10);
-        const password_hash = await bcrypt.hash(password, salt);
-        
-        user = await prisma.user.create({
-            data: {
-                email,
-                password_hash,
-                full_name: 'Admin Tester',
-                role: 'CUSTOMER', // Default role choice
-                phone_number: '9876543210'
-            }
-        });
-        
-        return res.status(201).json({
-            status: 'success',
-            message: 'Production admin account created successfully',
-            account: { email, password }
-        });
-    }
+    const user = await prisma.user.upsert({
+        where: { email },
+        update: { password_hash },
+        create: {
+            email,
+            password_hash,
+            full_name: 'Admin Tester',
+            role: 'CUSTOMER',
+            phone_number: '9876543210'
+        }
+    });
     
     res.status(200).json({
         status: 'success',
-        message: 'Admin account already exists',
-        account: { email: user.email }
+        message: 'Production admin account seeded/reset successfully',
+        account: { email, password }
     });
 });
 
