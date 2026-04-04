@@ -92,13 +92,12 @@ const login = asyncHandler(async (req, res, next) => {
     // Find user by email OR phone number
     let user;
     try {
-        const isEmail = email.includes('@');
         user = await prisma.user.findFirst({
             where: {
                 OR: [
-                    { email: isEmail ? email : undefined },
-                    { phone_number: !isEmail ? email : undefined }
-                ].filter(condition => Object.values(condition)[0] !== undefined)
+                    { email: email },
+                    { phone_number: email }
+                ]
             },
         });
     } catch (error) {
