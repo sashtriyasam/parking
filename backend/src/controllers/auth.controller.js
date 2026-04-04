@@ -50,7 +50,14 @@ const register = asyncHandler(async (req, res, next) => {
         });
     } catch (error) {
         if (error.code === 'P2002') {
-            return next(new AppError('Email already in use', 400));
+            const target = error.meta?.target || [];
+            if (target.includes('email')) {
+                return next(new AppError('Email already in use', 400));
+            }
+            if (target.includes('phone_number')) {
+                return next(new AppError('Phone number already associated with another account', 400));
+            }
+            return next(new AppError('User with these credentials already exists', 400));
         }
         if (error.code === 'P2000') {
             return next(new AppError('Invalid input data', 400));
@@ -82,11 +89,17 @@ const register = asyncHandler(async (req, res, next) => {
 const login = asyncHandler(async (req, res, next) => {
     const { email, password } = req.body;
 
-    // Find user
+    // Find user by email OR phone number
     let user;
     try {
-        user = await prisma.user.findUnique({
-            where: { email },
+        const isEmail = email.includes('@');
+        user = await prisma.user.findFirst({
+            where: {
+                OR: [
+                    { email: isEmail ? email : undefined },
+                    { phone_number: !isEmail ? email : undefined }
+                ].filter(condition => Object.values(condition)[0] !== undefined)
+            },
         });
     } catch (error) {
         return next(new AppError('Login failed. Please try again.', 500));
