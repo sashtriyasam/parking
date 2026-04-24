@@ -1247,5 +1247,6 @@ module.exports = {
     requestWithdrawal,
     getWithdrawals,
     createOfflineBooking,
-    markEntry
+    markEntry,
+    verifyTicket
 };
