@@ -138,21 +138,20 @@ app.get('/api/version', (req, res) => res.status(200).json({ status: 'success', 
 // Serve static files from the 'public' directory (built frontend)
 app.use(express.static(path.join(__dirname, '../public')));
 
-// SPA Fallback: Serve index.html for any route that doesn't match an API route
+// SPA Fallback: Serve index.html for any GET request that doesn't match an API route
 // This fixes the "Not Found" error on refresh for client-side routing
-// Note: In Express 5.x, use (.*) for the catch-all wildcard
-app.get('/*', (req, res, next) => {
-    // If it's an API request or file request that reached here, let it pass to 404 handler
-    if (req.originalUrl.startsWith('/api') || req.originalUrl.includes('.')) {
-        return next();
+// We use a middleware instead of a path pattern to avoid Express 5.x PathErrors
+app.use((req, res, next) => {
+    // Only handle GET requests that are not API calls and don't look like static files
+    if (req.method === 'GET' && !req.originalUrl.startsWith('/api') && !req.originalUrl.includes('.')) {
+        return res.sendFile(path.join(__dirname, '../public/index.html'), (err) => {
+            if (err) {
+                // If index.html is missing, fall back to the 404 handler
+                next();
+            }
+        });
     }
-    // Otherwise, serve the frontend index.html
-    res.sendFile(path.join(__dirname, '../public/index.html'), (err) => {
-        if (err) {
-            // If index.html is missing, fall back to the 404 handler
-            next();
-        }
-    });
+    next();
 });
 
 // 404 Handler
