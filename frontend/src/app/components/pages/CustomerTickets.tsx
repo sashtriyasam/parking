@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, MapPin, Calendar, RefreshCcw, Navigation, Info, Car, CreditCard, ChevronRight, ParkingSquare } from 'lucide-react';
+import { Clock, MapPin, Calendar, RefreshCcw, Navigation, Info, Car, CreditCard, ChevronRight, ParkingSquare, Shield } from 'lucide-react';
 import { Card } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
