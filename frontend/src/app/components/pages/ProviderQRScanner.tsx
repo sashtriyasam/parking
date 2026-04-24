@@ -13,7 +13,7 @@ import {
   Camera,
   Search
 } from 'lucide-react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Card, CardContent } from '@/app/components/ui/card';
@@ -29,41 +29,46 @@ export function ProviderQRScanner() {
     const [scanResult, setScanResult] = useState<any>(null);
 
     useEffect(() => {
-        let scanner: Html5QrcodeScanner | null = null;
+        let html5QrCode: Html5Qrcode | null = null;
 
         if (isScanning && !scanResult) {
-            const timer = setTimeout(() => {
+            const timer = setTimeout(async () => {
                 const readerElement = document.getElementById('reader');
                 if (!readerElement) return;
 
-                scanner = new Html5QrcodeScanner(
-                    "reader",
-                    { 
+                try {
+                    html5QrCode = new Html5Qrcode("reader");
+                    
+                    const config = { 
                         fps: 10, 
                         qrbox: { width: 250, height: 250 },
-                        aspectRatio: 1.0,
-                        showTorchButtonIfSupported: true
-                    },
-                    /* verbose= */ false
-                );
+                        aspectRatio: 1.0
+                    };
 
-                scanner.render(
-                    (decodedText) => {
-                        if (scanner) {
-                            scanner.clear().catch(err => console.error("Scanner clear failed", err));
+                    // Use 'environment' for the back camera specifically
+                    await html5QrCode.start(
+                        { facingMode: "environment" }, 
+                        config,
+                        (decodedText) => {
+                            if (html5QrCode) {
+                                html5QrCode.stop().catch(err => console.error("Stop failed", err));
+                            }
+                            handleVerify(decodedText);
+                        },
+                        (errorMessage) => {
+                            // Suppress frame-by-frame errors
                         }
-                        handleVerify(decodedText);
-                    },
-                    (errorMessage) => {
-                        // Ignore periodic scan errors
-                    }
-                );
+                    );
+                } catch (err) {
+                    console.error("Camera start failed", err);
+                    toast.error("Camera access failed. Check permissions.");
+                }
             }, 500);
 
             return () => {
                 clearTimeout(timer);
-                if (scanner) {
-                    scanner.clear().catch(err => console.error("Scanner clear failed during cleanup", err));
+                if (html5QrCode && html5QrCode.isScanning) {
+                    html5QrCode.stop().catch(err => console.error("Cleanup stop failed", err));
                 }
             };
         }
@@ -112,7 +117,7 @@ export function ProviderQRScanner() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-[#020617] pt-20 pb-12 relative">
+        <div className="min-h-screen bg-slate-50 dark:bg-[#020617] pt-20 pb-12 relative overflow-x-hidden">
             {/* Design accents */}
             <div className="absolute top-0 left-0 w-full h-64 bg-primary/5 dark:bg-primary/10 pointer-events-none" />
             
@@ -134,7 +139,7 @@ export function ProviderQRScanner() {
 
                 <div className="text-center mb-12">
                     <h1 className="text-4xl font-black text-foreground tracking-tighter mb-3">Gate Control</h1>
-                    <p className="text-muted-foreground font-medium max-w-xs mx-auto">Instant check-in and check-out via smart scanning</p>
+                    <p className="text-muted-foreground font-medium max-w-xs mx-auto">Instant check-in and check-out via back-camera scanning</p>
                 </div>
 
                 <AnimatePresence mode="wait">
@@ -152,16 +157,16 @@ export function ProviderQRScanner() {
                                     <div className="p-4 border-b border-border flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
                                         <div className="flex items-center gap-2">
                                             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Live Camera</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Main Camera</span>
                                         </div>
                                         <Camera className="w-4 h-4 text-muted-foreground" />
                                     </div>
 
-                                    <div className="relative aspect-square">
+                                    <div className="relative aspect-square bg-black overflow-hidden">
                                         <div id="reader" className="w-full h-full" />
                                         
                                         {/* Viewfinder Overlays */}
-                                        <div className="absolute inset-0 pointer-events-none">
+                                        <div className="absolute inset-0 pointer-events-none z-10">
                                             {/* Corner brackets */}
                                             <div className="absolute top-10 left-10 w-12 h-12 border-t-4 border-l-4 border-primary rounded-tl-2xl" />
                                             <div className="absolute top-10 right-10 w-12 h-12 border-t-4 border-r-4 border-primary rounded-tr-2xl" />
@@ -191,7 +196,7 @@ export function ProviderQRScanner() {
                                             placeholder="TICK-XXXX" 
                                             className="h-12 rounded-xl bg-background border-border font-bold uppercase"
                                             value={ticketId}
-                                            onChange={(e) => setTicketId(e.target.value)}
+                                            onChange={(e) => setTicketId(e.target.value.toUpperCase())}
                                         />
                                         <Button 
                                             className="h-12 px-6 font-black rounded-xl shadow-lg shadow-primary/20"
@@ -279,33 +284,18 @@ export function ProviderQRScanner() {
                 </div>
             </div>
 
-            {/* Custom Scanner Styling Injection */}
+            {/* Custom Scanner Styling Injection to fix orientation and camera feed UI */}
             <style dangerouslySetInnerHTML={{ __html: `
-                #reader { border: none !important; }
-                #reader__scan_region { display: flex; justify-content: center; }
-                #reader__dashboard { padding: 20px !important; border: none !important; }
-                #reader__dashboard_section_csr button { 
-                    background: #1e40af !important; 
-                    color: white !important; 
-                    border-radius: 12px !important; 
-                    padding: 10px 20px !important;
-                    font-weight: 800 !important;
-                    text-transform: uppercase !important;
-                    font-size: 12px !important;
-                    border: none !important;
+                #reader { border: none !important; position: relative; }
+                #reader video { 
+                    object-fit: cover !important; 
+                    width: 100% !important; 
+                    height: 100% !important;
+                    border-radius: 0 !important;
                 }
-                #reader__camera_selection {
-                    background: transparent !important;
-                    border: 1px solid #e5e7eb !important;
-                    border-radius: 8px !important;
-                    padding: 5px !important;
-                    font-size: 12px !important;
-                    margin-bottom: 10px !important;
-                }
-                .dark #reader__camera_selection {
-                    border-color: #334155 !important;
-                    color: white !important;
-                }
+                #reader__scan_region { display: flex; justify-content: center; height: 100% !important; }
+                #reader__dashboard { display: none !important; }
+                img[alt="Camera menu"] { display: none !important; }
             `}} />
         </div>
     );
