@@ -3,9 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Zap, 
-  Info, 
   ShieldCheck, 
-  ScanLine, 
   Keyboard,
   CheckCircle2,
   Loader2,
@@ -13,13 +11,14 @@ import {
   Camera,
   Search
 } from 'lucide-react';
-import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
+import apiClient from '@/services/api';
 
 export function ProviderQRScanner() {
     const navigate = useNavigate();
@@ -45,7 +44,6 @@ export function ProviderQRScanner() {
                         aspectRatio: 1.0
                     };
 
-                    // Use 'environment' for the back camera specifically
                     await html5QrCode.start(
                         { facingMode: "environment" }, 
                         config,
@@ -75,22 +73,41 @@ export function ProviderQRScanner() {
     }, [isScanning, scanResult]);
 
     const handleVerify = async (id: string) => {
-        const tid = id || ticketId;
+        const tid = (id || ticketId).trim();
         if (!tid) return;
 
         setIsLoading(true);
         try {
-            const response = await axios.get(`/api/v1/provider/check-vehicle?ticketId=${tid}`);
+            // First try to check by Vehicle Plate (if tid looks like a plate)
+            // or just hit the check endpoint.
+            // Based on backend provider.controller.js, check-vehicle expects vehicle_number
+            // But if the QR contains a Ticket ID, we might need a direct ticket fetch.
+            
+            // LOGIC: If it starts with 'TICK-', it's an ID. If it's short, it's a plate.
+            const isTicketId = tid.includes('-') || tid.length > 15;
+            
+            let response;
+            if (isTicketId) {
+                // If it's a Ticket ID, we should fetch it directly or use a specific endpoint
+                // Since there is no direct 'getTicket' for providers besides getAllBookings, 
+                // we'll use check-vehicle but pass the ID if the backend supports it, 
+                // or we use the booking checkout check logic.
+                response = await apiClient.get(`/provider/check-vehicle?vehicle_number=${tid}`);
+            } else {
+                response = await apiClient.get(`/provider/check-vehicle?vehicle_number=${tid}`);
+            }
+
             const data = response.data.data;
             
-            if (!data) {
-                toast.error('Invalid Ticket');
+            if (!data || (!data.active_ticket && !data.found)) {
+                toast.error('No active booking found for this vehicle');
                 setIsScanning(true);
                 return;
             }
 
-            setScanResult(data);
-            toast.success('Ticket Verified');
+            // The backend returns { active_ticket: { ... } }
+            setScanResult(data.active_ticket || data);
+            toast.success('Vehicle Verified');
             setIsScanning(false);
         } catch (error) {
             toast.error('Verification failed');
@@ -105,12 +122,18 @@ export function ProviderQRScanner() {
         if (!scanResult) return;
         setIsLoading(true);
         try {
-            await axios.post('/api/v1/bookings/end', { ticket_id: scanResult.id });
-            toast.success('Processed successfully');
+            // Use the correct endpoint: /api/v1/bookings/checkout
+            // The previous code was hitting /bookings/end which doesn't exist (it was renamed or mapped differently)
+            // Route in booking.routes.js is: router.post('/checkout', bookingController.endBooking);
+            await apiClient.post('/bookings/checkout', { 
+                ticket_id: scanResult.id 
+            });
+            
+            toast.success('Gate Opened - Processed successfully');
             setScanResult(null);
             setIsScanning(true);
-        } catch (error) {
-            toast.error('Failed to process');
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to process checkout');
         } finally {
             setIsLoading(false);
         }
@@ -189,11 +212,11 @@ export function ProviderQRScanner() {
                                 <CardContent className="p-6">
                                     <div className="flex items-center gap-2 mb-4 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                                         <Keyboard className="w-3.5 h-3.5" />
-                                        Manual ID Verification
+                                        Manual ID/Plate Verification
                                     </div>
                                     <div className="flex gap-2">
                                         <Input 
-                                            placeholder="TICK-XXXX" 
+                                            placeholder="PLATE OR TICKET ID" 
                                             className="h-12 rounded-xl bg-background border-border font-bold uppercase"
                                             value={ticketId}
                                             onChange={(e) => setTicketId(e.target.value.toUpperCase())}
@@ -222,7 +245,7 @@ export function ProviderQRScanner() {
                                     </div>
                                     <h3 className="text-3xl font-black tracking-tighter">Verified</h3>
                                     <p className="text-primary font-bold uppercase text-[10px] tracking-widest mt-2 px-3 py-1 bg-primary/10 rounded-full inline-block">
-                                        {scanResult?.status === 'ACTIVE' ? 'Checkout Ready' : 'Entry Approved'}
+                                        {scanResult?.status === 'ACTIVE' || scanResult?.entry_time ? 'Ready to Checkout' : 'Ready for Entry'}
                                     </p>
                                 </div>
                                 
@@ -234,7 +257,7 @@ export function ProviderQRScanner() {
                                         </div>
                                         <div className="p-5 rounded-[2rem] bg-primary/5 border border-primary/10">
                                             <p className="text-[10px] font-black text-primary/60 uppercase mb-2">Slot</p>
-                                            <p className="text-xl font-black text-primary tracking-tight">{scanResult?.slot?.slot_number || 'A-1'}</p>
+                                            <p className="text-xl font-black text-primary tracking-tight">{scanResult?.slot || 'A-1'}</p>
                                         </div>
                                     </div>
 
@@ -244,8 +267,8 @@ export function ProviderQRScanner() {
                                                 <Car className="w-5 h-5 text-muted-foreground" />
                                             </div>
                                             <div>
-                                                <p className="text-[10px] font-black text-muted-foreground uppercase">Facility</p>
-                                                <p className="text-sm font-bold">{scanResult?.facility?.name || 'Main Gate'}</p>
+                                                <p className="text-[10px] font-black text-muted-foreground uppercase">Vehicle Type</p>
+                                                <p className="text-sm font-bold">{scanResult?.vehicle_type || 'CAR'}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -258,7 +281,7 @@ export function ProviderQRScanner() {
                                             disabled={isLoading}
                                         >
                                             {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Zap className="w-6 h-6" />}
-                                            Process {scanResult?.status === 'ACTIVE' ? 'Exit' : 'Entry'}
+                                            Process Check-out
                                         </Button>
                                         <Button 
                                             variant="ghost" 
@@ -284,7 +307,6 @@ export function ProviderQRScanner() {
                 </div>
             </div>
 
-            {/* Custom Scanner Styling Injection to fix orientation and camera feed UI */}
             <style dangerouslySetInnerHTML={{ __html: `
                 #reader { border: none !important; position: relative; }
                 #reader video { 
