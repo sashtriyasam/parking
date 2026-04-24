@@ -17,6 +17,9 @@ import { ProviderBookings } from '@/app/components/pages/ProviderBookings';
 import { ProviderVehicleChecker } from '@/app/components/pages/ProviderVehicleChecker';
 import { ProviderOnboarding } from '@/app/components/pages/ProviderOnboarding';
 import { ProviderProfile } from '@/app/components/pages/ProviderProfile';
+import { ProviderAnalytics } from '@/app/components/pages/ProviderAnalytics';
+import FacilityLiveView from '@/app/components/pages/FacilityLiveView';
+import { ProviderQRScanner } from '@/app/components/pages/ProviderQRScanner';
 import { Toaster } from '@/app/components/ui/sonner';
 import type { ReactNode } from 'react';
 
@@ -110,6 +113,22 @@ function AppContent() {
             }
           />
           <Route
+            path="/provider/analytics"
+            element={
+              <ProtectedRoute requiredRole="provider">
+                <Navigation /><ProviderAnalytics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/provider/scan"
+            element={
+              <ProtectedRoute requiredRole="provider">
+                <Navigation /><ProviderQRScanner />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/provider/facilities"
             element={
               <ProtectedRoute requiredRole="provider">
@@ -122,6 +141,14 @@ function AppContent() {
             element={
               <ProtectedRoute requiredRole="provider">
                 <Navigation /><ProviderSlotManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/provider/facilities/:id/live"
+            element={
+              <ProtectedRoute requiredRole="provider">
+                <Navigation /><FacilityLiveView />
               </ProtectedRoute>
             }
           />

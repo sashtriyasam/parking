@@ -1029,6 +1029,8 @@ const createOfflineBooking = asyncHandler(async (req, res, next) => {
     let slotId = req.body.slotId || req.body.slot_id;
     const vehicleNumber = req.body.vehicleNumber || req.body.vehicle_number;
     const vehicleType = req.body.vehicleType || req.body.vehicle_type;
+    const customerName = req.body.customerName || req.body.customer_name;
+    const customerPhone = req.body.customerPhone || req.body.customer_phone;
     const providerId = req.user.id;
 
     if (!facilityId || !vehicleNumber || !vehicleType) {
@@ -1098,7 +1100,9 @@ const createOfflineBooking = asyncHandler(async (req, res, next) => {
         slotId, 
         vehicleNumber.toUpperCase(), 
         vehicleType.toUpperCase(), 
-        providerId
+        providerId,
+        customerName,
+        customerPhone
     );
 
     res.status(201).json({

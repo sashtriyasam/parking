@@ -285,7 +285,7 @@ const createPendingBooking = async (slotId, userId, vehicleNumber, vehicleType) 
 
 
 
-const createOfflineBooking = async (slotId, vehicleNumber, vehicleType, providerId) => {
+const createOfflineBooking = async (slotId, vehicleNumber, vehicleType, providerId, customerName = null, customerPhone = null) => {
     let ticket, facilityId;
 
     await prisma.$transaction(async (tx) => {
@@ -310,6 +310,8 @@ const createOfflineBooking = async (slotId, vehicleNumber, vehicleType, provider
                 facility_id: slot.floor.facility_id,
                 vehicle_number: vehicleNumber,
                 vehicle_type: vehicleType,
+                customer_name: customerName,
+                customer_phone: customerPhone,
                 status: 'ACTIVE',
                 booking_type: 'OFFLINE',
                 entry_time: start,

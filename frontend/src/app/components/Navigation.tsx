@@ -68,6 +68,16 @@ export function Navigation() {
             <Link to={navConfig.bookings.path} className={cn("text-sm font-medium transition-colors", isActive(navConfig.bookings.path) ? "text-primary" : "text-gray-600 hover:text-gray-900")}>
               {navConfig.bookings.label}
             </Link>
+            {isProvider && (
+               <>
+                  <Link to="/provider/analytics" className={cn("text-sm font-medium transition-colors", isActive("/provider/analytics") ? "text-primary" : "text-gray-600 hover:text-gray-900")}>
+                    Analytics
+                  </Link>
+                  <Link to="/provider/scan" className={cn("text-sm font-medium transition-colors", isActive("/provider/scan") ? "text-primary" : "text-gray-600 hover:text-gray-900")}>
+                    Scan QR
+                  </Link>
+               </>
+            )}
           </div>
 
           <div className="flex items-center space-x-4">
@@ -110,8 +120,9 @@ export function Navigation() {
 
       {/* MOBILE BOTTOM TAB BAR */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 h-16 pb-safe">
-        <div className="grid grid-cols-3 h-full">
+        <div className={`grid ${isProvider ? 'grid-cols-4' : 'grid-cols-3'} h-full`}>
           <NavItem icon={navConfig.explore.icon} label={navConfig.explore.label} path={navConfig.explore.path} />
+          {isProvider && <NavItem icon={Search} label="Scan" path="/provider/scan" />}
           <NavItem icon={navConfig.bookings.icon} label={navConfig.bookings.label} path={navConfig.bookings.path} />
           <NavItem icon={User} label="Account" path={isProvider ? "/provider/profile" : "/customer/profile"} />
         </div>

@@ -255,13 +255,16 @@ export function ProviderFacilities() {
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-2 pt-2 border-t mt-4">
-                                            <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEdit(facility)}>
+                                        <div className="flex flex-wrap gap-2 pt-2 border-t mt-4">
+                                            <Button variant="outline" size="sm" className="flex-1 min-w-[80px]" onClick={() => handleEdit(facility)}>
                                                 <Edit className="w-4 h-4 mr-2" />
                                                 Edit
                                             </Button>
-                                            <Button variant="outline" size="sm" className="flex-1" onClick={() => navigate(`/provider/facilities/${facility.id}/slots`)}>
+                                            <Button variant="outline" size="sm" className="flex-1 min-w-[120px]" onClick={() => navigate(`/provider/facilities/${facility.id}/slots`)}>
                                                 Manage Slots
+                                            </Button>
+                                            <Button size="sm" className="flex-1 min-w-[100px] bg-emerald-600 hover:bg-emerald-700" onClick={() => navigate(`/provider/facilities/${facility.id}/live`)}>
+                                                Live View
                                             </Button>
                                             <Button 
                                                 variant="ghost" 

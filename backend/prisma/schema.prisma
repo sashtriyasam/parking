@@ -159,6 +159,8 @@ model Ticket {
   slot_id        String?
   vehicle_number String
   vehicle_type   String
+  customer_name  String?
+  customer_phone String?
   entry_time     DateTime        @default(now())
   exit_time      DateTime?
   base_fee       Decimal?        @db.Decimal(12, 2)

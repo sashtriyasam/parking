@@ -33,11 +33,15 @@ export function ProviderDashboard() {
     vehicleType: VehicleType;
     facilityId: string;
     slotId: string;
+    customerName: string;
+    customerPhone: string;
   }>({
     vehicleNumber: '',
     vehicleType: 'CAR',
     facilityId: '',
-    slotId: ''
+    slotId: '',
+    customerName: '',
+    customerPhone: ''
   });
 
   const providerFacilities = useMemo(() => {
@@ -90,11 +94,20 @@ export function ProviderDashboard() {
         facility_id: manualData.facilityId,
         vehicle_number: manualData.vehicleNumber.toUpperCase(),
         vehicle_type: manualData.vehicleType,
-        slot_id: manualData.slotId?.trim() || null
+        slot_id: manualData.slotId?.trim() || null,
+        customer_name: manualData.customerName,
+        customer_phone: manualData.customerPhone
       });
       toast.success('Manual Check-in Successful');
       setShowManualModal(false);
-      setManualData({ vehicleNumber: '', vehicleType: 'CAR', facilityId: '', slotId: '' });
+      setManualData({ 
+        vehicleNumber: '', 
+        vehicleType: 'CAR', 
+        facilityId: '', 
+        slotId: '',
+        customerName: '',
+        customerPhone: '' 
+      });
     } catch (error: unknown) {
       let message = 'Manual check-in failed';
       if (isAxiosError(error) && error.response?.data?.message) {
@@ -233,8 +246,11 @@ export function ProviderDashboard() {
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="font-black text-gray-900 flex items-center uppercase tracking-tighter text-sm italic opacity-80">
                     <TrendingUp className="w-4 h-4 mr-2 text-indigo-500" />
-                    Revenue Analytics (Sample Data)
+                    Revenue Analytics
                   </h3>
+                  <Button variant="link" size="sm" onClick={() => navigate('/provider/analytics')} className="text-indigo-600 p-0 font-bold">
+                    View Full Report
+                  </Button>
                 </div>
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -310,6 +326,28 @@ export function ProviderDashboard() {
                        </div>
                        <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
+                             <label htmlFor="manual-customerName" className="text-xs font-bold text-gray-500 uppercase">Customer Name</label>
+                             <input 
+                                id="manual-customerName"
+                                placeholder="Optional"
+                                className="w-full p-2.5 bg-gray-50 border border-gray-100 rounded-lg text-sm"
+                                value={manualData.customerName}
+                                onChange={(e) => setManualData({...manualData, customerName: e.target.value})}
+                             />
+                          </div>
+                          <div className="space-y-2">
+                             <label htmlFor="manual-customerPhone" className="text-xs font-bold text-gray-500 uppercase">Phone Number</label>
+                             <input 
+                                id="manual-customerPhone"
+                                placeholder="Optional"
+                                className="w-full p-2.5 bg-gray-50 border border-gray-100 rounded-lg text-sm"
+                                value={manualData.customerPhone}
+                                onChange={(e) => setManualData({...manualData, customerPhone: e.target.value})}
+                             />
+                          </div>
+                       </div>
+                       <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
                              <label htmlFor="manual-vehicleType" className="text-xs font-bold text-gray-500 uppercase">Vehicle Type</label>
                              <select 
                                 id="manual-vehicleType"
@@ -320,6 +358,7 @@ export function ProviderDashboard() {
                                 <option value="CAR">Car</option>
                                 <option value="BIKE">Bike</option>
                                 <option value="SCOOTER">Scooter</option>
+                                <option value="TRUCK">Truck</option>
                              </select>
                           </div>
                           <div className="space-y-2">
@@ -333,10 +372,24 @@ export function ProviderDashboard() {
                              />
                           </div>
                        </div>
-                       <Button type="submit" className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 font-bold h-11" disabled={isSubmitting}>
-                          {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ScanLine className="w-4 h-4 mr-2" />}
-                          Confirm Offline Entry
-                       </Button>
+                       <div className="pt-2 flex gap-2">
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            className="flex-1 border-indigo-200 text-indigo-600 font-bold"
+                            onClick={() => {
+                                setShowManualModal(false);
+                                navigate('/provider/scan');
+                            }}
+                          >
+                             <ScanLine className="w-4 h-4 mr-2" />
+                             Scan QR
+                          </Button>
+                          <Button type="submit" className="flex-[2] bg-indigo-600 hover:bg-indigo-700 font-bold h-11" disabled={isSubmitting}>
+                             {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                             Confirm Entry
+                          </Button>
+                       </div>
                     </form>
                  </CardContent>
               </Card>
