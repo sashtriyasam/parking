@@ -483,6 +483,10 @@ export function CustomerTickets() {
             {isScanningMode && (
               <div className="flex flex-col items-center">
                 <div className="w-full bg-primary p-8 text-center text-white">
+                  <DialogHeader className="sr-only">
+                    <DialogTitle>Gate Pass QR Code</DialogTitle>
+                    <DialogDescription>Show this QR code at the entrance or exit gate.</DialogDescription>
+                  </DialogHeader>
                   <div className="mx-auto w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-md">
                     <ParkingSquare className="w-6 h-6" />
                   </div>
