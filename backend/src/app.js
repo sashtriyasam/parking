@@ -51,6 +51,7 @@ app.use(helmet({
                 "https://*.tile.openstreetmap.org",
                 "https://*.basemaps.cartocdn.com",
                 "https://images.unsplash.com",
+                "https://ui-avatars.com",
                 "https://*.onrender.com"
             ],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
