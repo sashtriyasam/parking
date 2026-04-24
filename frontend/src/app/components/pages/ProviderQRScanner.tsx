@@ -309,7 +309,7 @@ export function ProviderQRScanner() {
 
                                     {/* Action Buttons */}
                                     <div className="space-y-3">
-                                        {scanResult.status === 'PENDING_PAYMENT' ? (
+                                        {(scanResult.status === 'PENDING_PAYMENT' || scanResult.status === 'RESERVED') ? (
                                             <Button 
                                                 size="lg"
                                                 className="w-full h-16 rounded-3xl font-black text-lg shadow-xl shadow-primary/30 gap-3"

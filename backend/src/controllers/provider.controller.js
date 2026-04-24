@@ -739,13 +739,17 @@ const checkVehicleByPlate = asyncHandler(async (req, res, next) => {
 
     let activeTicket = null;
 
-    // 1. Precise Lookup (Status PENDING_PAYMENT or ACTIVE)
+    // 1. Precise Lookup (Status PENDING_PAYMENT, ACTIVE, or RESERVED)
+    const normalizedPlate = vehicle_number ? vehicle_number.toUpperCase().replace(/\s/g, '') : undefined;
+    
+    console.log(`[Gate Check] Provider: ${providerId}, Plate: ${normalizedPlate}, TicketID: ${ticket_id}`);
+
     const findQuery = {
         where: {
             id: ticket_id || undefined,
-            vehicle_number: !ticket_id && vehicle_number ? { contains: vehicle_number.toUpperCase().replace(/\s/g, ''), mode: 'insensitive' } : undefined,
+            vehicle_number: !ticket_id && normalizedPlate ? { contains: normalizedPlate, mode: 'insensitive' } : undefined,
             facility_id: { in: facilityIds },
-            status: { in: ['ACTIVE', 'PENDING_PAYMENT'] }
+            status: { in: ['ACTIVE', 'PENDING_PAYMENT', 'RESERVED'] }
         },
         include: {
             slot: { include: { floor: true } },
@@ -755,6 +759,7 @@ const checkVehicleByPlate = asyncHandler(async (req, res, next) => {
     };
 
     activeTicket = await prisma.ticket.findFirst(findQuery);
+    console.log(`[Gate Check] Result: ${activeTicket ? 'FOUND (' + activeTicket.status + ')' : 'NOT FOUND'}`);
 
     let currentFee = 0;
     let durationMinutes = 0;
