@@ -14,6 +14,7 @@ import {
   MapPin,
   Car
 } from 'lucide-react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Card, CardContent } from '@/app/components/ui/card';
@@ -28,15 +29,41 @@ export function ProviderQRScanner() {
     const [isLoading, setIsLoading] = useState(false);
     const [scanResult, setScanResult] = useState<any>(null);
 
-    // Mock scanning process for demo if library not present
+    // Real-time scanning logic
     useEffect(() => {
-        if (isScanning) {
+        let scanner: Html5QrcodeScanner | null = null;
+
+        if (isScanning && !scanResult) {
+            // Give the DOM a moment to render the #reader element
             const timer = setTimeout(() => {
-                // In a real app, this would be handled by a camera component
-            }, 2000);
-            return () => clearTimeout(timer);
+                scanner = new Html5QrcodeScanner(
+                    "reader",
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    /* verbose= */ false
+                );
+
+                scanner.render(
+                    (decodedText) => {
+                        // On success
+                        if (scanner) {
+                            scanner.clear().catch(error => console.error("Failed to clear scanner", error));
+                        }
+                        handleVerify(decodedText);
+                    },
+                    (errorMessage) => {
+                        // Silently handle scan errors (common during active scanning)
+                    }
+                );
+            }, 300);
+
+            return () => {
+                clearTimeout(timer);
+                if (scanner) {
+                    scanner.clear().catch(error => console.error("Failed to clear scanner during cleanup", error));
+                }
+            };
         }
-    }, [isScanning]);
+    }, [isScanning, scanResult]);
 
     const handleVerify = async (id: string) => {
         const tid = id || ticketId;
@@ -121,25 +148,25 @@ export function ProviderQRScanner() {
                             className="space-y-8"
                         >
                             {/* Scanner Frame */}
-                            <div className="relative aspect-square max-w-[320px] mx-auto group">
-                                <div className="absolute inset-0 border-2 border-indigo-500/30 rounded-[2.5rem] bg-indigo-500/5 backdrop-blur-sm" />
+                            <div className="relative aspect-square max-w-[320px] mx-auto group overflow-hidden rounded-[2.5rem]">
+                                {/* The actual camera feed element */}
+                                <div id="reader" className="w-full h-full" />
+                                
+                                {/* Overlay styling to match design */}
+                                <div className="absolute inset-0 pointer-events-none border-2 border-indigo-500/30 rounded-[2.5rem]" />
                                 
                                 {/* Corner Accents */}
-                                <div className="absolute top-0 left-0 w-16 h-16 border-t-4 border-l-4 border-indigo-500 rounded-tl-[2.5rem]" />
-                                <div className="absolute top-0 right-0 w-16 h-16 border-t-4 border-r-4 border-indigo-500 rounded-tr-[2.5rem]" />
-                                <div className="absolute bottom-0 left-0 w-16 h-16 border-b-4 border-l-4 border-indigo-500 rounded-bl-[2.5rem]" />
-                                <div className="absolute bottom-0 right-0 w-16 h-16 border-b-4 border-r-4 border-indigo-500 rounded-br-[2.5rem]" />
+                                <div className="absolute top-0 left-0 w-16 h-16 border-t-4 border-l-4 border-indigo-500 rounded-tl-[2.5rem] pointer-events-none" />
+                                <div className="absolute top-0 right-0 w-16 h-16 border-t-4 border-r-4 border-indigo-500 rounded-tr-[2.5rem] pointer-events-none" />
+                                <div className="absolute bottom-0 left-0 w-16 h-16 border-b-4 border-l-4 border-indigo-500 rounded-bl-[2.5rem] pointer-events-none" />
+                                <div className="absolute bottom-0 right-0 w-16 h-16 border-b-4 border-r-4 border-indigo-500 rounded-br-[2.5rem] pointer-events-none" />
 
                                 {/* Scanning Animation Line */}
                                 <motion.div 
-                                    className="absolute left-6 right-6 h-1 bg-gradient-to-r from-transparent via-indigo-400 to-transparent shadow-[0_0_15px_rgba(99,102,241,0.5)]"
+                                    className="absolute left-6 right-6 h-1 bg-gradient-to-r from-transparent via-indigo-400 to-transparent shadow-[0_0_15px_rgba(99,102,241,0.5)] z-20 pointer-events-none"
                                     animate={{ top: ['15%', '85%', '15%'] }}
                                     transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
                                 />
-
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <QrCode className="w-24 h-24 text-indigo-500/20" />
-                                </div>
                             </div>
 
                             {/* Manual Input Fallback */}
