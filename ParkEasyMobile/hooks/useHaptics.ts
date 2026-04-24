@@ -28,11 +28,23 @@ export const useHaptics = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   }, []);
 
+  const notificationWarning = useCallback(() => {
+    if (Platform.OS === 'web') return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+  }, []);
+
+  const impactHeavy = useCallback(() => {
+    if (Platform.OS === 'web') return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+  }, []);
+
   return {
     selection,
     impactLight,
     impactMedium,
+    impactHeavy,
     notificationSuccess,
     notificationError,
+    notificationWarning,
   };
 };

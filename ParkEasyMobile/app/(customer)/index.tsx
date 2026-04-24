@@ -40,7 +40,7 @@ export default function HomeScreen() {
   const { user } = useAuthStore();
   const colors = useThemeColors();
   const haptics = useHaptics();
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<React.ElementRef<typeof MapView>>(null);
   const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);

@@ -12,7 +12,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import Animated, { 
-  FadeInDown
+  FadeInDown,
+  SlideInUp,
+  Layout,
+  FadeIn
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 
@@ -220,7 +223,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 70 : 50,
     paddingBottom: 20,
     borderBottomWidth: 0.5,
-    borderColor: colors.border,
+    borderColor: 'rgba(0,0,0,0.1)',
   },
   headerTop: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, gap: 12 },
   navBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },

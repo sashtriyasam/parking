@@ -27,6 +27,7 @@ import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
 import { useThemeColors } from '../hooks/useThemeColors';
 import { useHaptics } from '../hooks/useHaptics';
+import { useToast } from './Toast';
 import { ProfessionalCard } from './ui/ProfessionalCard';
 import { Skeleton } from './ui/SkeletonLoader';
 

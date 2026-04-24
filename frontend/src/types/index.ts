@@ -43,6 +43,7 @@ export interface Facility {
   distance?: number;
   reviewCountSummary?: string;
   currency?: CurrencyCode;
+  price_per_hour?: number;
 }
 
 export interface ParkingSlot {

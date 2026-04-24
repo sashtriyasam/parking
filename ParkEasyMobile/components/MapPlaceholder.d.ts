@@ -18,6 +18,8 @@ export interface MapViewProps extends ViewProps {
   onPress?: (event: any) => void;
   provider?: string | null;
   showsUserLocation?: boolean;
+  showsMyLocationButton?: boolean;
+  customMapStyle?: any[];
   children?: React.ReactNode;
 }
 
@@ -31,6 +33,6 @@ export interface MarkerProps extends ViewProps {
   children?: React.ReactNode;
 }
 
-export const MapView: React.ComponentType<MapViewProps>;
+export const MapView: React.ForwardRefExoticComponent<MapViewProps & React.RefAttributes<any>>;
 export const Marker: React.ComponentType<MarkerProps>;
 export default MapView;

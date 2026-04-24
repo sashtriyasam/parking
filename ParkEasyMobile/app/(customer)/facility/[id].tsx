@@ -54,7 +54,7 @@ interface Facility {
 }
 
 const formatReviewCount = (count?: number): string => {
-  if (!count) return 'OVER 2.4K';
+  if (count == null) return 'OVER 2.4K';
   if (count < 1000) return count.toString();
   const kValue = count / 1000;
   const formatted = kValue % 1 === 0 ? kValue.toFixed(0) : kValue.toFixed(1);
@@ -88,7 +88,7 @@ export default function FacilityDetailsScreen() {
       } else {
         Alert.alert('Not Found', 'The requested parking facility could not be found.', [
           { text: 'Go Back', onPress: () => router.back() }
-        ]);
+        ], { cancelable: false, onDismiss: () => router.back() });
       }
     } catch (error) {
       console.error('Error fetching facility:', error);
@@ -108,9 +108,11 @@ export default function FacilityDetailsScreen() {
     if (!facility) return;
     haptics.impactLight();
     try {
+      const url = `https://parkeasy.app/facility/${facility.id}`;
+      const message = `Check out ${facility.name} parking facility at ${facility.address}!`;
       await Share.share({
-        message: `Check out ${facility.name} parking facility at ${facility.address}!`,
-        url: `https://parkeasy.app/facility/${facility.id}`,
+        message: Platform.OS === 'android' ? `${message} ${url}` : message,
+        url,
         title: facility.name
       });
     } catch (error) {

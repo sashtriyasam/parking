@@ -46,6 +46,7 @@ export const colors = {
   danger: '#EF4444',
   dangerSurface: 'rgba(239, 68, 68, 0.1)',
   dangerBorder: 'rgba(239, 68, 68, 0.2)',
+  primaryLight: 'rgba(99, 102, 241, 0.12)',
   info: '#3B82F6',            // Blue-500
   
   gradients: {

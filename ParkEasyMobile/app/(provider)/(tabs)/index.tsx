@@ -207,7 +207,7 @@ export default function ProviderDashboard() {
         {/* Apple-style Hero Section: Offline Entry Widget */}
         <Animated.View entering={FadeInDown.duration(800)}>
           <ProfessionalCard 
-             style={[styles.heroCard, { backgroundColor: colors.primary }]} 
+             style={[styles.heroCard, { backgroundColor: colors.primary, shadowColor: colors.primary }]} 
              hasVibrancy={false}
              onPress={() => {
                 haptics.impactMedium();
@@ -315,7 +315,7 @@ export default function ProviderDashboard() {
                          numberOfLines={1}
                          ellipsizeMode="tail"
                        >
-                          {booking.booking_type || 'ONLINE'} • {booking.facility?.name}
+                          {booking.booking_type || 'ONLINE'}{booking.facility?.name ? ` • ${booking.facility.name}` : ''}
                        </Text>
                     </View>
                   </View>
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
   syncDot: { width: 8, height: 8, borderRadius: 4 },
   syncText: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 100 },
-  heroCard: { padding: 0, borderRadius: 32, marginBottom: 24, borderWidth: 0, elevation: 12, shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
+  heroCard: { padding: 0, borderRadius: 32, marginBottom: 24, borderWidth: 0, elevation: 12, shadowOpacity: 0.3, shadowRadius: 20, shadowOffset: { width: 0, height: 10 } },
   heroLayout: { padding: 28, flexDirection: 'row', alignItems: 'center', gap: 20 },
   heroTextSection: { flex: 1 },
   heroTitle: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },

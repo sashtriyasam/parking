@@ -141,7 +141,7 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: height * 0.1 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -254,7 +254,7 @@ const SocialButton = ({ icon, label, onPress, colors, disabled }: SocialButtonPr
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { flexGrow: 1, paddingHorizontal: 28, paddingTop: height * 0.1, paddingBottom: 60 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 28, paddingBottom: 60 },
   header: { alignItems: 'center', marginBottom: 48 },
   logoOutline: { width: 88, height: 88, borderRadius: 28, padding: 1, marginBottom: 24 },
   logoCard: { flex: 1, borderRadius: 26, justifyContent: 'center', alignItems: 'center', padding: 0 },
