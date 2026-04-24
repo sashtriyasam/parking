@@ -479,7 +479,7 @@ export function CustomerSearch() {
         </div>
 
         {/* FLOATING ACTION OVERLAYS */}
-        <div className="absolute right-6 bottom-6 flex flex-col gap-3 z-10">
+        <div className="absolute right-6 bottom-24 md:bottom-8 flex flex-col gap-3 z-10">
           <Button
             className="w-12 h-12 rounded-2xl bg-white text-gray-900 border-0 shadow-2xl hover:bg-gray-50 flex items-center justify-center p-0"
             onClick={() => {
@@ -517,7 +517,7 @@ export function CustomerSearch() {
               initial={{ y: 200, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 200, opacity: 0 }}
-              className="absolute bottom-6 left-6 right-6 md:left-[50%] md:translate-x-[-50%] md:w-[460px] z-20"
+              className="absolute bottom-24 md:bottom-8 left-6 right-6 md:left-[50%] md:translate-x-[-50%] md:w-[460px] z-20"
             >
               <Card className="rounded-[40px] shadow-3xl overflow-hidden border-0 bg-white/95 backdrop-blur-2xl ring-1 ring-black/[0.05]">
                 <div className="relative h-44 bg-gray-200">
