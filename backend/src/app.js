@@ -42,8 +42,17 @@ app.use(helmet({
         directives: {
             defaultSrc: ["'self'"],
             scriptSrc: ["'self'", "'unsafe-inline'", "https://maps.googleapis.com"],
-            connectSrc: ["'self'", "https://maps.googleapis.com"],
-            imgSrc: ["'self'", "data:", "https://maps.gstatic.com", "https://*.googleapis.com"],
+            connectSrc: ["'self'", "https://maps.googleapis.com", "https://*.basemaps.cartocdn.com"],
+            imgSrc: [
+                "'self'", 
+                "data:", 
+                "https://maps.gstatic.com", 
+                "https://*.googleapis.com", 
+                "https://*.tile.openstreetmap.org",
+                "https://*.basemaps.cartocdn.com",
+                "https://images.unsplash.com",
+                "https://*.onrender.com"
+            ],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
         },
