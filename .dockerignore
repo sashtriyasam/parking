@@ -10,4 +10,4 @@ backend/node_modules
 frontend/dist
 backend/logs
 backend/coverage
-backend/prisma/migrations
+# backend/prisma/migrations (removed to allow migrations to run in production)
