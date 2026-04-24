@@ -32,6 +32,9 @@ const { version } = require('../package.json');
 
 const app = express();
 
+// Phase 10 Fix: Enable trust proxy for Render to allow express-rate-limit to work correctly
+app.set('trust proxy', 1);
+
 // Middleware
 // Phase 10 Fix: Relaxed CSP for Fullstack Consolidation (Google Maps + Self-hosting)
 app.use(helmet({
@@ -137,7 +140,8 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // SPA Fallback: Serve index.html for any route that doesn't match an API route
 // This fixes the "Not Found" error on refresh for client-side routing
-app.get('*', (req, res, next) => {
+// Note: In Express 5.x, use (.*) for the catch-all wildcard
+app.get('/*', (req, res, next) => {
     // If it's an API request or file request that reached here, let it pass to 404 handler
     if (req.originalUrl.startsWith('/api') || req.originalUrl.includes('.')) {
         return next();

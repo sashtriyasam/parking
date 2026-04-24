@@ -246,12 +246,21 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
     let paymentResult;
     try {
         if (payment_method === 'CARD') {
+            if (!payment_details) {
+                return next(new AppError('Payment details are required for card payments', 400));
+            }
             paymentResult = await paymentService.processCardPayment(payment_details, totalFee);
         } else if (payment_method === 'UPI') {
+            if (!payment_details || !payment_details.upiId) {
+                return next(new AppError('UPI ID is required for UPI payments', 400));
+            }
             paymentResult = await paymentService.processUPIPayment(payment_details.upiId, totalFee);
         } else if (payment_method === 'PAY_AT_EXIT') {
             paymentResult = paymentService.createPayAtExitPayment({ amount: totalFee });
         } else {
+            if (!payment_details) {
+                return next(new AppError('Payment details are required', 400));
+            }
             paymentResult = await paymentService.processCardPayment(payment_details, totalFee);
         }
 
