@@ -17,7 +17,6 @@ import { Input } from '@/app/components/ui/input';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
 import apiClient from '@/services/api';
 
 export function ProviderQRScanner() {
@@ -48,6 +47,7 @@ export function ProviderQRScanner() {
                         { facingMode: "environment" }, 
                         config,
                         (decodedText) => {
+                            console.log("QR Decoded:", decodedText);
                             if (html5QrCode) {
                                 html5QrCode.stop().catch(err => console.error("Stop failed", err));
                             }
@@ -76,43 +76,33 @@ export function ProviderQRScanner() {
         const tid = (id || ticketId).trim();
         if (!tid) return;
 
+        console.log("Verifying ID:", tid);
         setIsLoading(true);
         try {
-            // First try to check by Vehicle Plate (if tid looks like a plate)
-            // or just hit the check endpoint.
-            // Based on backend provider.controller.js, check-vehicle expects vehicle_number
-            // But if the QR contains a Ticket ID, we might need a direct ticket fetch.
-            
-            // LOGIC: If it starts with 'TICK-', it's an ID. If it's short, it's a plate.
-            const isTicketId = tid.includes('-') || tid.length > 15;
-            
-            let response;
-            if (isTicketId) {
-                // If it's a Ticket ID, we should fetch it directly or use a specific endpoint
-                // Since there is no direct 'getTicket' for providers besides getAllBookings, 
-                // we'll use check-vehicle but pass the ID if the backend supports it, 
-                // or we use the booking checkout check logic.
-                response = await apiClient.get(`/provider/check-vehicle?vehicle_number=${tid}`);
-            } else {
-                response = await apiClient.get(`/provider/check-vehicle?vehicle_number=${tid}`);
-            }
+            // The backend endpoint /api/v1/provider/check-vehicle expects vehicle_number
+            // If the QR contains a full ID or a plate, we send it to vehicle_number
+            const response = await apiClient.get(`/provider/check-vehicle?vehicle_number=${tid}`);
+            console.log("Verification Response:", response.data);
 
             const data = response.data.data;
             
-            if (!data || (!data.active_ticket && !data.found)) {
-                toast.error('No active booking found for this vehicle');
+            // Backend returns { activeTicket: {...} } or { found: false }
+            // Looking at actual controller: it returns 'activeTicket' (camelCase) usually or 'active_ticket'
+            const ticket = data.activeTicket || data.active_ticket || (data.found ? data : null);
+
+            if (!ticket) {
+                toast.error('No active booking found');
                 setIsScanning(true);
                 return;
             }
 
-            // The backend returns { active_ticket: { ... } }
-            setScanResult(data.active_ticket || data);
-            toast.success('Vehicle Verified');
+            setScanResult(ticket);
+            toast.success('Verified Successfully');
             setIsScanning(false);
-        } catch (error) {
-            toast.error('Verification failed');
+        } catch (error: any) {
+            console.error("Verification error:", error.response?.data || error.message);
+            toast.error(error.response?.data?.message || 'Verification failed');
             setIsScanning(true);
-            console.error(error);
         } finally {
             setIsLoading(false);
         }
@@ -122,9 +112,7 @@ export function ProviderQRScanner() {
         if (!scanResult) return;
         setIsLoading(true);
         try {
-            // Use the correct endpoint: /api/v1/bookings/checkout
-            // The previous code was hitting /bookings/end which doesn't exist (it was renamed or mapped differently)
-            // Route in booking.routes.js is: router.post('/checkout', bookingController.endBooking);
+            // End booking via checkout endpoint
             await apiClient.post('/bookings/checkout', { 
                 ticket_id: scanResult.id 
             });
@@ -133,7 +121,8 @@ export function ProviderQRScanner() {
             setScanResult(null);
             setIsScanning(true);
         } catch (error: any) {
-            toast.error(error.message || 'Failed to process checkout');
+            console.error("Checkout error:", error.response?.data || error.message);
+            toast.error(error.response?.data?.message || 'Failed to process checkout');
         } finally {
             setIsLoading(false);
         }
@@ -245,7 +234,7 @@ export function ProviderQRScanner() {
                                     </div>
                                     <h3 className="text-3xl font-black tracking-tighter">Verified</h3>
                                     <p className="text-primary font-bold uppercase text-[10px] tracking-widest mt-2 px-3 py-1 bg-primary/10 rounded-full inline-block">
-                                        {scanResult?.status === 'ACTIVE' || scanResult?.entry_time ? 'Ready to Checkout' : 'Ready for Entry'}
+                                        Ready for Action
                                     </p>
                                 </div>
                                 
@@ -253,11 +242,11 @@ export function ProviderQRScanner() {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="p-5 rounded-[2rem] bg-slate-50 dark:bg-slate-800/50 border border-border">
                                             <p className="text-[10px] font-black text-muted-foreground uppercase mb-2">Plate</p>
-                                            <p className="text-xl font-black tracking-tight">{scanResult?.vehicle_number}</p>
+                                            <p className="text-xl font-black tracking-tight">{scanResult?.vehicle_number || 'N/A'}</p>
                                         </div>
                                         <div className="p-5 rounded-[2rem] bg-primary/5 border border-primary/10">
                                             <p className="text-[10px] font-black text-primary/60 uppercase mb-2">Slot</p>
-                                            <p className="text-xl font-black text-primary tracking-tight">{scanResult?.slot || 'A-1'}</p>
+                                            <p className="text-xl font-black text-primary tracking-tight">{scanResult?.slot?.slot_number || 'A-1'}</p>
                                         </div>
                                     </div>
 
