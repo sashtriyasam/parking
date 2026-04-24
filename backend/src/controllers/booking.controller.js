@@ -6,8 +6,6 @@ const bookingService = require('../services/booking.service');
 const pricingService = require('../services/pricing.service');
 const { emitSlotUpdate } = require('../services/socket.service');
 
-
-
 const reserveSlot = asyncHandler(async (req, res) => {
     const { facility_id, vehicle_type, floor_id } = req.body;
     const result = await bookingService.reserveSlot(facility_id, vehicle_type, floor_id, req.user.id);
@@ -227,17 +225,20 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
     }
 
     // Calculate fees
-    const pricingRule = slot.floor.facility.pricing_rules.find(
+    let pricingRule = slot.floor.facility.pricing_rules.find(
         r => r.vehicle_type === vehicle_type
     );
 
+    // Fallback: If specific rule for vehicle_type doesn't exist, try to find ANY rule or use system default
     if (!pricingRule) {
-        return next(new AppError('Pricing rule not found for vehicle type', 404));
+        console.warn(`[BookingFlow] No pricing rule for ${vehicle_type} at facility ${slot.floor.facility.id}. Using fallback.`);
+        pricingRule = slot.floor.facility.pricing_rules[0] || { hourly_rate: 20, daily_max: 200 };
     }
 
-    const baseFee = pricingRule.hourly_rate * durationHours;
+    const hourlyRate = Number(pricingRule.hourly_rate || 20);
+    const baseFee = hourlyRate * durationHours;
     const cappedFee = pricingRule.daily_max && baseFee > pricingRule.daily_max
-        ? pricingRule.daily_max
+        ? Number(pricingRule.daily_max)
         : baseFee;
     const gst = cappedFee * 0.18;
     const totalFee = Math.round((cappedFee + gst) * 100) / 100;
@@ -388,7 +389,6 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
     });
 });
 
-
 /**
  * Download ticket as PDF
  */
@@ -456,8 +456,6 @@ const cancelBooking = asyncHandler(async (req, res, next) => {
         return next(new AppError(`Ticket cannot be cancelled in its current status: ${ticket.status}`, 400));
     }
 
-
-
     // Transaction to update ticket and slot
     let shouldEmitFree = false;
     try {
@@ -476,7 +474,6 @@ const cancelBooking = asyncHandler(async (req, res, next) => {
                 });
 
                 // Verify if any OTHER active ticket is utilizing this slot before freeing it.
-                // This prevents accidentally freeing a slot that has multiple concurrent active sessions (e.g. edge cases).
                 const otherActiveTicket = await tx.ticket.findFirst({
                     where: {
                         slot_id: ticket.slot_id,
