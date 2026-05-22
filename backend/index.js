@@ -40,7 +40,7 @@ async function startServer() {
             process.env.FRONTEND_URL,
             process.env.MOBILE_APP_URL,
             process.env.RENDER_APP_URL,
-            'https://parkeasy-backend-uy3x.onrender.com',
+            'https://parkeasy-frontend.onrender.com',
         ].filter(Boolean);
         initSocket(server, allowedOrigins);
         Logger.info('Socket.io initialized with CORS origins');
@@ -83,7 +83,7 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('uncaughtException', (err) => {
     Logger.error('Uncaught Exception:', err);
-    gracefulShutdown('uncaughtException').catch(() => process.exit(1));
+    process.exit(1);
 });
 process.on('unhandledRejection', (reason) => {
     Logger.error('Unhandled Rejection:', reason);

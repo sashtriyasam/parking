@@ -66,9 +66,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       const token = await SecureStore.getItemAsync('accessToken');
       if (storedUser && token) {
         try {
-          const decoded: { exp: number } = jwtDecode(token);
-          const isExpired = decoded.exp * 1000 < Date.now();
-          if (!isExpired) {
+          const decoded: any = jwtDecode(token);
+          const isExpired = typeof decoded?.exp === 'number' ? decoded.exp * 1000 < Date.now() : true;
+          if (typeof decoded?.exp === 'number' && !isExpired) {
             set({ user: JSON.parse(storedUser), accessToken: token });
           } else {
             // Token expired — check if refresh token exists to allow silent refresh
@@ -79,8 +79,12 @@ export const useAuthStore = create<AuthState>((set) => ({
             }
             // If no refresh token, don't set user — forces clean login
           }
-        } catch {
+        } catch (error) {
           // Can't decode token — treat as expired, don't restore session
+          console.error('Failed to decode stored access token, deleting corrupted credentials', error);
+          await SecureStore.deleteItemAsync('accessToken');
+          await SecureStore.deleteItemAsync('user');
+          await SecureStore.deleteItemAsync('refreshToken');
         }
       }
     } catch (e) {

@@ -14,7 +14,6 @@ const limiter = rateLimit({
     message: { status: 'error', message: 'Too many requests. Please try again in 15 minutes.' },
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-    skip: (req) => req.path === '/health' || req.path === '/api/status',
 });
 
 const parkingRoutes = require('./routes/parking.routes');
@@ -116,9 +115,9 @@ app.get('/health', async (req, res) => {
     });
 });
 
+app.use(limiter); // Apply rate limiter globally to all subsequent routes
 app.use(express.json());
 app.use(cookieParser());
-app.use(limiter); // Apply rate limiter globally to all subsequent routes
 
 if (process.env.NODE_ENV === 'development') {
     app.use(morgan('dev'));

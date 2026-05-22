@@ -6,7 +6,7 @@ const initSocket = (server, allowedOrigins = []) => {
         cors: {
             origin: allowedOrigins.length > 0 
                 ? (origin, callback) => {
-                    if (!origin || allowedOrigins.some(o => origin === o || origin.endsWith('.onrender.com'))) {
+                    if (allowedOrigins.some(o => origin === o)) {
                         callback(null, true);
                     } else {
                         callback(new Error('Socket CORS: origin not allowed'));

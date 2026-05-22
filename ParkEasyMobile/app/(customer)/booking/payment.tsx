@@ -80,6 +80,7 @@ export default function PaymentScreen() {
       console.error('Booking Creation Error', e);
       showToast(e.response?.data?.message || 'Booking failed. Please contact support.', 'error');
       setLoading(false);
+      setShowPaymentSheet(false);
     }
   };
 

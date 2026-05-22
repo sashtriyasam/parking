@@ -304,21 +304,6 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
                 throw new AppError('Slot is no longer available for this time window', 409);
             }
 
-            // Double check availability inside transaction
-            const overlapping = await tx.ticket.findFirst({
-                where: {
-                    slot_id: slot_id,
-                    status: { in: ['ACTIVE', 'PENDING_PAYMENT', 'RESERVED'] },
-                    entry_time: { lt: bookingEnd },
-                    exit_time: { gt: bookingStart }
-                }
-            });
-
-            if (overlapping) {
-                console.warn(`[BookingFlow] Overlap detected for Slot ${slot_id} during transaction`);
-                throw new AppError('Slot is no longer available for this time window', 409);
-            }
-
             // Update slot status only if booking starts now
             if (startsWithin15Min) {
                 await tx.parkingSlot.update({

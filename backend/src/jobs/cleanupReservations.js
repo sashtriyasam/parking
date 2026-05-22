@@ -2,6 +2,8 @@ const cron = require('node-cron');
 const prisma = require('../config/db');
 const Logger = require('../utils/logger');
 
+const PENDING_PAYMENT_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+
 // Run every minute
 const cleanupReservations = cron.schedule('* * * * *', async () => {
     try {
@@ -24,7 +26,7 @@ const cleanupReservations = cron.schedule('* * * * *', async () => {
         const cancelledTickets = await prisma.ticket.updateMany({
             where: {
                 status: 'PENDING_PAYMENT',
-                created_at: { lt: new Date(Date.now() - 15 * 60 * 1000) }
+                created_at: { lt: new Date(Date.now() - PENDING_PAYMENT_TIMEOUT_MS) }
             },
             data: { status: 'CANCELLED' }
         });

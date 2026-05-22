@@ -78,7 +78,9 @@ apiClient.interceptors.response.use(
             throw new Error('Invalid refresh response');
           }
           await SecureStore.setItemAsync('accessToken', accessToken);
-          await SecureStore.setItemAsync('refreshToken', newRefresh);
+          if (newRefresh !== undefined && newRefresh !== null && typeof newRefresh === 'string' && newRefresh.length > 0) {
+            await SecureStore.setItemAsync('refreshToken', newRefresh);
+          }
           if (originalRequest?.headers) {
             originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           }

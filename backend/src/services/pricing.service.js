@@ -9,7 +9,7 @@ const calculateParkingFee = async (entryTime, exitTime, vehicleType, facilityId)
     });
 
     if (!facility) {
-        throw new Error('Facility not found');
+        throw new AppError('Facility not found', 404);
     }
 
     let rule = facility.pricing_rules.find((r) => r.vehicle_type === vehicleType);

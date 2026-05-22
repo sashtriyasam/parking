@@ -58,6 +58,68 @@ describe('Analytics Service', () => {
         expect(result.revenue.week).toBe(500);
         expect(result.revenue.month).toBe(2000);
         expect(result.active_bookings).toBe(5);
+        expect(result.online_bookings).toBe(3);
+        expect(result.offline_bookings).toBe(2);
         expect(result.occupancy).toBe(50); // 10/20 * 100
+    });
+
+    test('should handle empty active bookings groupBy response', async () => {
+        // Mock Data
+        prisma.parkingFacility.findMany.mockResolvedValue([{ id: 'fac-1' }]);
+
+        // Revenue mocks (Today, Week, Month called sequentially)
+        prisma.ticket.aggregate
+            .mockResolvedValueOnce({ _sum: { total_fee: 100 } }) // Today
+            .mockResolvedValueOnce({ _sum: { total_fee: 500 } }) // Week
+            .mockResolvedValueOnce({ _sum: { total_fee: 2000 } }); // Month
+
+        // Empty active bookings
+        prisma.ticket.groupBy.mockResolvedValue([]);
+
+        // Occupancy (Total, Occupied)
+        prisma.parkingSlot.count
+            .mockResolvedValueOnce(20) // Total
+            .mockResolvedValueOnce(10); // Occupied
+
+        const result = await getDashboardStats('provider-1');
+
+        expect(result.revenue.today).toBe(100);
+        expect(result.revenue.week).toBe(500);
+        expect(result.revenue.month).toBe(2000);
+        expect(result.active_bookings).toBe(0);
+        expect(result.online_bookings).toBe(0);
+        expect(result.offline_bookings).toBe(0);
+        expect(result.occupancy).toBe(50);
+    });
+
+    test('should handle partial active bookings groupBy response with only ONLINE bookings', async () => {
+        // Mock Data
+        prisma.parkingFacility.findMany.mockResolvedValue([{ id: 'fac-1' }]);
+
+        // Revenue mocks (Today, Week, Month called sequentially)
+        prisma.ticket.aggregate
+            .mockResolvedValueOnce({ _sum: { total_fee: 100 } }) // Today
+            .mockResolvedValueOnce({ _sum: { total_fee: 500 } }) // Week
+            .mockResolvedValueOnce({ _sum: { total_fee: 2000 } }); // Month
+
+        // Partial active bookings (only ONLINE)
+        prisma.ticket.groupBy.mockResolvedValue([
+            { booking_type: 'ONLINE', _count: { _all: 3 } }
+        ]);
+
+        // Occupancy (Total, Occupied)
+        prisma.parkingSlot.count
+            .mockResolvedValueOnce(20) // Total
+            .mockResolvedValueOnce(10); // Occupied
+
+        const result = await getDashboardStats('provider-1');
+
+        expect(result.revenue.today).toBe(100);
+        expect(result.revenue.week).toBe(500);
+        expect(result.revenue.month).toBe(2000);
+        expect(result.active_bookings).toBe(3);
+        expect(result.online_bookings).toBe(3);
+        expect(result.offline_bookings).toBe(0);
+        expect(result.occupancy).toBe(50);
     });
 });
