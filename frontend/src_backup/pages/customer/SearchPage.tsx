@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Filter, Grid3X3, Map as MapIcon, ChevronDown, Search as SearchIcon, MapPin, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -9,7 +9,54 @@ import { SearchBar } from '../../components/customer/SearchBar';
 import { FilterSidebar } from '../../components/customer/FilterSidebar';
 import { ParkingCard } from '../../components/customer/ParkingCard';
 import { MapView } from '../../components/customer/MapView';
-import type { VehicleType } from '../../types';
+import type { VehicleType, ParkingFacility } from '../../types';
+
+/**
+ * Filters and sorts the list of parking facilities based on the user's search options.
+ */
+function getFilteredAndSortedFacilities(
+    facilities: ParkingFacility[] | undefined,
+    priceRange: [number, number],
+    sortBy: 'distance' | 'price_asc' | 'price_desc' | 'availability'
+): ParkingFacility[] {
+    if (!facilities) return [];
+    return facilities
+        .filter((facility) => {
+            if (facility.pricing) {
+                const price = facility.pricing.hourly_rate;
+                if (price < priceRange[0] || price > priceRange[1]) {
+                    return false;
+                }
+            }
+            return true;
+        })
+        .sort((a, b) => {
+            switch (sortBy) {
+                case 'distance':
+                    return (a.distance || 0) - (b.distance || 0);
+                case 'price_asc':
+                    return (a.pricing?.hourly_rate || 0) - (b.pricing?.hourly_rate || 0);
+                case 'price_desc':
+                    return (b.pricing?.hourly_rate || 0) - (a.pricing?.hourly_rate || 0);
+                default:
+                    return 0;
+            }
+        });
+}
+
+/**
+ * Skeleton card component to display while parking spots are loading.
+ */
+function SkeletonCard() {
+    return (
+        <div className="bg-white rounded-xl p-4 border border-gray-100 animate-pulse">
+            <div className="aspect-[2/3] bg-gray-50 rounded-lg mb-4" />
+            <div className="h-5 bg-gray-50 rounded w-3/4 mb-2" />
+            <div className="h-4 bg-gray-50 rounded w-1/2 mb-4" />
+            <div className="h-10 bg-gray-50 rounded-lg w-full" />
+        </div>
+    );
+}
 
 export default function SearchPage() {
     const navigate = useNavigate();
@@ -48,37 +95,9 @@ export default function SearchPage() {
         setFilters({ location, vehicleType });
     };
 
-    const filteredFacilities = facilities
-        ?.filter((facility) => {
-            if (facility.pricing) {
-                const price = facility.pricing.hourly_rate;
-                if (price < filters.priceRange[0] || price > filters.priceRange[1]) {
-                    return false;
-                }
-            }
-            return true;
-        })
-        .sort((a, b) => {
-            switch (filters.sortBy) {
-                case 'distance':
-                    return (a.distance || 0) - (b.distance || 0);
-                case 'price_asc':
-                    return (a.pricing?.hourly_rate || 0) - (b.pricing?.hourly_rate || 0);
-                case 'price_desc':
-                    return (b.pricing?.hourly_rate || 0) - (a.pricing?.hourly_rate || 0);
-                default:
-                    return 0;
-            }
-        });
-
-    const SkeletonCard = () => (
-        <div className="bg-white rounded-xl p-4 border border-gray-100 animate-pulse">
-            <div className="aspect-[2/3] bg-gray-50 rounded-lg mb-4" />
-            <div className="h-5 bg-gray-50 rounded w-3/4 mb-2" />
-            <div className="h-4 bg-gray-50 rounded w-1/2 mb-4" />
-            <div className="h-10 bg-gray-50 rounded-lg w-full" />
-        </div>
-    );
+    const filteredFacilities = useMemo(() => {
+        return getFilteredAndSortedFacilities(facilities, filters.priceRange, filters.sortBy);
+    }, [facilities, filters.priceRange, filters.sortBy]);
 
     return (
         <div className="min-h-screen bg-white">

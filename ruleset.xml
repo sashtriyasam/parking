@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<ruleset name="ParkEasy PMD Rules"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>
+        PMD ruleset for ParkEasy to satisfy Codacy analysis tools.
+    </description>
+
+    <!-- Reference JavaScript categories -->
+    <rule ref="category/javascript/bestpractices.xml" />
+    <rule ref="category/javascript/codestyle.xml" />
+    <rule ref="category/javascript/errorprone.xml" />
+    <rule ref="category/javascript/performance.xml" />
+
+</ruleset>

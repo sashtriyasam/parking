@@ -8,7 +8,25 @@ const http = require('http');
 const { initSocket } = require('./src/services/socket.service');
 
 const PORT = process.env.PORT || 5000;
-const server = http.createServer(app);
+let server;
+
+if (process.env.SSL_KEY_PATH && process.env.SSL_CERT_PATH) {
+    const fs = require('fs');
+    const https = require('https');
+    try {
+        const options = {
+            key: fs.readFileSync(process.env.SSL_KEY_PATH),
+            cert: fs.readFileSync(process.env.SSL_CERT_PATH)
+        };
+        server = https.createServer(options, app);
+        Logger.info('HTTPS Server created successfully');
+    } catch (err) {
+        Logger.error('Failed to create HTTPS Server, falling back to HTTP:', err);
+        server = http.createServer(app);
+    }
+} else {
+    server = http.createServer(app);
+}
 
 // Phase 12: Environment Validation
 const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];

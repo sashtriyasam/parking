@@ -1,5 +1,4 @@
 import { useMemo, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapPin, Navigation } from 'lucide-react';
@@ -29,33 +28,17 @@ interface LocationPickerProps {
 
 const MUMBAI_CENTER: [number, number] = [19.0760, 72.8777];
 
-// Internal component to handle map movement
-function MapController({ center }: { center: [number, number] }) {
-    const map = useMap();
+export function LocationPicker({ lat, lng, onChange }: LocationPickerProps) {
+    const mapContainerRef = useRef<HTMLDivElement>(null);
+    const mapInstanceRef = useRef<L.Map | null>(null);
+    const markerRef = useRef<L.Marker | null>(null);
     const isFirstRenderRef = useRef(true);
 
+    const onChangeRef = useRef(onChange);
     useEffect(() => {
-        // Only set view if not Mumbai fallback (or if map just loaded for the first time)
-        const isMumbaiFallback = center[0] === MUMBAI_CENTER[0] && center[1] === MUMBAI_CENTER[1];
-        if (!isMumbaiFallback || isFirstRenderRef.current) {
-            map.setView(center, map.getZoom() || 15);
-            isFirstRenderRef.current = false;
-        }
-    }, [center, map]);
-    return null;
-}
+        onChangeRef.current = onChange;
+    }, [onChange]);
 
-// Internal component to handle clicks
-function LocationEvents({ onLocationSelected }: { onLocationSelected: (lat: number | null, lng: number | null) => void }) {
-    useMapEvents({
-        click(e) {
-            onLocationSelected(e.latlng.lat, e.latlng.lng);
-        },
-    });
-    return null;
-}
-
-export function LocationPicker({ lat, lng, onChange }: LocationPickerProps) {
     const position = useMemo((): [number, number] => {
         // Use explicit null check to allow 0 coordinates
         if (lat == null || lng == null) {
@@ -63,6 +46,59 @@ export function LocationPicker({ lat, lng, onChange }: LocationPickerProps) {
         }
         return [lat, lng];
     }, [lat, lng]);
+
+    // Initialize map and marker
+    useEffect(() => {
+        if (!mapContainerRef.current) return;
+
+        const map = L.map(mapContainerRef.current, {
+            center: position,
+            zoom: 15,
+            zoomControl: false,
+            attributionControl: false
+        });
+        mapInstanceRef.current = map;
+
+        L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+
+        const marker = L.marker(position, {
+            draggable: true,
+            icon: DefaultIcon
+        }).addTo(map);
+        markerRef.current = marker;
+
+        marker.on('dragend', (e) => {
+            const newPos = e.target.getLatLng();
+            onChangeRef.current(newPos.lat, newPos.lng);
+        });
+
+        map.on('click', (e) => {
+            onChangeRef.current(e.latlng.lat, e.latlng.lng);
+        });
+
+        return () => {
+            map.remove();
+            mapInstanceRef.current = null;
+            markerRef.current = null;
+        };
+    }, []);
+
+    // Update map view and marker position when `position` prop changes
+    useEffect(() => {
+        const map = mapInstanceRef.current;
+        const marker = markerRef.current;
+        if (!map || !marker) return;
+
+        marker.setLatLng(position);
+
+        const isMumbaiFallback = position[0] === MUMBAI_CENTER[0] && position[1] === MUMBAI_CENTER[1];
+        if (!isMumbaiFallback || isFirstRenderRef.current) {
+            map.setView(position, map.getZoom() || 15);
+            isFirstRenderRef.current = false;
+        }
+    }, [position]);
 
     const handleLocateMe = () => {
         if (!navigator.geolocation) {
@@ -110,30 +146,7 @@ export function LocationPicker({ lat, lng, onChange }: LocationPickerProps) {
             </div>
             
             <div className="h-[220px] w-full rounded-xl overflow-hidden border border-gray-200 shadow-sm relative transition-all duration-300 hover:ring-2 hover:ring-primary/10">
-                <MapContainer
-                    center={position}
-                    zoom={15}
-                    zoomControl={false}
-                    className="z-0 h-full w-full"
-                >
-                    <TileLayer
-                        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                    />
-                    <Marker 
-                        position={position} 
-                        draggable={true}
-                        eventHandlers={{
-                            dragend: (e) => {
-                                const marker = e.target;
-                                const newPos = marker.getLatLng();
-                                onChange(newPos.lat, newPos.lng);
-                            },
-                        }}
-                    />
-                    <MapController center={position} />
-                    <LocationEvents onLocationSelected={onChange} />
-                </MapContainer>
+                <div ref={mapContainerRef} className="h-full w-full z-0" />
             </div>
             <div className="flex justify-between items-center px-1">
                 <p className="text-[9px] text-gray-400">

@@ -9,6 +9,10 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { toast } from 'sonner';
 import type { VehicleType } from '@/types';
 
+/**
+ * ProviderDashboard component rendering the metrics, charts,
+ * active booking management, and manual entry interface for providers.
+ */
 export function ProviderDashboard() {
   const navigate = useNavigate();
   const { user, facilities, bookings, createOfflineBooking, isLoading, refreshData } = useApp();
@@ -77,6 +81,11 @@ export function ProviderDashboard() {
     ? Math.round((activeBookings.length / totalSlots) * 100)
     : 0;
 
+  /**
+   * Handles the form submission for offline check-in of a vehicle.
+   * Invokes createOfflineBooking with vehicle details.
+   * @param {React.FormEvent} e - The form submission event.
+   */
   const handleManualCheckIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualData.vehicleNumber || !manualData.facilityId) {
@@ -431,6 +440,10 @@ interface StatCardProps {
   accent: string;
 }
 
+/**
+ * Renders a small metric card with an icon, label, and value.
+ * @param {StatCardProps} props - The component properties.
+ */
 function StatCard({ label, value, icon: Icon, accent }: StatCardProps) {
   return (
     <div className="bg-card border border-border rounded-lg p-4 flex flex-col justify-between">

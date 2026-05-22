@@ -24,6 +24,13 @@ function setCachedLocation(coords: [number, number]) {
   } catch { /* ignore */ }
 }
 
+/**
+ * React hook to retrieve, cache, and track the user's geolocation coordinates.
+ * Handles permission states and browser feature support, falling back to cached
+ * session storage coordinates if access is denied.
+ * 
+ * @returns {GeolocationState} Object containing coordinates, errors, loading, and permission states.
+ */
 export function useGeolocation() {
   const [state, setState] = useState<GeolocationState>(() => {
     const cached = getCachedLocation();
@@ -50,6 +57,10 @@ export function useGeolocation() {
 
     // Check permission state first (Chrome/Firefox) to avoid triggering a
     // blocked prompt and generating the console warning repeatedly.
+    /**
+     * Attempts to retrieve the user's current geolocation.
+     * Caches successful location, updates state, and handles denial fallbacks.
+     */
     const tryGetPosition = () => {
       navigator.geolocation.getCurrentPosition(
         (position) => {

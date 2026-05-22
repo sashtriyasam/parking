@@ -4,8 +4,8 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function createMasterAccount() {
-  const email = 'admin@parkeasy.com';
-  const password = 'password123';
+  const email = process.env.MASTER_ADMIN_EMAIL || 'admin@parkeasy.com';
+  const password = process.env.MASTER_ADMIN_PASSWORD || 'password123';
   const fullName = 'ParkEasy Master Admin';
   const phoneNumber = '9999999999';
   const role = 'PROVIDER';

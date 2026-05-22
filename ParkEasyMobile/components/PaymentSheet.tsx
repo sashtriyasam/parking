@@ -88,6 +88,41 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
     };
   }, [visible]);
 
+  const initiateDemoPayment = () => {
+    console.warn('ParkEasy: Razorpay native module not detected. Initiating Professional Demo Fallback (DEV ONLY).');
+    // SIMULATE SUCCESS FOR DEMO PURPOSES
+    timeoutRef.current = setTimeout(() => {
+       setStep('success');
+       haptics.notificationSuccess();
+       secondTimeoutRef.current = setTimeout(() => {
+         onSuccess();
+         onClose();
+       }, 2500);
+    }, 1800);
+  };
+
+  const verifyPayment = async (data: any) => {
+    const verifyRes = await post('/payments/verify', {
+      razorpay_order_id: data.razorpay_order_id,
+      razorpay_payment_id: data.razorpay_payment_id,
+      razorpay_signature: data.razorpay_signature,
+      slot_id: slotId,
+      vehicle_number: vehicleNumber,
+      vehicle_type: vehicleType
+    });
+
+    if (verifyRes.data?.success) {
+      setStep('success');
+      haptics.notificationSuccess();
+      timeoutRef.current = setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 2200);
+    } else {
+      throw new Error('Transaction verification failed');
+    }
+  };
+
   const handlePayment = async () => {
     haptics.impactMedium();
     setStep('processing');
@@ -123,16 +158,7 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
 
       if (!isRazorpayAvailable) {
         if (__DEV__) {
-          console.warn('ParkEasy: Razorpay native module not detected. Initiating Professional Demo Fallback (DEV ONLY).');
-          // SIMULATE SUCCESS FOR DEMO PURPOSES
-          timeoutRef.current = setTimeout(() => {
-             setStep('success');
-             haptics.notificationSuccess();
-             secondTimeoutRef.current = setTimeout(() => {
-               onSuccess();
-               onClose();
-             }, 2500);
-          }, 1800);
+          initiateDemoPayment();
         } else {
           setStep('selection');
           haptics.notificationError();
@@ -164,25 +190,7 @@ export const PaymentSheet: React.FC<PaymentSheetProps> = ({
       const data = await RazorpayCheckout.open(options);
       
       // 3. Verify payment on backend
-      const verifyRes = await post('/payments/verify', {
-        razorpay_order_id: data.razorpay_order_id,
-        razorpay_payment_id: data.razorpay_payment_id,
-        razorpay_signature: data.razorpay_signature,
-        slot_id: slotId,
-        vehicle_number: vehicleNumber,
-        vehicle_type: vehicleType
-      });
-
-      if (verifyRes.data?.success) {
-        setStep('success');
-        haptics.notificationSuccess();
-        timeoutRef.current = setTimeout(() => {
-          onSuccess();
-          onClose();
-        }, 2200);
-      } else {
-        throw new Error('Transaction verification failed');
-      }
+      await verifyPayment(data);
     } catch (error: any) {
       console.error('Payment Error:', error);
       setStep('selection');
