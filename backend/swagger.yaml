@@ -36,6 +36,7 @@ components:
 paths:
   /auth/register:
     post:
+      # checkov:skip=CKV_OPENAPI_5: Registration is public
       security: []
       summary: Register a new user
       requestBody:
@@ -59,6 +60,7 @@ paths:
           description: User registered
   /auth/login:
     post:
+      # checkov:skip=CKV_OPENAPI_5: Login is public
       security: []
       summary: Login user
       requestBody:
