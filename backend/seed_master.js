@@ -1,12 +1,7 @@
+require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: 'postgresql://postgres.dofeprhouepdxltbppyl:t%2An6D5yM%24MRaH7x@aws-1-ap-south-1.pooler.supabase.com:5432/postgres'
-    },
-  },
-});
+const prisma = new PrismaClient();
 
 async function createMasterAccount() {
   const email = 'admin@parkeasy.com';
