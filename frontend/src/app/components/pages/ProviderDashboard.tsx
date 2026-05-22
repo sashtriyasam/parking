@@ -3,6 +3,7 @@ import axios, { isAxiosError } from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { IndianRupee, Users, ParkingSquare, TrendingUp, Plus, ScanLine, Car, Loader2, RotateCw, ChevronRight } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
 import { useApp } from '@/context/AppContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
@@ -115,20 +116,20 @@ export function ProviderDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-background pt-20 pb-24">
+    <div className="min-h-screen bg-background pt-20 pb-24 text-foreground font-sans">
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
 
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <p className="text-muted-foreground text-sm font-medium mb-0.5">Welcome back, Partner</p>
-            <h1 className="text-3xl font-black text-foreground tracking-tight">{user?.name || 'Provider'}</h1>
+            <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider mb-0.5">Welcome back, Partner</p>
+            <h1 className="text-3xl font-black text-foreground tracking-tight font-display">{user?.name || 'Provider'}</h1>
           </div>
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
               size="sm"
-              className="hidden md:flex h-9 px-4 text-sm font-semibold border-border rounded-md"
+              className="hidden md:flex h-9 px-4 text-xs font-semibold rounded-md"
               onClick={() => navigate('/provider/facilities')}
             >
               Manage Slots
@@ -148,32 +149,34 @@ export function ProviderDashboard() {
         </div>
 
         {/* Hero CTA + Occupancy */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div
-            className="md:col-span-2 rounded-2xl p-6 relative overflow-hidden"
+            className="md:col-span-2 rounded-lg p-6 relative overflow-hidden flex flex-col justify-between min-h-[160px]"
             style={{ background: 'linear-gradient(135deg, #007AFF 0%, #0055D4 100%)' }}
           >
             <div className="absolute -right-12 -bottom-12 w-56 h-56 bg-white/10 rounded-full blur-2xl pointer-events-none" />
             <div className="relative z-10">
-              <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">ParkEasy Operator</p>
-              <h2 className="text-2xl font-black text-white mb-1">Manual Check-in</h2>
-              <p className="text-white/70 text-sm mb-5 max-w-xs">Instantly allot slots for walk-in customers and track offline occupancy.</p>
-              <button
+              <p className="text-white/70 text-[10px] font-bold uppercase tracking-wider mb-1">ParkEasy Operator</p>
+              <h2 className="text-2xl font-black text-white mb-1 font-display">Manual Check-in</h2>
+              <p className="text-white/80 text-sm mb-4 max-w-sm">Instantly allot slots for walk-in customers and track offline occupancy.</p>
+            </div>
+            <div className="relative z-10">
+              <Button
                 onClick={() => setShowManualModal(true)}
-                className="flex items-center gap-2 bg-white text-primary text-sm font-bold px-5 py-2.5 rounded-lg hover:bg-white/90 active:scale-95 transition-all"
+                className="bg-white text-primary text-xs font-bold h-9 px-4 rounded-md hover:bg-white/95 active:scale-95 transition-all shadow-sm"
               >
-                <Plus className="w-4 h-4" /> Manual Check-in
-              </button>
+                <Plus className="w-4 h-4 mr-1.5" /> Manual Check-in
+              </Button>
             </div>
           </div>
 
-          <div className="rounded-2xl bg-card border border-border p-5 flex flex-col justify-between">
+          <div className="rounded-lg bg-card border border-border p-5 flex flex-col justify-between">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1">Live Occupancy</p>
-                <p className="text-4xl font-black text-primary">{occupancyRate}<span className="text-xl">%</span></p>
+                <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-wider mb-1">Live Occupancy</p>
+                <p className="text-4xl font-black text-primary font-display">{occupancyRate}<span className="text-xl">%</span></p>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center">
                 <ParkingSquare className="w-5 h-5 text-primary" />
               </div>
             </div>
@@ -181,7 +184,7 @@ export function ProviderDashboard() {
               <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden mb-2">
                 <div
                   className="h-full rounded-full transition-all duration-700"
-                  style={{ width: `${occupancyRate}%`, backgroundColor: occupancyRate > 80 ? '#FF3B30' : occupancyRate > 50 ? '#FF9F0A' : '#34C759' }}
+                  style={{ width: `${occupancyRate}%`, backgroundColor: occupancyRate > 80 ? 'var(--destructive)' : occupancyRate > 50 ? '#FF9F0A' : '#34C759' }}
                 />
               </div>
               <p className="text-[11px] text-muted-foreground font-medium">
@@ -192,18 +195,18 @@ export function ProviderDashboard() {
         </div>
 
         {/* Stat Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <StatCard label="App Bookings" value={onlineActiveCount} icon={Car} accent="#007AFF" />
           <StatCard label="Walk-ins" value={offlineActiveCount} icon={Users} accent="#FF9F0A" />
           <StatCard label="Total Active" value={activeBookings.length} icon={ScanLine} accent="#34C759" />
           <StatCard label="Today's Revenue" value={`₹${todayRevenue}`} icon={IndianRupee} accent="#8E8E93" />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Arrivals */}
           <div className="lg:col-span-1 space-y-3">
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">Recent Arrivals</h3>
+            <div className="flex justify-between items-center px-1">
+              <h3 className="font-bold text-foreground text-xs uppercase tracking-wider">Recent Arrivals</h3>
               <button
                 onClick={() => navigate('/provider/bookings')}
                 className="text-primary text-xs font-semibold flex items-center gap-1 hover:underline"
@@ -216,10 +219,10 @@ export function ProviderDashboard() {
                 const facility = facilities.find(f => f.id === booking.facilityId);
                 const isOffline = booking.bookingType === 'OFFLINE';
                 return (
-                  <div key={booking.id} className="bg-card border border-border rounded-xl p-3 flex justify-between items-center hover:border-primary/30 transition-colors">
+                  <div key={booking.id} className="bg-card border border-border rounded-lg p-3 flex justify-between items-center hover:border-primary/30 transition-colors">
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center"
+                        className="w-8 h-8 rounded-md flex items-center justify-center"
                         style={{ backgroundColor: isOffline ? 'rgba(255,159,10,0.12)' : 'rgba(0,122,255,0.12)' }}
                       >
                         <Car className="w-4 h-4" style={{ color: isOffline ? '#FF9F0A' : '#007AFF' }} />
@@ -238,9 +241,9 @@ export function ProviderDashboard() {
                 );
               })}
               {activeBookings.length === 0 && (
-                <div className="py-10 border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center text-muted-foreground">
-                  <Car className="w-8 h-8 mb-2 opacity-30" />
-                  <p className="text-sm font-medium">Parking Area is Empty</p>
+                <div className="py-10 border border-dashed border-border rounded-lg flex flex-col items-center justify-center text-muted-foreground bg-card/50">
+                  <Car className="w-8 h-8 mb-2 opacity-30 text-foreground" />
+                  <p className="text-xs font-medium">Parking Area is Empty</p>
                 </div>
               )}
             </div>
@@ -248,11 +251,11 @@ export function ProviderDashboard() {
 
           {/* Revenue Chart */}
           <div className="lg:col-span-2">
-            <div className="bg-card border border-border rounded-2xl p-5 h-full">
+            <div className="bg-card border border-border rounded-lg p-5 h-full flex flex-col justify-between">
               <div className="flex justify-between items-center mb-5">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-primary" />
-                  <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">Revenue Trend</h3>
+                  <h3 className="font-bold text-foreground text-xs uppercase tracking-wider">Revenue Trend</h3>
                 </div>
                 <button
                   onClick={() => navigate('/provider/analytics')}
@@ -261,7 +264,7 @@ export function ProviderDashboard() {
                   Full Report <ChevronRight className="w-3 h-3" />
                 </button>
               </div>
-              <div className="h-[260px] w-full">
+              <div className="h-[220px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={[
                     { name: '01 May', revenue: 4500 },
@@ -274,12 +277,12 @@ export function ProviderDashboard() {
                     <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 600 }} tickFormatter={v => `₹${v}`} />
                     <Tooltip
                       contentStyle={{
-                        borderRadius: '12px',
+                        borderRadius: '8px',
                         border: '1px solid var(--border)',
                         backgroundColor: 'var(--card)',
                         color: 'var(--foreground)',
                         boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                        fontSize: 12
+                        fontSize: 11
                       }}
                     />
                     <Line
@@ -300,21 +303,21 @@ export function ProviderDashboard() {
         {/* Manual Check-in Modal */}
         {showManualModal && (
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
             role="dialog"
             aria-modal="true"
             aria-labelledby="manual-modal-title"
             onClick={() => setShowManualModal(false)}
           >
             <div
-              className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl overflow-hidden"
+              className="w-full max-w-md bg-card rounded-lg border border-border shadow-2xl overflow-hidden animate-scale-up"
               onClick={e => e.stopPropagation()}
             >
-              <div className="flex justify-between items-center px-6 py-4 border-b border-border">
-                <h2 id="manual-modal-title" className="font-bold text-foreground text-lg">Manual Check-in</h2>
+              <div className="flex justify-between items-center px-6 py-4 border-b border-border bg-card">
+                <h2 id="manual-modal-title" className="font-bold text-foreground text-base font-display">Manual Check-in</h2>
                 <button
                   onClick={() => setShowManualModal(false)}
-                  className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors text-sm font-bold"
+                  className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors text-xs font-bold"
                   aria-label="Close"
                 >
                   ✕
@@ -322,11 +325,12 @@ export function ProviderDashboard() {
               </div>
               <div className="p-6">
                 <form onSubmit={handleManualCheckIn} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label htmlFor="manual-facility" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Facility</label>
+                  <div className="space-y-1">
+                    <label htmlFor="manual-facility" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Facility</label>
                     <select
                       id="manual-facility"
-                      className="w-full px-3 py-2.5 bg-secondary border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-primary outline-none"
+                      className="w-full h-9 px-3 bg-input-background border border-input rounded-md text-sm text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow] appearance-none"
+                      style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1rem' }}
                       value={manualData.facilityId}
                       onChange={e => setManualData({ ...manualData, facilityId: e.target.value })}
                     >
@@ -336,44 +340,42 @@ export function ProviderDashboard() {
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-1.5">
-                    <label htmlFor="manual-vehicleNumber" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Vehicle Number</label>
-                    <input
+                  <div className="space-y-1">
+                    <label htmlFor="manual-vehicleNumber" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Vehicle Number</label>
+                    <Input
                       id="manual-vehicleNumber"
                       placeholder="e.g. DL 10 AB 1234"
-                      className="w-full px-3 py-2.5 bg-secondary border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-primary outline-none"
                       value={manualData.vehicleNumber}
                       onChange={e => setManualData({ ...manualData, vehicleNumber: e.target.value })}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label htmlFor="manual-customerName" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Customer Name</label>
-                      <input
+                    <div className="space-y-1">
+                      <label htmlFor="manual-customerName" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Customer Name</label>
+                      <Input
                         id="manual-customerName"
                         placeholder="Optional"
-                        className="w-full px-3 py-2.5 bg-secondary border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-primary outline-none"
                         value={manualData.customerName}
                         onChange={e => setManualData({ ...manualData, customerName: e.target.value })}
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <label htmlFor="manual-customerPhone" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Phone</label>
-                      <input
+                    <div className="space-y-1">
+                      <label htmlFor="manual-customerPhone" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Phone</label>
+                      <Input
                         id="manual-customerPhone"
                         placeholder="Optional"
-                        className="w-full px-3 py-2.5 bg-secondary border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-primary outline-none"
                         value={manualData.customerPhone}
                         onChange={e => setManualData({ ...manualData, customerPhone: e.target.value })}
                       />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label htmlFor="manual-vehicleType" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Vehicle Type</label>
+                    <div className="space-y-1">
+                      <label htmlFor="manual-vehicleType" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Vehicle Type</label>
                       <select
                         id="manual-vehicleType"
-                        className="w-full px-3 py-2.5 bg-secondary border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-primary outline-none"
+                        className="w-full h-9 px-3 bg-input-background border border-input rounded-md text-sm text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow] appearance-none"
+                        style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1rem' }}
                         value={manualData.vehicleType}
                         onChange={e => setManualData({ ...manualData, vehicleType: e.target.value as VehicleType })}
                       >
@@ -383,33 +385,33 @@ export function ProviderDashboard() {
                         <option value="TRUCK">Truck</option>
                       </select>
                     </div>
-                    <div className="space-y-1.5">
-                      <label htmlFor="manual-slotId" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Slot ID</label>
-                      <input
+                    <div className="space-y-1">
+                      <label htmlFor="manual-slotId" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Slot ID</label>
+                      <Input
                         id="manual-slotId"
                         placeholder="Auto"
-                        className="w-full px-3 py-2.5 bg-secondary border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-primary outline-none"
                         value={manualData.slotId}
                         onChange={e => setManualData({ ...manualData, slotId: e.target.value })}
                       />
                     </div>
                   </div>
-                  <div className="flex gap-2 pt-1">
-                    <button
+                  <div className="flex gap-3 pt-2">
+                    <Button
                       type="button"
-                      className="flex-1 h-11 flex items-center justify-center gap-2 border border-primary text-primary rounded-lg text-sm font-semibold hover:bg-primary/5 transition-colors"
+                      variant="outline"
+                      className="flex-1 h-9 rounded-md text-xs font-semibold"
                       onClick={() => { setShowManualModal(false); navigate('/provider/scan'); }}
                     >
-                      <ScanLine className="w-4 h-4" /> Scan QR
-                    </button>
-                    <button
+                      <ScanLine className="w-4 h-4 mr-1.5" /> Scan QR
+                    </Button>
+                    <Button
                       type="submit"
                       disabled={isSubmitting}
-                      className="flex-[2] h-11 flex items-center justify-center gap-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-60"
+                      className="flex-[2] h-9 rounded-md text-xs font-bold"
                     >
-                      {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                      {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Plus className="w-4 h-4 mr-1.5" />}
                       Confirm Entry
-                    </button>
+                    </Button>
                   </div>
                 </form>
               </div>
@@ -431,15 +433,18 @@ interface StatCardProps {
 
 function StatCard({ label, value, icon: Icon, accent }: StatCardProps) {
   return (
-    <div className="bg-card border border-border rounded-xl p-4 flex flex-col">
+    <div className="bg-card border border-border rounded-lg p-4 flex flex-col justify-between">
       <div
-        className="w-8 h-8 rounded-lg flex items-center justify-center mb-3"
+        className="w-8 h-8 rounded-md flex items-center justify-center mb-3"
         style={{ backgroundColor: `${accent}18` }}
       >
         <Icon className="w-4 h-4" style={{ color: accent }} />
       </div>
-      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
-      <p className="text-xl font-black text-foreground">{value}</p>
+      <div>
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">{label}</p>
+        <p className="text-xl font-black text-foreground font-display">{value}</p>
+      </div>
     </div>
   );
 }
+

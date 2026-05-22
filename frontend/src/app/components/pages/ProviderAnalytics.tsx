@@ -13,9 +13,10 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
+import { Button } from '@/app/components/ui/button';
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { providerService } from '@/services/provider.service';
 import { toast } from 'sonner';
@@ -61,7 +62,7 @@ export function ProviderAnalytics() {
 
   if (isLoading && !stats) {
     return (
-      <div className="min-h-screen bg-background pt-24 flex justify-center items-center">
+      <div className="min-h-screen bg-background pt-24 flex justify-center items-center font-sans">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           <p className="text-muted-foreground text-sm font-medium">Loading Analytics…</p>
@@ -71,46 +72,50 @@ export function ProviderAnalytics() {
   }
 
   const tooltipStyle = {
-    borderRadius: '12px',
+    borderRadius: '8px',
     border: '1px solid var(--border)',
     backgroundColor: 'var(--card)',
     color: 'var(--foreground)',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-    fontSize: 12
+    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+    fontSize: 11
   };
 
   return (
-    <div className="min-h-screen bg-background pt-20 pb-12">
+    <div className="min-h-screen bg-background pt-20 pb-12 text-foreground font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
-            <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1">Operator Hub</p>
-            <h1 className="text-3xl font-black text-foreground tracking-tight">Business Intelligence</h1>
+            <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider mb-0.5">Operator Hub</p>
+            <h1 className="text-3xl font-black text-foreground tracking-tight font-display">Business Intelligence</h1>
             <p className="text-muted-foreground text-sm mt-1">Performance tracking across all facilities</p>
           </div>
           <div className="flex items-center gap-3">
             <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="w-40 h-9 bg-secondary border-border text-sm font-semibold rounded-lg">
+              <SelectTrigger className="w-40 h-9 bg-card border border-border text-xs font-semibold rounded-md shadow-sm">
                 <Calendar className="w-3.5 h-3.5 mr-2 text-primary" />
                 <SelectValue placeholder="Period" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-card border border-border rounded-lg shadow-lg">
                 <SelectItem value="today">Today</SelectItem>
                 <SelectItem value="7d">Last 7 Days</SelectItem>
                 <SelectItem value="30d">Last 30 Days</SelectItem>
               </SelectContent>
             </Select>
-            <button className="h-9 px-4 flex items-center gap-2 bg-secondary border border-border rounded-lg text-sm font-semibold text-foreground hover:bg-secondary/80 transition-colors">
+            <Button 
+              variant="outline"
+              size="sm"
+              className="h-9 px-4 flex items-center gap-2 rounded-md text-xs font-semibold"
+            >
               <Download className="w-3.5 h-3.5" />
               Export
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
           <MetricCard
             label="Total Revenue"
             value={`₹${stats?.today_revenue || 0}`}
@@ -142,12 +147,12 @@ export function ProviderAnalytics() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           {/* Revenue Trend */}
-          <div className="lg:col-span-2 bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="lg:col-span-2 bg-card border border-border rounded-lg overflow-hidden flex flex-col justify-between">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <div>
-                <h3 className="font-bold text-foreground">Revenue Performance</h3>
+                <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">Revenue Performance</h3>
                 <p className="text-muted-foreground text-xs mt-0.5">Daily income trends across all vehicle types</p>
               </div>
               <TrendingUp className="w-4 h-4 text-primary" />
@@ -193,15 +198,15 @@ export function ProviderAnalytics() {
           </div>
 
           {/* Vehicle Distribution */}
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="bg-card border border-border rounded-lg overflow-hidden flex flex-col justify-between">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <div>
-                <h3 className="font-bold text-foreground">Revenue Split</h3>
+                <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">Revenue Split</h3>
                 <p className="text-muted-foreground text-xs mt-0.5">By vehicle category</p>
               </div>
               <PieChartIcon className="w-4 h-4 text-primary" />
             </div>
-            <div className="p-6">
+            <div className="p-6 flex-1 flex flex-col justify-between">
               <div className="h-[200px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -222,30 +227,30 @@ export function ProviderAnalytics() {
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="mt-4 space-y-2.5">
+              <div className="mt-4 space-y-2">
                 {vehicleDistribution.map((item, index) => (
-                  <div key={item.name} className="flex justify-between items-center">
+                  <div key={item.name} className="flex justify-between items-center text-xs">
                     <div className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: APPLE_COLORS[index % APPLE_COLORS.length] }} />
-                      <span className="text-sm font-medium text-muted-foreground">{item.name}</span>
+                      <span className="font-semibold text-muted-foreground">{item.name}</span>
                     </div>
-                    <span className="text-sm font-bold text-foreground">₹{item.value}</span>
+                    <span className="font-bold text-foreground">₹{item.value}</span>
                   </div>
                 ))}
                 {vehicleDistribution.length === 0 && (
-                  <p className="text-center text-muted-foreground text-xs py-2">No data for selected period</p>
+                  <p className="text-center text-muted-foreground text-[11px] font-medium py-2">No data for selected period</p>
                 )}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Facility Hotspots */}
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="bg-card border border-border rounded-lg overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <div>
-                <h3 className="font-bold text-foreground">Facility Hotspots</h3>
+                <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">Facility Hotspots</h3>
                 <p className="text-muted-foreground text-xs mt-0.5">Where is the most demand?</p>
               </div>
               <BarChart3 className="w-4 h-4 text-primary" />
@@ -264,17 +269,17 @@ export function ProviderAnalytics() {
                     width={110}
                   />
                   <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="occupancy_rate" fill="#007AFF" radius={[0, 8, 8, 0]} barSize={20} />
+                  <Bar dataKey="occupancy_rate" fill="#007AFF" radius={[0, 6, 6, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           {/* Peak Hours */}
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="bg-card border border-border rounded-lg overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <div>
-                <h3 className="font-bold text-foreground">Peak Hours</h3>
+                <h3 className="font-bold text-foreground text-sm uppercase tracking-wider">Peak Hours</h3>
                 <p className="text-muted-foreground text-xs mt-0.5">Daily traffic patterns</p>
               </div>
               <Clock className="w-4 h-4 text-primary" />
@@ -320,12 +325,12 @@ interface MetricCardProps {
 
 function MetricCard({ label, value, icon: Icon, accent, change, changePositive, progress, badge, sub }: MetricCardProps) {
   return (
-    <div className="bg-card border border-border rounded-2xl p-5 relative overflow-hidden group">
+    <div className="bg-card border border-border rounded-lg p-5 relative overflow-hidden group">
       <div className="absolute top-3 right-3 opacity-10 group-hover:opacity-20 transition-opacity">
         <Icon className="w-10 h-10" style={{ color: accent }} />
       </div>
-      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">{label}</p>
-      <p className="text-3xl font-black text-foreground mb-2">{value}</p>
+      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">{label}</p>
+      <p className="text-3xl font-black text-foreground mb-2 font-display">{value}</p>
       {change && (
         <div className="flex items-center gap-1" style={{ color: changePositive ? '#34C759' : '#FF3B30' }}>
           <ArrowUpRight className="w-3.5 h-3.5" />
@@ -338,7 +343,7 @@ function MetricCard({ label, value, icon: Icon, accent, change, changePositive, 
         </div>
       )}
       {badge && (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
           {badge}
         </span>
       )}

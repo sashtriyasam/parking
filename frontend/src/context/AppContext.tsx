@@ -16,6 +16,8 @@ interface AppContextType {
   myFacilities: Facility[];
   slots: Record<string, ParkingSlot[]>;
   bookings: Booking[];
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
   login: (email: string, password: string, requestedRole?: string) => Promise<void>;
   logout: () => void;
   signup: (name: string, email: string, password: string, phone: string, role: 'customer' | 'provider') => Promise<void>;
@@ -32,12 +34,31 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [myFacilities, setMyFacilities] = useState<Facility[]>([]);
   const [slots, setSlots] = useState<Record<string, ParkingSlot[]>>({});
   const [bookings, setBookings] = useState<Booking[]>([]);
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  }, []);
+
 
   // Helper to standardise user object from backend to frontend
   // Helper functions for type-safe parsing from backend
@@ -359,6 +380,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         myFacilities,
         slots,
         bookings,
+        theme,
+        toggleTheme,
         login,
         logout,
         signup,

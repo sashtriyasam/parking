@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Search, Calendar, User, Phone, Car, MapPin, Clock, CreditCard, Info, ChevronDown } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
 import { Badge } from '@/app/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/app/components/ui/dialog';
 import {
@@ -126,43 +127,45 @@ export function ProviderBookings() {
   const FILTERS = ['all', 'active', 'completed', 'cancelled'];
 
   return (
-    <div className="min-h-screen bg-background pt-20 pb-12">
+    <div className="min-h-screen bg-background pt-20 pb-12 text-foreground font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
-            <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1">Operator Hub</p>
-            <h1 className="text-3xl font-black text-foreground tracking-tight">Bookings</h1>
+            <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider mb-0.5">Operator Hub</p>
+            <h1 className="text-3xl font-black text-foreground tracking-tight font-display">Bookings</h1>
             <p className="text-muted-foreground text-sm mt-1">Manage reservations and parking history</p>
           </div>
-          <button
+          <Button
             onClick={() => providerService.exportBookings('csv')}
-            className="h-9 px-4 flex items-center gap-2 bg-secondary border border-border rounded-lg text-sm font-semibold text-foreground hover:bg-secondary/80 transition-colors"
+            variant="outline"
+            size="sm"
+            className="h-9 px-4 rounded-md text-xs font-semibold"
           >
             Export CSV
-          </button>
+          </Button>
         </div>
 
         {/* Search + Filters */}
-        <div className="bg-card border border-border rounded-2xl p-4 mb-5">
+        <div className="bg-card border border-border rounded-lg p-4 mb-6 shadow-sm">
           <div className="flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <input
+              <Input
                 placeholder="Search by vehicle number or booking ID…"
-                className="w-full pl-9 pr-3 py-2.5 bg-secondary border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary outline-none"
+                className="w-full pl-9 pr-3 h-9 bg-input-background border border-input rounded-md text-xs"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
               />
             </div>
             {/* Segmented Filter */}
-            <div className="flex bg-secondary rounded-lg p-1 gap-0.5">
+            <div className="flex bg-secondary rounded-md p-1 gap-1 self-start md:self-auto">
               {FILTERS.map(status => (
                 <button
                   key={status}
                   onClick={() => setFilter(status)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  className={`px-3 py-1 rounded-sm text-xs font-bold transition-all ${
                     filter === status
                       ? 'bg-card shadow-sm text-primary'
                       : 'text-muted-foreground hover:text-foreground'
@@ -181,13 +184,13 @@ export function ProviderBookings() {
             <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           </div>
         ) : filteredBookings.length === 0 ? (
-          <div className="py-20 bg-card border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center text-muted-foreground">
-            <Calendar className="w-12 h-12 mb-3 opacity-30" />
-            <h3 className="text-base font-bold text-foreground mb-1">No bookings found</h3>
-            <p className="text-sm">Try adjusting your filters or search query.</p>
+          <div className="py-20 bg-card border border-dashed border-border rounded-lg flex flex-col items-center justify-center text-muted-foreground">
+            <Calendar className="w-12 h-12 mb-3 opacity-30 text-foreground" />
+            <h3 className="text-base font-bold text-foreground mb-1 font-display">No bookings found</h3>
+            <p className="text-xs font-medium">Try adjusting your filters or search query.</p>
           </div>
         ) : (
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="bg-card border border-border rounded-lg overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -216,35 +219,37 @@ export function ProviderBookings() {
                           </span>
                         </td>
                         <td className="px-5 py-4 whitespace-nowrap">
-                          <p className="text-sm font-semibold text-foreground">{booking.customer_name || 'Customer'}</p>
-                          <p className="text-xs text-muted-foreground">{booking.customer_phone || 'No phone'}</p>
+                          <p className="text-xs font-bold text-foreground">{booking.customer_name || 'Customer'}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium">{booking.customer_phone || 'No phone'}</p>
                         </td>
                         <td className="px-5 py-4 whitespace-nowrap">
-                          <p className="text-sm font-semibold text-foreground">{booking.vehicle_number || booking.vehicleNumber}</p>
-                          <p className="text-xs text-muted-foreground capitalize">{booking.vehicle_type || booking.vehicleType}</p>
+                          <p className="text-xs font-bold text-foreground">{booking.vehicle_number || booking.vehicleNumber}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium capitalize">{booking.vehicle_type || booking.vehicleType}</p>
                         </td>
                         <td className="px-5 py-4 whitespace-nowrap">
-                          <p className="text-sm text-foreground">{formatDate(booking.entry_time || booking.entryTime, 'date')}</p>
-                          <p className="text-xs text-muted-foreground">{formatDate(booking.entry_time || booking.entryTime, 'time')}</p>
+                          <p className="text-xs text-foreground font-medium">{formatDate(booking.entry_time || booking.entryTime, 'date')}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium">{formatDate(booking.entry_time || booking.entryTime, 'time')}</p>
                         </td>
                         <td className="px-5 py-4 whitespace-nowrap">
-                          <span className="text-sm font-black text-foreground">₹{booking.amount}</span>
+                          <span className="text-xs font-black text-foreground font-display">₹{booking.amount}</span>
                         </td>
                         <td className="px-5 py-4 whitespace-nowrap">
                           <span
-                            className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold"
+                            className="inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider"
                             style={{ backgroundColor: sc.bg, color: sc.color }}
                           >
                             {sc.label}
                           </span>
                         </td>
                         <td className="px-5 py-4 whitespace-nowrap text-right">
-                          <button
-                            className="text-xs font-semibold text-primary flex items-center gap-1 ml-auto hover:underline"
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs font-semibold px-2 rounded-md"
                             onClick={e => { e.stopPropagation(); handleViewDetails(booking); }}
                           >
-                            <Info className="w-3.5 h-3.5" /> Details
-                          </button>
+                            <Info className="w-3.5 h-3.5 mr-1" /> Details
+                          </Button>
                         </td>
                       </tr>
                     );
@@ -258,12 +263,12 @@ export function ProviderBookings() {
 
       {/* Booking Details Modal */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-          <DialogHeader className="p-6 border-b border-border">
+        <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden rounded-lg border border-border bg-card shadow-2xl animate-scale-up">
+          <DialogHeader className="p-6 border-b border-border bg-card">
             <div className="flex justify-between items-start">
               <div>
-                <DialogTitle className="text-lg font-bold text-foreground">Booking Details</DialogTitle>
-                <DialogDescription className="text-muted-foreground text-sm mt-0.5">
+                <DialogTitle className="text-base font-bold text-foreground font-display">Booking Details</DialogTitle>
+                <DialogDescription className="text-muted-foreground text-xs font-medium mt-0.5">
                   Full stay and customer information
                 </DialogDescription>
               </div>
@@ -271,7 +276,7 @@ export function ProviderBookings() {
                 const sc = getStatusConfig(selectedBooking.status);
                 return (
                   <span
-                    className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold"
+                    className="inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider"
                     style={{ backgroundColor: sc.bg, color: sc.color }}
                   >
                     {sc.label}
@@ -284,15 +289,15 @@ export function ProviderBookings() {
           {selectedBooking && (
             <div className="p-6 space-y-5">
               {/* Vehicle */}
-              <div className="flex items-center gap-4 bg-secondary rounded-xl p-4">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Car className="w-6 h-6 text-primary" />
+              <div className="flex items-center gap-4 bg-secondary rounded-lg p-4">
+                <div className="w-10 h-10 rounded-md bg-primary/10 flex items-center justify-center">
+                  <Car className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-black tracking-widest text-foreground uppercase">
+                  <p className="text-xl font-black tracking-wider text-foreground uppercase font-display">
                     {selectedBooking.vehicle_number || selectedBooking.vehicleNumber}
                   </p>
-                  <p className="text-sm text-muted-foreground capitalize">
+                  <p className="text-xs text-muted-foreground font-medium capitalize">
                     {selectedBooking.vehicle_type || selectedBooking.vehicleType} vehicle
                   </p>
                 </div>
@@ -305,9 +310,9 @@ export function ProviderBookings() {
                 <DetailRow icon={MapPin} label="Slot" value={selectedBooking.slot_number || 'N/A'} />
                 <DetailRow icon={CreditCard} label="Payment" value={selectedBooking.payment_method?.replace('-', ' ') || 'UPI'} />
                 <DetailRow icon={Info} label="Type" value={selectedBooking.booking_type || 'App Booking'} />
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-0.5">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Amount</p>
-                  <p className="text-lg font-black" style={{ color: '#34C759' }}>₹{selectedBooking.amount}</p>
+                  <p className="text-base font-black font-display text-primary">₹{selectedBooking.amount}</p>
                 </div>
               </div>
 
@@ -317,17 +322,17 @@ export function ProviderBookings() {
                 {(selectedBooking.exit_time || selectedBooking.exitTime) && (
                   <TimelineRow label="Exit" value={formatDate(selectedBooking.exit_time || selectedBooking.exitTime)} color="#FF3B30" />
                 )}
-                <div className="flex justify-between items-center bg-secondary px-3 py-2 rounded-lg">
-                  <span className="text-xs font-bold text-muted-foreground">Booking ID</span>
+                <div className="flex justify-between items-center bg-secondary px-3 py-1.5 rounded-md">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Booking ID</span>
                   <span className="text-xs font-mono text-foreground">{selectedBooking.id}</span>
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 pt-2">
                 {selectedBooking.status === 'active' && (
                   <Button
                     variant="outline"
-                    className="flex-1 h-11 border-destructive text-destructive hover:bg-destructive/5 font-bold rounded-lg"
+                    className="flex-1 h-9 border-destructive text-destructive hover:bg-destructive/5 text-xs font-semibold rounded-md"
                     onClick={handleCancelClick}
                     disabled={isCancelling}
                   >
@@ -335,7 +340,7 @@ export function ProviderBookings() {
                   </Button>
                 )}
                 <Button
-                  className="flex-1 h-11 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg"
+                  className="flex-1 h-9 bg-primary hover:bg-primary/90 text-white text-xs font-bold rounded-md"
                   onClick={() => setIsDetailsOpen(false)}
                 >
                   Done
@@ -348,18 +353,18 @@ export function ProviderBookings() {
 
       {/* Cancel Confirmation */}
       <AlertDialog open={showCancelAlert} onOpenChange={setShowCancelAlert}>
-        <AlertDialogContent className="rounded-2xl border-border bg-card">
+        <AlertDialogContent className="rounded-lg border-border bg-card shadow-2xl animate-scale-up">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-bold text-foreground">Cancel Registration?</AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground">
+            <AlertDialogTitle className="text-base font-bold text-foreground font-display">Cancel Registration?</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-muted-foreground font-medium">
               This will release slot {selectedBooking?.slot_number} and mark this booking as cancelled. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
-            <AlertDialogCancel className="rounded-lg border-border font-semibold">Go Back</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-md border-border text-xs font-semibold h-9 px-4">Go Back</AlertDialogCancel>
             <AlertDialogAction
               onClick={performCancellation}
-              className="bg-destructive hover:bg-destructive/90 text-white rounded-lg font-bold"
+              className="bg-destructive hover:bg-destructive/90 text-white rounded-md text-xs font-bold h-9 px-4"
             >
               Yes, Cancel it
             </AlertDialogAction>
@@ -370,26 +375,38 @@ export function ProviderBookings() {
   );
 }
 
-function DetailRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+interface DetailRowProps {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+}
+
+function DetailRow({ icon: Icon, label, value }: DetailRowProps) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-0.5">
       <div className="flex items-center gap-1.5">
-        <Icon className="w-3 h-3 text-muted-foreground" />
+        <Icon className="w-3.5 h-3.5 text-muted-foreground" />
         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</p>
       </div>
-      <p className="text-sm font-semibold text-foreground capitalize">{value}</p>
+      <p className="text-xs font-semibold text-foreground capitalize">{value}</p>
     </div>
   );
 }
 
-function TimelineRow({ label, value, color }: { label: string; value: string; color: string }) {
+interface TimelineRowProps {
+  label: string;
+  value: string;
+  color: string;
+}
+
+function TimelineRow({ label, value, color }: TimelineRowProps) {
   return (
     <div className="flex justify-between items-center">
       <div className="flex items-center gap-2">
         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
         <span className="text-xs font-medium text-muted-foreground">{label}</span>
       </div>
-      <p className="text-sm font-semibold text-foreground">{value}</p>
+      <p className="text-xs font-semibold text-foreground">{value}</p>
     </div>
   );
 }

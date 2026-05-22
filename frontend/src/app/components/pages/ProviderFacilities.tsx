@@ -179,26 +179,29 @@ export function ProviderFacilities() {
     );
 
     return (
-        <div className="min-h-screen bg-gray-50 pt-20 pb-12">
+        <div className="min-h-screen bg-background pt-20 pb-12 text-foreground">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center mb-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">My Facilities</h1>
-                        <p className="mt-2 text-gray-600">Manage your parking locations and slots</p>
+                        <h1 className="text-3xl font-black text-foreground tracking-tight">My Facilities</h1>
+                        <p className="mt-1 text-muted-foreground text-sm font-medium">Manage your parking locations and slots</p>
                     </div>
-                    <Button onClick={() => { setEditingFacility(null); resetForm(); setIsAddDialogOpen(true); }}>
+                    <Button 
+                        onClick={() => { setEditingFacility(null); resetForm(); setIsAddDialogOpen(true); }}
+                        className="h-10 px-5 font-bold rounded-lg bg-primary text-white hover:bg-primary/95 active:scale-95 transition-all shadow-sm shadow-primary/10"
+                    >
                         <Plus className="w-5 h-5 mr-2" />
                         Add New Facility
                     </Button>
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
+                <div className="bg-card p-4 rounded-2xl border border-border mb-6 shadow-sm">
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
                         <Input
                             placeholder="Search facilities by name or city..."
-                            className="pl-10"
+                            className="pl-9 h-10 bg-secondary border-border focus:ring-primary rounded-xl"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -207,13 +210,16 @@ export function ProviderFacilities() {
 
                 {/* Facilities Grid */}
                 {isLoading ? (
-                    <div className="text-center py-12">Loading facilities...</div>
+                    <div className="text-center py-12 text-muted-foreground font-medium">Loading facilities...</div>
                 ) : filteredFacilities.length === 0 ? (
-                    <div className="text-center py-16 bg-white rounded-lg border border-dashed border-gray-300">
-                        <Building className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900">No facilities found</h3>
-                        <p className="text-gray-500 mt-2 mb-6">Get started by adding your first parking location.</p>
-                        <Button onClick={() => setIsAddDialogOpen(true)}>
+                    <div className="text-center py-16 bg-card rounded-2xl border-2 border-dashed border-border max-w-lg mx-auto">
+                        <Building className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-40" />
+                        <h3 className="text-lg font-bold text-foreground">No facilities found</h3>
+                        <p className="text-muted-foreground mt-2 mb-6 text-sm">Get started by adding your first parking location.</p>
+                        <Button 
+                            onClick={() => setIsAddDialogOpen(true)}
+                            className="h-11 px-6 font-bold rounded-lg bg-primary text-white"
+                        >
                             <Plus className="w-5 h-5 mr-2" />
                             Add Facility
                         </Button>
@@ -221,55 +227,69 @@ export function ProviderFacilities() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredFacilities.map((facility) => (
-                            <Card key={facility.id} className="hover:shadow-md transition-shadow">
-                                <CardHeader>
-                                    <div className="flex justify-between items-start">
+                            <Card key={facility.id} className="hover:shadow-lg transition-all duration-200 bg-card border-border rounded-2xl overflow-hidden flex flex-col justify-between">
+                                <CardHeader className="pb-4">
+                                    <div className="flex justify-between items-start gap-2">
                                         <div>
-                                            <CardTitle className="text-xl">{facility.name}</CardTitle>
-                                            <CardDescription className="flex items-center mt-1">
-                                                <MapPin className="w-4 h-4 mr-1" />
+                                            <CardTitle className="text-lg font-bold text-foreground leading-snug">{facility.name}</CardTitle>
+                                            <CardDescription className="flex items-center mt-1.5 text-muted-foreground text-xs font-semibold">
+                                                <MapPin className="w-3.5 h-3.5 mr-1 text-primary" />
                                                 {facility.city}
                                             </CardDescription>
                                         </div>
                                         {facility.occupancy !== undefined && (
-                                            <Badge variant={facility.occupancy > 80 ? 'destructive' : 'secondary'}>
+                                            <Badge variant={facility.occupancy > 80 ? 'destructive' : 'secondary'} className="rounded-full px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
                                                 {Math.round(facility.occupancy)}% Full
                                             </Badge>
                                         )}
                                     </div>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="pt-0">
                                     <div className="space-y-4">
-                                        <p className="text-sm text-gray-600 line-clamp-2">
+                                        <p className="text-sm text-muted-foreground line-clamp-2 min-h-[40px]">
                                             {facility.address}
                                         </p>
 
-                                        <div className="grid grid-cols-2 gap-4 text-sm">
-                                            <div className="bg-gray-50 p-2 rounded">
-                                                <span className="block text-gray-500 text-xs">Total Floors</span>
-                                                <span className="font-medium">{facility.total_floors}</span>
+                                        <div className="grid grid-cols-2 gap-3 text-sm">
+                                            <div className="bg-secondary p-3 rounded-xl border border-border/30">
+                                                <span className="block text-muted-foreground text-[10px] font-bold uppercase tracking-wider mb-0.5">Total Floors</span>
+                                                <span className="font-bold text-foreground">{facility.total_floors}</span>
                                             </div>
-                                            <div className="bg-gray-50 p-2 rounded">
-                                                <span className="block text-gray-500 text-xs">Operating Hours</span>
-                                                <span className="font-medium">{facility.operating_hours}</span>
+                                            <div className="bg-secondary p-3 rounded-xl border border-border/30">
+                                                <span className="block text-muted-foreground text-[10px] font-bold uppercase tracking-wider mb-0.5">Operating Hours</span>
+                                                <span className="font-bold text-foreground">{facility.operating_hours}</span>
                                             </div>
                                         </div>
 
-                                        <div className="flex flex-wrap gap-2 pt-2 border-t mt-4">
-                                            <Button variant="outline" size="sm" className="flex-1 min-w-[80px]" onClick={() => handleEdit(facility)}>
-                                                <Edit className="w-4 h-4 mr-2" />
+                                        <div className="flex flex-wrap gap-2 pt-4 border-t border-border mt-4">
+                                            <Button 
+                                                variant="outline" 
+                                                size="sm" 
+                                                className="flex-1 min-w-[70px] h-9 font-semibold rounded-lg border-border" 
+                                                onClick={() => handleEdit(facility)}
+                                            >
+                                                <Edit className="w-4 h-4 mr-1.5" />
                                                 Edit
                                             </Button>
-                                            <Button variant="outline" size="sm" className="flex-1 min-w-[120px]" onClick={() => navigate(`/provider/facilities/${facility.id}/slots`)}>
-                                                Manage Slots
+                                            <Button 
+                                                variant="outline" 
+                                                size="sm" 
+                                                className="flex-1 min-w-[100px] h-9 font-semibold rounded-lg border-border" 
+                                                onClick={() => navigate(`/provider/facilities/${facility.id}/slots`)}
+                                            >
+                                                Slots
                                             </Button>
-                                            <Button size="sm" className="flex-1 min-w-[100px] bg-emerald-600 hover:bg-emerald-700" onClick={() => navigate(`/provider/facilities/${facility.id}/live`)}>
+                                            <Button 
+                                                size="sm" 
+                                                className="flex-1 min-w-[90px] h-9 font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white" 
+                                                onClick={() => navigate(`/provider/facilities/${facility.id}/live`)}
+                                            >
                                                 Live View
                                             </Button>
                                             <Button 
                                                 variant="ghost" 
                                                 size="icon" 
-                                                className="text-red-500 hover:text-red-700 hover:bg-red-50" 
+                                                className="text-destructive hover:text-destructive hover:bg-destructive/10 h-9 w-9 rounded-lg" 
                                                 onClick={() => {
                                                     setDeleteConfirmId(facility.id);
                                                 }}

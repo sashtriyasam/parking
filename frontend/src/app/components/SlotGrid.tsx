@@ -30,21 +30,21 @@ export function SlotGrid({ slots, selectedSlot, onSlotSelect, readonly = false }
   return (
     <div className="space-y-6">
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 p-4 bg-gray-50 rounded-lg">
+      <div className="flex flex-wrap gap-4 p-4 bg-secondary/50 border border-border rounded-lg">
         <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 bg-emerald-500 rounded"></div>
+          <div className="w-4 h-4 bg-[#34C759] rounded"></div>
           <span className="text-sm font-medium">Free ({freeCount})</span>
         </div>
         <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 bg-red-500 rounded"></div>
+          <div className="w-4 h-4 bg-[#FF3B30] rounded"></div>
           <span className="text-sm font-medium">Occupied ({occupiedCount})</span>
         </div>
         <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 bg-amber-500 rounded"></div>
+          <div className="w-4 h-4 bg-[#FF9F0A] rounded"></div>
           <span className="text-sm font-medium">Reserved ({reservedCount})</span>
         </div>
         <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 bg-gray-400 rounded"></div>
+          <div className="w-4 h-4 bg-[#8E8E93] rounded"></div>
           <span className="text-sm font-medium">Maintenance ({maintenanceCount})</span>
         </div>
       </div>
@@ -78,19 +78,19 @@ function SlotBox({ slot, isSelected, onSelect, readonly }: SlotBoxProps) {
   const canSelect = isFree && !readonly;
 
   const statusStyles = {
-    free: 'bg-white border-2 border-emerald-500 text-gray-900 hover:shadow-lg',
-    occupied: 'bg-red-100 border-2 border-red-500 text-gray-500 opacity-70',
-    reserved: 'bg-amber-100 border-2 border-amber-500 text-gray-700 opacity-80',
-    maintenance: 'bg-gray-200 border-2 border-gray-400 text-gray-500 opacity-70',
+    free: 'bg-card border border-[#34C759] text-foreground hover:bg-[#34C759]/10',
+    occupied: 'bg-[#FF3B30]/10 border border-[#FF3B30]/30 text-muted-foreground opacity-60',
+    reserved: 'bg-[#FF9F0A]/10 border border-[#FF9F0A]/30 text-muted-foreground opacity-80',
+    maintenance: 'bg-[#8E8E93]/10 border border-[#8E8E93]/30 text-muted-foreground opacity-60',
   };
 
-  const selectedStyle = 'bg-indigo-600 border-4 border-indigo-700 text-white shadow-lg';
+  const selectedStyle = 'bg-primary border border-primary text-white shadow-sm';
 
   const statusIcons = {
     free: null,
-    occupied: <X className="w-3 h-3 text-red-500" />,
-    reserved: <Clock className="w-3 h-3 text-amber-600" />,
-    maintenance: <Wrench className="w-3 h-3 text-gray-500" />,
+    occupied: <X className="w-3 h-3 text-[#FF3B30]" />,
+    reserved: <Clock className="w-3 h-3 text-[#FF9F0A]" />,
+    maintenance: <Wrench className="w-3 h-3 text-[#8E8E93]" />,
   };
 
   return (
@@ -119,7 +119,7 @@ function SlotBox({ slot, isSelected, onSelect, readonly }: SlotBoxProps) {
       {/* Vehicle Type Icon */}
       <div className={cn(
         'absolute top-1 right-1',
-        isSelected ? 'text-white' : slot.status === 'free' ? 'text-emerald-600' : ''
+        isSelected ? 'text-white' : slot.status === 'free' ? 'text-[#34C759]' : ''
       )}>
         {vehicleIcons[slot.vehicleType]}
       </div>
@@ -140,7 +140,7 @@ function SlotBox({ slot, isSelected, onSelect, readonly }: SlotBoxProps) {
         <motion.div
           initial={{ opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
-          className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-2 py-1 rounded text-xs whitespace-nowrap z-10"
+          className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground border border-border px-2 py-1 rounded text-xs whitespace-nowrap z-10 shadow-sm"
         >
           ₹{slot.pricePerHour}/hr
         </motion.div>
@@ -148,7 +148,7 @@ function SlotBox({ slot, isSelected, onSelect, readonly }: SlotBoxProps) {
 
       {/* Pulse animation for reserved slots */}
       {slot.status === 'reserved' && (
-        <div className="absolute inset-0 rounded-lg border-2 border-amber-500 animate-pulse"></div>
+        <div className="absolute inset-0 rounded-lg border border-[#FF9F0A] animate-pulse"></div>
       )}
     </motion.button>
   );

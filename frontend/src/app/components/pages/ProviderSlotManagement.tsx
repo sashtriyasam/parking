@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Settings2, Layers } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { toast } from 'sonner';
 import { providerService } from '@/services/provider.service';
@@ -108,23 +109,22 @@ export function ProviderSlotManagement() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background pt-24 flex justify-center items-center">
+      <div className="min-h-screen bg-background pt-24 flex justify-center items-center font-sans">
         <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
       </div>
     );
   }
 
-  const labelClass = "text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5 block";
-  const inputClass = "w-full px-3 py-2.5 bg-secondary border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-primary outline-none";
+  const labelClass = "text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block";
 
   return (
-    <div className="min-h-screen bg-background pt-20 pb-12">
+    <div className="min-h-screen bg-background pt-20 pb-12 text-foreground font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Back nav */}
         <button
           onClick={() => navigate('/provider/facilities')}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm font-medium mb-6 transition-colors"
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground text-xs font-semibold mb-6 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Facilities
@@ -132,39 +132,37 @@ export function ProviderSlotManagement() {
 
         {/* Header */}
         <div className="mb-8">
-          <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1">Slot Management</p>
-          <h1 className="text-3xl font-black text-foreground tracking-tight">{facility?.name}</h1>
-          <p className="text-muted-foreground text-sm mt-1">{facility?.address}</p>
+          <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider mb-0.5">Slot Management</p>
+          <h1 className="text-3xl font-black text-foreground tracking-tight font-display">{facility?.name}</h1>
+          <p className="text-muted-foreground text-xs font-medium mt-1">{facility?.address}</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Create Slots Form */}
           <div className="lg:col-span-1">
-            <div className="bg-card border border-border rounded-2xl overflow-hidden">
-              <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Settings2 className="w-4 h-4 text-primary" />
+            <div className="bg-card border border-border rounded-lg overflow-hidden shadow-sm">
+              <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-card">
+                <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
+                  <Settings2 className="w-4.5 h-4.5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-foreground text-sm">Bulk Create Slots</h3>
-                  <p className="text-muted-foreground text-xs">Add multiple slots at once</p>
+                  <h3 className="font-bold text-foreground text-sm font-display">Bulk Create Slots</h3>
+                  <p className="text-muted-foreground text-xs font-medium">Add multiple slots at once</p>
                 </div>
               </div>
               <div className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={labelClass}>Prefix (e.g. A, B)</label>
-                    <input
-                      className={inputClass}
+                    <Input
                       value={slotRange.prefix}
                       onChange={e => setSlotRange({ ...slotRange, prefix: e.target.value.toUpperCase() })}
                     />
                   </div>
                   <div>
                     <label className={labelClass}>Start Number</label>
-                    <input
+                    <Input
                       type="number"
-                      className={inputClass}
                       value={slotRange.startNumber}
                       onChange={e => setSlotRange({ ...slotRange, startNumber: Number(e.target.value) })}
                     />
@@ -173,9 +171,8 @@ export function ProviderSlotManagement() {
 
                 <div>
                   <label className={labelClass}>Number of Slots</label>
-                  <input
+                  <Input
                     type="number"
-                    className={inputClass}
                     value={slotRange.count}
                     onChange={e => setSlotRange({ ...slotRange, count: Number(e.target.value) })}
                   />
@@ -187,10 +184,10 @@ export function ProviderSlotManagement() {
                     value={String(slotRange.floor)}
                     onValueChange={v => setSlotRange({ ...slotRange, floor: Number(v) })}
                   >
-                    <SelectTrigger className="bg-secondary border-border rounded-lg text-sm h-10">
+                    <SelectTrigger className="bg-input-background border-border rounded-md text-xs h-9">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-card border border-border rounded-lg shadow-lg">
                       {Array.from({ length: facility?.total_floors || 1 }).map((_, i) => (
                         <SelectItem key={i} value={String(i + 1)}>Floor {i + 1}</SelectItem>
                       ))}
@@ -204,10 +201,10 @@ export function ProviderSlotManagement() {
                     value={slotRange.vehicleType}
                     onValueChange={v => setSlotRange({ ...slotRange, vehicleType: v as VehicleType })}
                   >
-                    <SelectTrigger className="bg-secondary border-border rounded-lg text-sm h-10">
+                    <SelectTrigger className="bg-input-background border-border rounded-md text-xs h-9">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-card border border-border rounded-lg shadow-lg">
                       <SelectItem value="car">Car</SelectItem>
                       <SelectItem value="bike">Bike</SelectItem>
                       <SelectItem value="scooter">Scooter</SelectItem>
@@ -218,59 +215,58 @@ export function ProviderSlotManagement() {
 
                 <div>
                   <label className={labelClass}>Price Per Hour (₹)</label>
-                  <input
+                  <Input
                     type="number"
-                    className={inputClass}
                     value={slotRange.pricePerHour}
                     onChange={e => setSlotRange({ ...slotRange, pricePerHour: Number(e.target.value) })}
                   />
                 </div>
 
                 {/* Preview strip */}
-                <div className="bg-secondary rounded-lg p-3">
+                <div className="bg-secondary/50 border border-border rounded-md p-3">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Preview</p>
-                  <p className="text-sm font-bold text-foreground">
+                  <p className="text-sm font-bold text-foreground font-display">
                     {slotRange.prefix}{slotRange.startNumber} → {slotRange.prefix}{slotRange.startNumber + slotRange.count - 1}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[11px] text-muted-foreground font-semibold mt-0.5">
                     {slotRange.count} slots · Floor {slotRange.floor} · ₹{slotRange.pricePerHour}/hr
                   </p>
                 </div>
 
-                <button
+                <Button
                   onClick={handleBulkCreate}
                   disabled={isCreating}
-                  className="w-full h-11 flex items-center justify-center gap-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-60"
+                  className="w-full h-9 text-xs font-bold"
                 >
                   {isCreating ? (
-                    <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin mr-1.5" />
                   ) : (
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-4 h-4 mr-1.5" />
                   )}
                   Generate Slots
-                </button>
+                </Button>
               </div>
             </div>
           </div>
 
           {/* Slots Grid */}
           <div className="lg:col-span-2">
-            <div className="bg-card border border-border rounded-2xl overflow-hidden">
-              <div className="flex items-center gap-3 px-6 py-4 border-b border-border">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Layers className="w-4 h-4 text-primary" />
+            <div className="bg-card border border-border rounded-lg overflow-hidden shadow-sm">
+              <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-card">
+                <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
+                  <Layers className="w-4.5 h-4.5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-foreground text-sm">Existing Slots</h3>
-                  <p className="text-muted-foreground text-xs">{slots.length} slots configured</p>
+                  <h3 className="font-bold text-foreground text-sm font-display">Existing Slots</h3>
+                  <p className="text-muted-foreground text-xs font-medium">{slots.length} slots configured</p>
                 </div>
               </div>
-              <div className="p-6">
+              <div className="p-6 bg-card">
                 {slots.length === 0 ? (
                   <div className="py-16 flex flex-col items-center justify-center text-muted-foreground">
-                    <Layers className="w-10 h-10 mb-3 opacity-30" />
-                    <p className="text-sm font-medium text-foreground mb-1">No slots yet</p>
-                    <p className="text-xs">Use the form to generate slots for this facility.</p>
+                    <Layers className="w-10 h-10 mb-3 opacity-30 text-foreground" />
+                    <p className="text-xs font-medium text-foreground mb-1">No slots yet</p>
+                    <p className="text-[10px] text-muted-foreground font-semibold">Use the form to generate slots for this facility.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
@@ -280,17 +276,16 @@ export function ProviderSlotManagement() {
                       return (
                         <div
                           key={slot.id}
-                          className="relative group bg-secondary rounded-xl p-3 flex flex-col items-center hover:border-primary/30 border border-transparent transition-all"
-                          style={{ borderColor: `${accentColor}22` }}
+                          className="relative group bg-card hover:bg-secondary/40 border border-border rounded-lg p-3 flex flex-col items-center transition-colors"
                         >
-                          <p className="text-base font-black text-foreground">{slot.slotNumber}</p>
+                          <p className="text-base font-black text-foreground font-display">{slot.slotNumber}</p>
                           <span
-                            className="text-[9px] font-bold uppercase mt-1 px-1.5 py-0.5 rounded-full"
+                            className="text-[9px] font-bold uppercase mt-1 px-1.5 py-0.5 rounded-sm"
                             style={{ backgroundColor: `${accentColor}18`, color: accentColor }}
                           >
                             {vt}
                           </span>
-                          <p className="text-[10px] text-muted-foreground mt-1 font-medium">F{slot.floor}</p>
+                          <p className="text-[10px] text-muted-foreground mt-1 font-semibold">F{slot.floor}</p>
                           <button
                             className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                             onClick={() => handleDeleteSlot(slot.id)}

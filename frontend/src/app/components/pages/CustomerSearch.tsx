@@ -54,14 +54,14 @@ const USER_LOCATION_ICON = L.divIcon({
   iconAnchor: [12, 12]
 });
 
-// Premium Custom Marker Icons (Cached)
+// Premium Custom Marker Icons using Theme variables
 const ACTIVE_MARKER_ICON = L.divIcon({
   className: 'custom-marker',
   html: `
     <div class="relative group cursor-pointer">
-      <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-4 bg-primary/20 rounded-full blur-sm transition-all duration-300 scale-150 bg-primary/40"></div>
-      <div class="relative w-8 h-8 bg-white rounded-2xl flex items-center justify-center shadow-lg transform transition-all duration-300 border-2 border-primary ring-4 ring-primary/20 -translate-y-2">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4F46E5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-parking-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg>
+      <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-4 bg-primary/20 rounded-full blur-sm transition-all duration-300 scale-150"></div>
+      <div class="relative w-8 h-8 bg-card rounded-lg flex items-center justify-center shadow-md border-2 border-primary ring-4 ring-primary/20 -translate-y-2 text-primary transition-all">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg>
       </div>
     </div>
   `,
@@ -73,9 +73,9 @@ const INACTIVE_MARKER_ICON = L.divIcon({
   className: 'custom-marker',
   html: `
     <div class="relative group cursor-pointer">
-      <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-4 bg-primary/20 rounded-full blur-sm transition-all duration-300 group-hover:scale-125"></div>
-      <div class="relative w-8 h-8 bg-white rounded-2xl flex items-center justify-center shadow-lg transform transition-all duration-300 border-2 border-gray-100 group-hover:-translate-y-1">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111827" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-parking-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg>
+      <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-4 bg-muted/20 rounded-full blur-sm transition-all duration-300"></div>
+      <div class="relative w-8 h-8 bg-card rounded-lg flex items-center justify-center shadow-md border-2 border-border text-foreground transition-all hover:-translate-y-1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg>
       </div>
     </div>
   `,
@@ -133,7 +133,7 @@ const getAmenityFeatures = (amenities?: string[]) => {
 
 export function CustomerSearch() {
   const navigate = useNavigate();
-  const { facilities, switchRole, user } = useApp();
+  const { facilities, switchRole, user, theme } = useApp();
   const { coordinates: userLocation, loading: geoLoading, permissionDenied: geoDenied } = useGeolocation();
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
 
@@ -211,29 +211,34 @@ export function CustomerSearch() {
     return 'Distance unknown';
   };
 
+  // Determine dynamic map tiles based on theme
+  const tileUrl = theme === 'dark'
+    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+
   return (
-    <div className="relative h-screen w-full bg-white flex overflow-hidden pt-16 md:pt-0">
+    <div className="relative h-screen w-full bg-background text-foreground flex overflow-hidden pt-16 md:pt-0 transition-colors duration-300">
 
       {/* LEFT SIDEBAR (Desktop) */}
       <aside
         className={cn(
-          "hidden md:flex flex-col relative z-20 bg-white border-r border-gray-100 transition-all duration-500 ease-in-out pt-16",
+          "hidden md:flex flex-col relative z-20 bg-background border-r border-border transition-all duration-500 ease-in-out pt-16",
           isSidebarCollapsed ? "w-0 overflow-hidden" : "w-[420px]"
         )}
       >
         {/* Sidebar Header */}
-        <div className="p-6 border-b border-gray-50 bg-white/50 backdrop-blur-xl sticky top-0 z-10">
+        <div className="p-6 border-b border-border bg-background/50 backdrop-blur-xl sticky top-0 z-10">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-black tracking-tight text-gray-900">Find Parking</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Find Parking</h1>
             <div className="flex gap-2">
-              <Badge variant="outline" className="h-6 font-bold text-gray-400 border-gray-100 mr-2">
+              <Badge variant="outline" className="h-6 font-bold text-muted-foreground border-border mr-2">
                 {filteredFacilities.length} Results
               </Badge>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsSidebarCollapsed(true)}
-                className="h-9 w-9 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-all"
+                className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-all"
               >
                 <PanelLeftClose className="w-5 h-5" />
               </Button>
@@ -241,11 +246,11 @@ export function CustomerSearch() {
           </div>
 
           <div className="relative group">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400 transition-colors group-focus-within:text-primary" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-muted-foreground transition-colors group-focus-within:text-primary" />
             <Input
               placeholder="Search by city or landmark..."
               value={searchQuery}
-              className="h-12 pl-11 bg-gray-50 border-0 rounded-2xl text-base shadow-inner-sm focus-visible:ring-2 focus-visible:ring-primary/20 transition-all"
+              className="h-12 pl-11 bg-input-background border-border rounded-md text-base focus-visible:ring-2 focus-visible:ring-primary/20 transition-all text-foreground"
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
@@ -256,10 +261,10 @@ export function CustomerSearch() {
                 key={chip.id}
                 onClick={() => setActiveFilter(activeFilter === chip.id ? null : chip.id)}
                 className={cn(
-                  "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
+                  "flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-bold transition-all whitespace-nowrap",
                   activeFilter === chip.id
-                    ? "bg-primary text-white shadow-lg shadow-primary/25"
-                    : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
                 )}
               >
                 <chip.icon className="w-3.5 h-3.5" />
@@ -271,19 +276,19 @@ export function CustomerSearch() {
 
         {/* Geolocation blocked banner */}
         {geoDenied && (
-          <div className="mx-4 mt-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3">
-            <Info className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+          <div className="mx-4 mt-3 px-4 py-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-3">
+            <Info className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
             <div>
-              <p className="text-xs font-bold text-amber-800">Location blocked</p>
-              <p className="text-[11px] text-amber-600 mt-0.5">
-                Click the tune icon (⊕) next to the URL bar → Site Settings → Location → Allow, then refresh.
+              <p className="text-xs font-bold text-destructive">Location blocked</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Click the settings icon next to the URL bar → Site Settings → Location → Allow, then refresh.
               </p>
             </div>
           </div>
         )}
 
         {/* Sidebar Results List */}
-        <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4 bg-gray-50/30">
+        <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4 bg-muted/10">
           <AnimatePresence mode="popLayout">
             {filteredFacilities.map((facility) => (
               <motion.div
@@ -296,20 +301,20 @@ export function CustomerSearch() {
               >
                 <Card
                   className={cn(
-                    "group relative overflow-hidden transition-all duration-300 cursor-pointer hover:shadow-2xl hover:shadow-black/5 border-0 rounded-3xl",
-                    selectedFacility?.id === facility.id ? "ring-2 ring-primary ring-offset-2" : "ring-1 ring-black/[0.03]"
+                    "group relative overflow-hidden transition-all duration-300 cursor-pointer hover:shadow-md border border-border bg-card text-card-foreground rounded-lg",
+                    selectedFacility?.id === facility.id ? "ring-2 ring-primary" : ""
                   )}
                   onClick={() => setSelectedFacility(facility)}
                 >
                   <div className="flex p-3 gap-4">
-                    <div className="relative w-28 h-28 shrink-0 rounded-2xl overflow-hidden bg-gray-100">
+                    <div className="relative w-28 h-28 shrink-0 rounded-md overflow-hidden bg-muted">
                       <img
                         src={facility.images?.[0] || facility.image_url || '/placeholder-parking.jpg'}
                         alt={facility.name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&q=80&w=400'; }}
                       />
-                      <div className="absolute top-1.5 right-1.5 bg-white/90 backdrop-blur rounded-lg px-1.5 py-0.5 text-[10px] font-black flex items-center shadow-sm">
+                      <div className="absolute top-1.5 right-1.5 bg-background/90 backdrop-blur rounded px-1.5 py-0.5 text-[10px] font-bold flex items-center shadow-sm text-foreground">
                         <Star className="w-2.5 h-2.5 text-yellow-500 fill-yellow-500 mr-1" />
                         {facility.rating ?? 4.5}
                       </div>
@@ -318,10 +323,10 @@ export function CustomerSearch() {
                     <div className="flex-1 flex flex-col justify-between py-1 pr-2">
                       <div>
                         <div className="flex justify-between items-start">
-                          <h3 className="font-bold text-gray-900 text-lg leading-tight group-hover:text-primary transition-colors">{facility.name}</h3>
-                          <p className="text-xl font-black text-primary">{facility.currency ?? '₹'}{facility.hourlyRate ?? 60}</p>
+                          <h3 className="font-bold text-foreground text-base leading-tight group-hover:text-primary transition-colors font-display">{facility.name}</h3>
+                          <p className="text-lg font-bold text-primary">{facility.currency ?? '₹'}{facility.hourlyRate ?? 60}</p>
                         </div>
-                        <p className="text-xs text-gray-500 flex items-center mt-1">
+                        <p className="text-xs text-muted-foreground flex items-center mt-1">
                           <MapPin className="w-3 h-3 mr-1 shrink-0" />
                           <span className="truncate">{facility.address || 'Mumbai, India'}</span>
                         </p>
@@ -330,17 +335,17 @@ export function CustomerSearch() {
                       <div className="flex items-center justify-between mt-3">
                         <div className="flex gap-2">
                           {(facility.availableSlots ?? 0) > 0 && (
-                            <Badge variant="secondary" className="px-2 py-0 h-5 text-[10px] bg-green-50 text-green-700 border-0">
-                              Available Now
+                            <Badge variant="secondary" className="px-2 py-0 h-5 text-[10px] bg-[#34C759]/10 text-[#34C759] border-0">
+                              Available
                             </Badge>
                           )}
                           {facility.verified && (
-                            <Badge variant="secondary" className="px-2 py-0 h-5 text-[10px] bg-blue-50 text-blue-700 border-0">
+                            <Badge variant="secondary" className="px-2 py-0 h-5 text-[10px] bg-primary/10 text-primary border-0">
                               Verified
                             </Badge>
                           )}
                         </div>
-                        <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-primary transform group-hover:translate-x-1 transition-all" />
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transform group-hover:translate-x-1 transition-all" />
                       </div>
                     </div>
                   </div>
@@ -351,12 +356,12 @@ export function CustomerSearch() {
 
           {filteredFacilities.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 text-center px-6">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <Search className="w-8 h-8 text-gray-300" />
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                <Search className="w-8 h-8 text-muted-foreground" />
               </div>
-              <h3 className="font-bold text-gray-900">No results found</h3>
-              <p className="text-sm text-gray-500 mt-2">Try adjusting your filters or searching for a broader area.</p>
-              <Button variant="outline" className="mt-6 rounded-xl" onClick={() => { setSearchQuery(''); setActiveFilter(null); }}>
+              <h3 className="font-bold text-foreground font-display">No results found</h3>
+              <p className="text-sm text-muted-foreground mt-2 font-sans">Try adjusting your filters or searching for a broader area.</p>
+              <Button variant="outline" className="mt-6 rounded-md border-border bg-card text-foreground" onClick={() => { setSearchQuery(''); setActiveFilter(null); }}>
                 Clear all filters
               </Button>
             </div>
@@ -369,57 +374,56 @@ export function CustomerSearch() {
 
         {/* MOBILE TOP BAR (Hidden on Desktop) */}
         <div className="md:hidden absolute top-4 left-4 right-4 z-40">
-          <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl p-2 flex items-center space-x-2 border border-white">
+          <div className="bg-background/90 backdrop-blur-xl rounded-md shadow-lg p-2 flex items-center space-x-2 border border-border">
             <Button
               variant="ghost"
               size="icon"
-              className="shrink-0"
+              className="shrink-0 text-muted-foreground"
               onClick={() => searchInputRef.current?.focus()}
             >
-              <Search className="w-5 h-5 text-gray-500" />
+              <Search className="w-5 h-5" />
             </Button>
             <Input
               ref={searchInputRef}
               placeholder="Search place..."
               value={searchQuery}
-              className="border-0 shadow-none focus-visible:ring-0 text-base font-medium placeholder:text-gray-400 bg-transparent h-10"
+              className="border-0 shadow-none focus-visible:ring-0 text-base font-medium placeholder:text-muted-foreground bg-transparent h-10 text-foreground"
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             <Sheet>
               <SheetTrigger asChild>
-                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white font-black text-sm cursor-pointer shadow-lg shadow-primary/20">
+                <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm cursor-pointer shadow-sm">
                   {user?.name?.charAt(0) || 'U'}
                 </div>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[300px] border-r-0">
+              <SheetContent side="left" className="w-[300px] border-r-0 bg-background text-foreground">
                 <SheetHeader className="text-left px-4 pt-8">
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black text-xl">
+                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xl font-display">
                       {user?.name?.charAt(0) || 'U'}
                     </div>
                     <div>
-                      <SheetTitle className="font-bold text-lg">{user?.name || 'User'}</SheetTitle>
-                      <SheetDescription className="text-xs text-gray-500 font-medium">Verified Customer</SheetDescription>
+                      <SheetTitle className="font-bold text-lg text-foreground font-display">{user?.name || 'User'}</SheetTitle>
+                      <SheetDescription className="text-xs text-muted-foreground font-medium font-sans">Verified Customer</SheetDescription>
                     </div>
                   </div>
                 </SheetHeader>
 
                 <div className="px-4 mt-4 overflow-y-auto">
-
                   <div className="space-y-2">
-                    <Button variant="ghost" className="w-full justify-start h-12 rounded-xl" onClick={() => navigate('/customer/tickets')}>
-                      <Clock className="w-5 h-5 mr-3 text-gray-400" />
+                    <Button variant="ghost" className="w-full justify-start h-12 rounded-md hover:bg-secondary text-foreground" onClick={() => navigate('/customer/tickets')}>
+                      <Clock className="w-5 h-5 mr-3 text-muted-foreground" />
                       My Bookings
                     </Button>
-                    <Button variant="ghost" className="w-full justify-start h-12 rounded-xl" onClick={() => navigate('/customer/profile')}>
-                      <User className="w-5 h-5 mr-3 text-gray-400" />
+                    <Button variant="ghost" className="w-full justify-start h-12 rounded-md hover:bg-secondary text-foreground" onClick={() => navigate('/customer/profile')}>
+                      <User className="w-5 h-5 mr-3 text-muted-foreground" />
                       Profile Settings
                     </Button>
-                    <div className="h-px bg-gray-100 my-4" />
-                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-5 rounded-3xl text-white">
-                      <h3 className="font-black text-lg mb-1 leading-tight">Become a Partner</h3>
-                      <p className="text-[11px] text-blue-100 mb-4 font-medium">Rent out your empty space and earn daily.</p>
-                      <Button className="w-full bg-white text-blue-600 hover:bg-blue-50 font-black rounded-xl" onClick={() => switchRole()}>
+                    <div className="h-px bg-border my-4" />
+                    <div className="bg-primary/10 border border-primary/20 p-5 rounded-lg text-foreground">
+                      <h3 className="font-bold text-base mb-1 leading-tight font-display text-primary">Become a Partner</h3>
+                      <p className="text-[11px] text-muted-foreground mb-4 font-medium font-sans">Rent out your empty space and earn daily.</p>
+                      <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/95 font-bold rounded-md" onClick={() => switchRole()}>
                         List your space
                       </Button>
                     </div>
@@ -431,7 +435,7 @@ export function CustomerSearch() {
         </div>
 
         {/* MAP CONTAINER */}
-        <div className="w-full h-full bg-gray-50 relative">
+        <div className="w-full h-full bg-muted relative">
 
           {/* Sidebar Expand Button (Floating) */}
           <AnimatePresence>
@@ -444,7 +448,7 @@ export function CustomerSearch() {
               >
                 <Button
                   onClick={() => setIsSidebarCollapsed(false)}
-                  className="h-12 w-12 bg-white text-gray-900 border-0 shadow-2xl hover:bg-gray-50 rounded-2xl flex items-center justify-center p-0 transition-all hover:scale-105 active:scale-95"
+                  className="h-12 w-12 bg-card text-foreground border border-border shadow-md hover:bg-secondary rounded-md flex items-center justify-center p-0 transition-all"
                 >
                   <PanelLeftOpen className="w-6 h-6 text-primary" />
                 </Button>
@@ -459,7 +463,7 @@ export function CustomerSearch() {
             className="z-0"
           >
             <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              url={tileUrl}
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             />
             <MapRef setMap={setMapInstance} />
@@ -482,7 +486,6 @@ export function CustomerSearch() {
                   eventHandlers={{
                     click: () => {
                       setSelectedFacility(facility);
-                      // On mobile we might want to center the card too
                     },
                   }}
                 />
@@ -494,10 +497,10 @@ export function CustomerSearch() {
         {/* FLOATING ACTION OVERLAYS */}
         <div className="absolute right-6 bottom-24 md:bottom-8 flex flex-col gap-3 z-10">
           <Button
-            className="w-12 h-12 rounded-2xl bg-white text-gray-900 border-0 shadow-2xl hover:bg-gray-50 flex items-center justify-center p-0"
+            className="w-12 h-12 rounded-md bg-card text-foreground border border-border shadow-md hover:bg-secondary flex items-center justify-center p-0"
             onClick={() => {
               if (userLocation) {
-                setSelectedFacility(null); // This will trigger mapCenter memo to return userLocation
+                setSelectedFacility(null);
               } else {
                 toast.error('Location not available. Please enable location services.');
               }
@@ -505,18 +508,18 @@ export function CustomerSearch() {
           >
             <Navigation className="w-5 h-5 text-primary" />
           </Button>
-          <div className="flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden">
+          <div className="flex flex-col bg-card rounded-md border border-border shadow-md overflow-hidden">
             <Button
               variant="ghost"
               size="icon"
-              className="w-12 h-12 rounded-none border-b border-gray-100"
+              className="w-12 h-12 rounded-none border-b border-border text-foreground hover:bg-secondary"
               onClick={() => mapInstance?.zoomIn()}
             >+
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="w-12 h-12 rounded-none"
+              className="w-12 h-12 rounded-none text-foreground hover:bg-secondary"
               onClick={() => mapInstance?.zoomOut()}
             >−
             </Button>
@@ -532,19 +535,19 @@ export function CustomerSearch() {
               exit={{ y: 200, opacity: 0 }}
               className="absolute bottom-24 md:bottom-8 left-6 right-6 md:left-[50%] md:translate-x-[-50%] md:w-[460px] z-20"
             >
-              <Card className="rounded-[40px] shadow-3xl overflow-hidden border-0 bg-white/95 backdrop-blur-2xl ring-1 ring-black/[0.05]">
-                <div className="relative h-44 bg-gray-200">
+              <Card className="rounded-lg shadow-lg overflow-hidden border border-border bg-card/95 backdrop-blur-2xl text-card-foreground">
+                <div className="relative h-44 bg-muted">
                   <img
                     src={selectedFacility.images?.[0] || selectedFacility.image_url || 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&q=80&w=600'}
                     alt={selectedFacility.name}
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-x-0 top-0 p-4 flex justify-between">
-                    <Badge className="bg-primary/90 backdrop-blur-md text-[10px] font-black uppercase tracking-widest px-3 border-0">
+                    <Badge className="bg-primary/95 text-primary-foreground text-[10px] font-bold uppercase tracking-widest px-3 border-0 rounded-md">
                       Top Rated
                     </Badge>
                     <button
-                      className="w-10 h-10 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all"
+                      className="w-10 h-10 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white transition-all"
                       onClick={() => setSelectedFacility(null)}
                       aria-label="Close facility details"
                       title="Close"
@@ -554,35 +557,35 @@ export function CustomerSearch() {
                   </div>
                 </div>
 
-                <div className="p-7">
+                <div className="p-6">
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1 pr-4">
-                      <h3 className="text-2xl font-black text-gray-900 leading-tight mb-1">{selectedFacility.name}</h3>
-                      <div className="flex items-center gap-2">
+                      <h3 className="text-xl font-bold text-foreground leading-tight mb-1 font-display">{selectedFacility.name}</h3>
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                        <span className="text-sm font-bold text-gray-900">{selectedFacility.rating ?? 4.5}</span>
-                        <span className="text-xs text-gray-400 font-medium">({formatReviewCount(selectedFacility)} reviews)</span>
-                        <span className="text-gray-200">•</span>
+                        <span className="text-sm font-bold text-foreground">{selectedFacility.rating ?? 4.5}</span>
+                        <span className="text-xs text-muted-foreground font-medium">({formatReviewCount(selectedFacility)} reviews)</span>
+                        <span className="text-muted-foreground">•</span>
                         <MapPin className="w-3.5 h-3.5 text-primary" />
-                        <span className="text-xs text-gray-500 font-medium">
+                        <span className="text-xs text-muted-foreground font-medium">
                           {getDistanceText(selectedFacility)}
                         </span>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="flex items-baseline justify-end gap-1">
-                        <span className="text-sm font-bold text-gray-400">{selectedFacility.currency ?? '₹'}</span>
-                        <span className="text-3xl font-black text-primary tracking-tighter">{selectedFacility.hourlyRate ?? 60}</span>
+                      <div className="flex items-baseline justify-end gap-0.5">
+                        <span className="text-sm font-bold text-muted-foreground">{selectedFacility.currency ?? '₹'}</span>
+                        <span className="text-2xl font-bold text-primary tracking-tighter">{selectedFacility.hourlyRate ?? 60}</span>
                       </div>
-                      <span className="text-[10px] text-gray-400 font-black uppercase tracking-wider">Per Hour</span>
+                      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Per Hour</span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-3 mb-6">
                     {getAmenityFeatures(selectedFacility.amenities).map((feature, idx) => (
-                      <div key={idx} className="bg-gray-50 flex flex-col items-center justify-center py-2.5 rounded-2xl border border-black/[0.03]">
+                      <div key={idx} className="bg-secondary flex flex-col items-center justify-center py-2 rounded-md border border-border">
                         <feature.icon className="w-4 h-4 text-primary mb-1" />
-                        <span className="text-[10px] font-bold text-gray-600 truncate px-1 w-full text-center">
+                        <span className="text-[10px] font-bold text-muted-foreground truncate px-1 w-full text-center">
                           {feature.label}
                         </span>
                       </div>
@@ -592,13 +595,13 @@ export function CustomerSearch() {
                   <div className="flex gap-4">
                     <Button
                       variant="outline"
-                      className="flex-1 h-14 rounded-2xl border-2 font-black text-gray-600 hover:bg-gray-50"
+                      className="flex-1 h-12 rounded-md border border-border text-foreground hover:bg-secondary font-bold text-sm"
                       onClick={() => navigate(`/customer/facility/${selectedFacility.id}`)}
                     >
                       Details
                     </Button>
                     <Button
-                      className="flex-[2] h-14 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black text-lg shadow-xl shadow-primary/30"
+                      className="flex-[2] h-12 rounded-md bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-sm shadow-sm"
                       onClick={() => navigate(`/customer/facility/${selectedFacility.id}`)}
                     >
                       Reserve Spot
@@ -613,3 +616,4 @@ export function CustomerSearch() {
     </div>
   );
 }
+

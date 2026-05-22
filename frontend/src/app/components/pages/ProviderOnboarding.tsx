@@ -47,22 +47,17 @@ export function ProviderOnboarding() {
         setLoading(true);
 
         try {
-            // Ensure types match backend expectations
             const payload = {
                 ...formData,
                 total_floors: formData.total_floors,
-                // If user didn't pick, backend will geocode address
                 latitude: formData.latitude ?? null,
                 longitude: formData.longitude ?? null,
             };
 
             await providerService.createFacility(payload);
-
-            // Refresh global context
             await refreshData();
 
             toast.success('Facility created! Now let\'s add some slots.');
-            // After creating facility, go to slots management
             navigate('/provider/dashboard');
         } catch (error) {
             toast.error('Failed to create facility. Please try again.');
@@ -73,32 +68,32 @@ export function ProviderOnboarding() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-background flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 text-foreground font-sans">
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="flex justify-center">
-                    <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center mb-4">
+                    <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mb-4">
                         <Building className="w-6 h-6 text-white" />
                     </div>
                 </div>
-                <h2 className="mt-2 text-center text-3xl font-extrabold text-gray-900">
-                    Set up your parking facility
+                <h2 className="mt-2 text-center text-3xl font-black text-foreground tracking-tight font-display">
+                    Set up your facility
                 </h2>
-                <p className="mt-2 text-center text-sm text-gray-600">
+                <p className="mt-2 text-center text-sm text-muted-foreground font-medium">
                     This information will be shown to customers on the map.
                 </p>
             </div>
 
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-                <Card className="shadow-lg border-0">
-                    <CardHeader>
-                        <CardTitle>Facility Details</CardTitle>
-                        <CardDescription>Tell us about your parking location</CardDescription>
+                <Card className="shadow-sm border border-border bg-card rounded-lg">
+                    <CardHeader className="space-y-1 pb-4">
+                        <CardTitle className="text-xl font-bold font-display text-foreground">Facility Details</CardTitle>
+                        <CardDescription className="text-xs text-muted-foreground font-medium">Tell us about your parking location</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="space-y-4">
-                                <div>
-                                    <Label htmlFor="name">Parking Name</Label>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="space-y-3">
+                                <div className="space-y-1">
+                                    <Label htmlFor="name" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Parking Name</Label>
                                     <Input
                                         id="name"
                                         name="name"
@@ -106,12 +101,12 @@ export function ProviderOnboarding() {
                                         value={formData.name}
                                         onChange={handleInputChange}
                                         required
-                                        className="mt-1"
+                                        className="mt-0.5"
                                     />
                                 </div>
 
-                                <div>
-                                    <Label htmlFor="city">City</Label>
+                                <div className="space-y-1">
+                                    <Label htmlFor="city" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">City</Label>
                                     <Input
                                         id="city"
                                         name="city"
@@ -119,12 +114,12 @@ export function ProviderOnboarding() {
                                         value={formData.city}
                                         onChange={handleInputChange}
                                         required
-                                        className="mt-1"
+                                        className="mt-0.5"
                                     />
                                 </div>
 
-                                <div>
-                                    <Label htmlFor="address">Full Address</Label>
+                                <div className="space-y-1">
+                                    <Label htmlFor="address" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Full Address</Label>
                                     <Textarea
                                         id="address"
                                         name="address"
@@ -132,24 +127,24 @@ export function ProviderOnboarding() {
                                         value={formData.address}
                                         onChange={handleInputChange}
                                         required
-                                        className="mt-1"
+                                        className="mt-0.5"
                                     />
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label htmlFor="operating_hours">Hours</Label>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="operating_hours" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Hours</Label>
                                         <Input
                                             id="operating_hours"
                                             name="operating_hours"
                                             value={formData.operating_hours}
                                             onChange={handleInputChange}
                                             required
-                                            className="mt-1"
+                                            className="mt-0.5"
                                         />
                                     </div>
-                                    <div>
-                                        <Label htmlFor="total_floors">Floors</Label>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="total_floors" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Floors</Label>
                                         <Input
                                             type="number"
                                             id="total_floors"
@@ -158,14 +153,14 @@ export function ProviderOnboarding() {
                                             value={formData.total_floors}
                                             onChange={handleInputChange}
                                             required
-                                            className="mt-1"
+                                            className="mt-0.5"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="space-y-2 pt-2 border-t border-gray-100">
-                                    <Label className="text-sm font-semibold text-gray-700">Confirm Location on Map</Label>
-                                    <p className="text-[10px] text-gray-500 mb-2">
+                                <div className="space-y-1.5 pt-3 border-t border-border">
+                                    <Label className="text-xs font-bold text-foreground uppercase tracking-wider">Confirm Location on Map</Label>
+                                    <p className="text-[10px] text-muted-foreground font-medium mb-2">
                                         Drag the pin to your exact parking entrance for accurate customer navigation.
                                     </p>
                                     <LocationPicker 
@@ -176,9 +171,9 @@ export function ProviderOnboarding() {
                                 </div>
                             </div>
 
-                            <Button type="submit" className="w-full h-12 text-lg" disabled={loading}>
+                            <Button type="submit" className="w-full h-10 text-sm font-bold mt-4" disabled={loading}>
                                 {loading ? 'Creating Profile...' : 'Create & Continue'}
-                                {!loading && <ArrowRight className="ml-2 w-5 h-5" />}
+                                {!loading && <ArrowRight className="ml-1.5 w-4 h-4" />}
                             </Button>
                         </form>
                     </CardContent>
