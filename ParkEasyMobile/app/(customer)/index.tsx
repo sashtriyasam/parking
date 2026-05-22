@@ -161,7 +161,7 @@ export default function HomeScreen() {
             >
               <View style={styles.markerWrapper}>
                 <View style={[styles.markerBody, { backgroundColor: colors.primary }]}>
-                   <Text style={styles.markerPrice}>₹{Math.round(f.price_per_hour || 0)}</Text>
+                   <Text style={styles.markerPrice}>{f.available_slots} slots</Text>
                 </View>
                 <View style={[styles.markerTip, { borderTopColor: colors.primary }]} />
               </View>
@@ -175,44 +175,44 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Modern High-Fidelity Floating Search */}
-      <View style={[styles.floatingHeader, { top: insets.top + 10 }]}>
-         <View style={{ position: 'relative' }}>
-            <ProfessionalCard 
-               style={styles.searchBar} 
-               hasVibrancy={true}
-               onPress={() => {
-                   haptics.impactLight();
-                   router.push('/(customer)/search');
-               }}
-            >
-               <View style={styles.searchInner}>
-                  <Ionicons name="search" size={20} color={colors.primary} />
-                  <Text style={[styles.searchPlaceholder, { color: colors.textMuted }]}>Find parking nearby...</Text>
-                  <View style={{ width: 44 }} />
-               </View>
-            </ProfessionalCard>
-
+      {/* Modern High-Fidelity Floating Header */}
+      <View style={[styles.floatingHeader, { top: insets.top + 8 }]}>
+         {/* Welcome & Profile Row */}
+         <View style={styles.welcomeRow}>
+            <View>
+               <Text style={[styles.welcomeGreeting, { color: colors.textPrimary }]}>
+                  Hello, {user?.full_name ? user.full_name.split(' ')[0] : 'Driver'}
+               </Text>
+               <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>
+                  Find your spot today
+               </Text>
+            </View>
             <TouchableOpacity 
                onPress={() => {
                   haptics.impactLight();
                   router.push('/(customer)/profile');
                }}
-               style={[
-                  styles.profileButton, 
-                  { 
-                     position: 'absolute', 
-                     right: 12, 
-                     top: 12, 
-                     backgroundColor: colors.surface, 
-                     borderColor: colors.border,
-                     zIndex: 10
-                  }
-               ]}
+               style={[styles.profileButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+               activeOpacity={0.8}
             >
-               <Ionicons name="person" size={18} color={colors.textPrimary} />
+               <Ionicons name="person" size={16} color={colors.primary} />
             </TouchableOpacity>
          </View>
+
+         {/* Search Bar Input Trigger */}
+         <TouchableOpacity 
+            onPress={() => {
+                haptics.impactLight();
+                router.push('/(customer)/search');
+            }}
+            style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            activeOpacity={0.9}
+         >
+            <View style={styles.searchInner}>
+               <Ionicons name="search" size={18} color={colors.textSecondary} />
+               <Text style={[styles.searchPlaceholder, { color: colors.textMuted }]}>Search parking locations...</Text>
+            </View>
+         </TouchableOpacity>
 
          <ScrollView
             horizontal
@@ -230,13 +230,13 @@ export default function HomeScreen() {
                      style={[
                         styles.filterChip,
                         { backgroundColor: colors.surface, borderColor: colors.border },
-                        activeFilter === f && { backgroundColor: colors.textPrimary, borderColor: colors.textPrimary }
+                        activeFilter === f && { backgroundColor: colors.primary, borderColor: colors.primary }
                      ]}
                   >
                      <Text style={[
                         styles.chipText,
-                        { color: colors.textSecondary },
-                        activeFilter === f && { color: colors.background }
+                        { color: colors.textPrimary },
+                        activeFilter === f && { color: '#FFFFFF' }
                      ]}>{f}</Text>
                   </TouchableOpacity>
                </Animated.View>
@@ -305,26 +305,28 @@ const styles = StyleSheet.create({
   webPlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 },
   webText: { fontSize: 16, fontWeight: '600' },
   markerWrapper: { alignItems: 'center' },
-  markerBody: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, borderWidth: 2, borderColor: '#FFF', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
-  markerPrice: { color: '#FFF', fontSize: 14, fontWeight: '900' },
-  markerTip: { width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 8, borderLeftColor: 'transparent', borderRightColor: 'transparent', alignSelf: 'center', marginTop: -2 },
-  floatingHeader: { position: 'absolute', left: 0, right: 0, paddingHorizontal: 20, zIndex: 100 },
-  searchBar: { height: 60, borderRadius: 30, padding: 0 },
-  searchInner: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18 },
-  searchPlaceholder: { flex: 1, fontSize: 16, fontWeight: '700', marginLeft: 12 },
-  divider: { width: 1, height: 24, marginHorizontal: 12, opacity: 0.2 },
+  markerBody: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1.5, borderColor: '#FFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 },
+  markerPrice: { color: '#FFF', fontSize: 12, fontWeight: '600' },
+  markerTip: { width: 0, height: 0, borderStyle: 'solid', borderLeftWidth: 5, borderRightWidth: 5, borderTopWidth: 6, borderLeftColor: 'transparent', borderRightColor: 'transparent', alignSelf: 'center', marginTop: -2 },
+  floatingHeader: { position: 'absolute', left: 0, right: 0, paddingHorizontal: 16, zIndex: 100 },
+  welcomeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingHorizontal: 4 },
+  welcomeGreeting: { fontSize: 24, fontWeight: '700', letterSpacing: -0.5 },
+  welcomeSubtitle: { fontSize: 13, fontWeight: '400', marginTop: 2 },
+  searchBar: { height: 48, borderRadius: 10, borderWidth: 1, justifyContent: 'center' },
+  searchInner: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 },
+  searchPlaceholder: { fontSize: 15, fontWeight: '400', marginLeft: 8 },
   profileButton: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
-  filterBar: { marginTop: 12 },
-  filterContent: { paddingRight: 20, gap: 10 },
-  filterChip: { height: 40, paddingHorizontal: 18, borderRadius: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
-  chipText: { fontSize: 13, fontWeight: '800' },
-  fabWrapper: { position: 'absolute', right: 20, zIndex: 30 },
-  fab: { width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center', borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 6 },
-  bottomDashboard: { position: 'absolute', bottom: 0, left: 0, right: 0 },
-  dashboardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 16 },
-  dashboardHeadline: { fontSize: 11, fontWeight: '900', letterSpacing: 2 },
-  seeAll: { fontSize: 14, fontWeight: '800' },
-  facilityList: { paddingHorizontal: 24, paddingBottom: 20 },
-  noData: { width: width - 48, height: 160, justifyContent: 'center', alignItems: 'center' },
-  noDataText: { fontSize: 14, fontWeight: '600' }
+  filterBar: { marginTop: 10 },
+  filterContent: { paddingRight: 16, gap: 8 },
+  filterChip: { height: 32, paddingHorizontal: 14, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+  chipText: { fontSize: 13, fontWeight: '500' },
+  fabWrapper: { position: 'absolute', right: 16, zIndex: 30 },
+  fab: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 4 },
+  bottomDashboard: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'transparent' },
+  dashboardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 12 },
+  dashboardHeadline: { fontSize: 11, fontWeight: '600', letterSpacing: 1 },
+  seeAll: { fontSize: 13, fontWeight: '600' },
+  facilityList: { paddingHorizontal: 20, paddingBottom: 16 },
+  noData: { width: width - 40, height: 140, justifyContent: 'center', alignItems: 'center' },
+  noDataText: { fontSize: 13, fontWeight: '500' }
 });

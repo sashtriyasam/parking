@@ -66,11 +66,10 @@ yarn-error.log*
 # OS Files
 .DS_Store
 Thumbs.db
-# Large Project Logs
 all_comments.txt
-all_comments_utf8.txtf r o n t e n d / s r c _ b a c k u p /  
- P a r k E a s y M o b i l e / b u n d l e _ e r r o r . t x t  
- a l l _ c o m m e n t s _ u t f 8 . t x t  
+all_comments_utf8.txt
+ParkEasyMobile/bundle_error.txt
+frontend/src_backup/
 
 # Test Coverage
 coverage/

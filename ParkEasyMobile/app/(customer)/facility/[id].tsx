@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -26,16 +26,16 @@ import Animated, {
   Extrapolate
 } from 'react-native-reanimated';
 
-import { get, post } from '../../../services/api';
+import { get } from '../../../services/api';
 import { ProfessionalButton } from '../../../components/ui/ProfessionalButton';
-import { ProfessionalCard } from '../../../components/ui/ProfessionalCard';
 import { useThemeColors } from '../../../hooks/useThemeColors';
 import { useHaptics } from '../../../hooks/useHaptics';
 import { useBookingFlowStore } from '../../../store/bookingFlowStore';
 import { ParkingSlot } from '../../../types';
+import { useToast } from '../../../components/Toast';
 
 const { width } = Dimensions.get('window');
-const HEADER_HEIGHT = 420;
+const HEADER_HEIGHT = 300;
 
 interface Facility {
   id: string;
@@ -51,15 +51,8 @@ interface Facility {
   rating?: number;
   reviewCount?: number;
   slots?: ParkingSlot[];
+  distance?: number;
 }
-
-const formatReviewCount = (count?: number): string => {
-  if (count == null) return 'OVER 2.4K';
-  if (count < 1000) return count.toString();
-  const kValue = count / 1000;
-  const formatted = kValue % 1 === 0 ? kValue.toFixed(0) : kValue.toFixed(1);
-  return `OVER ${formatted}K`;
-};
 
 export default function FacilityDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -67,11 +60,13 @@ export default function FacilityDetailsScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const haptics = useHaptics();
+  const { showToast } = useToast();
   const { setFacility: setStoreFacility, setSlot, resetBookingFlow } = useBookingFlowStore();
   
   const [facility, setFacility] = useState<Facility | null>(null);
   const [loading, setLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [selectedSlot, setSelectedSlotInternal] = useState<ParkingSlot | null>(null);
   
   const scrollY = useSharedValue(0);
 
@@ -88,7 +83,7 @@ export default function FacilityDetailsScreen() {
       } else {
         Alert.alert('Not Found', 'The requested parking facility could not be found.', [
           { text: 'Go Back', onPress: () => router.back() }
-        ], { cancelable: false, onDismiss: () => router.back() });
+        ], { cancelable: false });
       }
     } catch (error) {
       console.error('Error fetching facility:', error);
@@ -117,7 +112,6 @@ export default function FacilityDetailsScreen() {
       });
     } catch (error) {
       console.error('Sharing error:', error);
-      Alert.alert('Sharing Failed', 'Could not open share dialog.');
     }
   };
 
@@ -136,33 +130,60 @@ export default function FacilityDetailsScreen() {
   const navHeaderStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       scrollY.value,
-      [HEADER_HEIGHT - 120, HEADER_HEIGHT - 60],
+      [HEADER_HEIGHT - 100, HEADER_HEIGHT - 50],
       [0, 1],
       Extrapolate.CLAMP
     );
     return { opacity };
   });
 
+  const slotsList = useMemo(() => {
+    if (!facility) return [];
+    if (facility.slots && facility.slots.length > 0) return facility.slots;
+    
+    // Generate high fidelity mock slots if not available in DB
+    const generated: ParkingSlot[] = [];
+    const statuses: ('FREE' | 'RESERVED' | 'OCCUPIED')[] = ['FREE', 'FREE', 'RESERVED', 'OCCUPIED', 'FREE'];
+    for (let i = 1; i <= 20; i++) {
+      generated.push({
+        id: `mock-slot-${i}`,
+        facility_id: facility.id,
+        slot_number: `P-${i}`,
+        vehicle_type: 'car',
+        status: statuses[i % statuses.length],
+      });
+    }
+    return generated;
+  }, [facility]);
+
+  const handleSelectSlot = (slot: ParkingSlot) => {
+    const status = slot.status.toUpperCase();
+    if (status === 'FREE') {
+      haptics.impactLight();
+      if (selectedSlot?.id === slot.id) {
+        setSelectedSlotInternal(null);
+      } else {
+        setSelectedSlotInternal(slot);
+      }
+    } else {
+      haptics.notificationError();
+      showToast?.(`Slot ${slot.slot_number} is ${status.toLowerCase()}`, 'info');
+    }
+  };
+
   const handleBookNow = () => {
     if (!facility) return;
+    if (!selectedSlot) {
+      Alert.alert('Select a Slot', 'Please select an available parking slot from the grid below.');
+      return;
+    }
     setBookingLoading(true);
     try {
       haptics.impactMedium();
-      
-      // Initialize booking context
       resetBookingFlow();
       setStoreFacility(facility.id, facility.name);
-      
-      // Pre-select first available slot if present to avoid session errors
-      if (facility.slots && facility.slots.length > 0) {
-        const availableSlot = facility.slots.find(s => s.status === 'free');
-        if (availableSlot) setSlot(availableSlot);
-      }
-
-      // Clear loading state synchronously before moving context to avoid unmount cleanup issues
+      setSlot(selectedSlot);
       setBookingLoading(false);
-
-      // Navigate to the structured booking flow
       router.push(`/(customer)/booking/vehicle`);
     } catch (e) {
       setBookingLoading(false);
@@ -183,39 +204,38 @@ export default function FacilityDetailsScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="light-content" />
       
-      {/* Dynamic Header Background */}
+      {/* Hero Image */}
       <Animated.View style={[styles.headerImageContainer, headerAnimatedStyle]}>
         <Image 
           source={{ uri: facility.image_url || 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&q=80' }} 
           style={styles.headerImage}
           contentFit="cover"
-          transition={1000}
         />
         <LinearGradient 
-          colors={['rgba(0,0,0,0.4)', 'transparent', 'rgba(0,0,0,0.8)']} 
+          colors={['rgba(0,0,0,0.5)', 'transparent', 'rgba(0,0,0,0.7)']} 
           style={styles.gradient}
         />
       </Animated.View>
 
-      {/* Sticky Top Navigation */}
+      {/* Header Overlays */}
       <View style={styles.topNav}>
         <TouchableOpacity 
-          style={[styles.backButton, { backgroundColor: 'rgba(0,0,0,0.3)' }]} 
+          style={[styles.circleBtn, { backgroundColor: 'rgba(0,0,0,0.4)' }]} 
           onPress={() => router.back()}
         >
-          <Ionicons name="chevron-back" size={24} color="#FFF" />
+          <Ionicons name="chevron-back" size={22} color="#FFF" />
         </TouchableOpacity>
         
         <Animated.View style={[styles.navTitleContainer, navHeaderStyle]}>
-           <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+           <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
            <Text style={styles.navTitle} numberOfLines={1}>{facility.name}</Text>
         </Animated.View>
 
         <TouchableOpacity 
-          style={[styles.backButton, { backgroundColor: 'rgba(0,0,0,0.3)' }]} 
+          style={[styles.circleBtn, { backgroundColor: 'rgba(0,0,0,0.4)' }]} 
           onPress={handleShare}
         >
-          <Ionicons name="share-outline" size={22} color="#FFF" />
+          <Ionicons name="share-outline" size={20} color="#FFF" />
         </TouchableOpacity>
       </View>
 
@@ -227,82 +247,147 @@ export default function FacilityDetailsScreen() {
       >
         <View style={styles.heroSpacer} />
         
-        <Animated.View entering={FadeInDown.delay(200).duration(800)} style={[styles.content, { backgroundColor: colors.background }]}>
+        <View style={[styles.content, { backgroundColor: colors.background }]}>
           <View style={styles.indicator} />
           
           <View style={styles.titleSection}>
-            <Text style={[styles.headerSub, { color: colors.primary }]}>PREMIUM FACILITY</Text>
+            <Text style={[styles.headerSub, { color: colors.primary }]}>PREMIUM PARKING</Text>
             <Text style={[styles.title, { color: colors.textPrimary }]}>{facility.name}</Text>
-            
-            <View style={styles.metaRow}>
-               <View style={styles.ratingBox}>
-                  <Ionicons name="star" size={14} color="#FFB800" />
-                  <Text style={[styles.ratingText, { color: colors.textPrimary }]}>{facility.rating || '4.9'}</Text>
-               </View>
-               <Text style={[styles.reviewCount, { color: colors.textMuted }]}>
-                  • {formatReviewCount(facility.reviewCount)} REVIEWS
-               </Text>
-            </View>
+            <Text style={[styles.addressText, { color: colors.textSecondary }]}>{facility.address}</Text>
+          </View>
 
-            <View style={[styles.locationRow, { borderBottomColor: colors.border }]}>
-               <Ionicons name="location-outline" size={20} color={colors.primary} />
-               <Text style={[styles.addressText, { color: colors.textMuted }]}>{facility.address}</Text>
+          {/* 3-Column Stats Grid */}
+          <View style={[styles.statsGrid, { borderColor: colors.border }]}>
+            <View style={styles.statsColumn}>
+              <Text style={[styles.statsLabel, { color: colors.textSecondary }]}>DISTANCE</Text>
+              <Text style={[styles.statsValue, { color: colors.textPrimary }]}>
+                {facility.distance ? `${facility.distance.toFixed(1)} km` : '1.2 km'}
+              </Text>
+            </View>
+            <View style={[styles.statsDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.statsColumn}>
+              <Text style={[styles.statsLabel, { color: colors.textSecondary }]}>TOTAL SLOTS</Text>
+              <Text style={[styles.statsValue, { color: colors.textPrimary }]}>{facility.total_slots}</Text>
+            </View>
+            <View style={[styles.statsDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.statsColumn}>
+              <Text style={[styles.statsLabel, { color: colors.textSecondary }]}>HOURS</Text>
+              <Text style={[styles.statsValue, { color: colors.textPrimary }]}>24/7</Text>
             </View>
           </View>
 
-          <View style={styles.infoGrid}>
-            <InfoItem 
-              icon="shield-checkmark-outline" 
-              label="Secured" 
-              value="24/7 CCTV" 
-              colors={colors}
-            />
-            <InfoItem 
-              icon="flash-outline" 
-              label="EV READY" 
-              value="LEVEL 3" 
-              colors={colors}
-            />
-            <InfoItem 
-              icon="layers-outline" 
-              label="CAPACITY" 
-              value={`${facility.available_slots} FREE`} 
-              colors={colors}
-            />
+          {/* Amenities Horizontal Scroll */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Amenities</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
+              {(facility?.amenities ?? ['Automated Valet', 'EV Charging', 'CCTV Security', 'Climate Control']).map((item) => (
+                <View key={item} style={[styles.amenityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Ionicons 
+                    name={item.toLowerCase().includes('ev') ? 'flash' : item.toLowerCase().includes('valet') ? 'car-sport' : 'shield-checkmark'} 
+                    size={20} 
+                    color={colors.primary} 
+                    style={{ marginBottom: 6 }}
+                  />
+                  <Text style={[styles.amenityCardText, { color: colors.textPrimary }]}>{item}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Interactive Slot Grid */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Select Parking Slot</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
+              Tap an available green slot to reserve it.
+            </Text>
+            
+            {/* Grid Map Legend */}
+            <View style={styles.legendRow}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { borderColor: colors.success }]} />
+                <Text style={[styles.legendText, { color: colors.textSecondary }]}>Free</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { borderColor: colors.warning, backgroundColor: colors.warning + '20' }]} />
+                <Text style={[styles.legendText, { color: colors.textSecondary }]}>Reserved</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { borderColor: colors.error, backgroundColor: colors.error + '20' }]} />
+                <Text style={[styles.legendText, { color: colors.textSecondary }]}>Occupied</Text>
+              </View>
+            </View>
+
+            <View style={styles.slotGrid}>
+              {slotsList.map((slot) => {
+                const isFree = slot.status.toUpperCase() === 'FREE';
+                const isReserved = slot.status.toUpperCase() === 'RESERVED';
+                const isOccupied = slot.status.toUpperCase() === 'OCCUPIED';
+                const isSelected = selectedSlot?.id === slot.id;
+
+                let borderC = colors.border;
+                let bgC = colors.surface;
+                let textC = colors.textSecondary;
+
+                if (isFree) {
+                  borderC = colors.success;
+                  bgC = 'transparent';
+                  textC = colors.success;
+                } else if (isReserved) {
+                  borderC = colors.warning;
+                  bgC = colors.warning + '15';
+                  textC = colors.warning;
+                } else if (isOccupied) {
+                  borderC = colors.error;
+                  bgC = colors.error + '15';
+                  textC = colors.error;
+                }
+
+                if (isSelected) {
+                  borderC = colors.primary;
+                  bgC = colors.primary;
+                  textC = '#FFFFFF';
+                }
+
+                return (
+                  <TouchableOpacity
+                    key={slot.id}
+                    onPress={() => handleSelectSlot(slot)}
+                    style={[
+                      styles.slotSquare, 
+                      { 
+                        borderColor: borderC, 
+                        backgroundColor: bgC,
+                      }
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.slotNumberText, { color: textC }]}>{slot.slot_number}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
 
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Facility Overview</Text>
-            <Text style={[styles.description, { color: colors.textMuted }]}>
-              {facility.description || 'This high-integrity facility offers advanced automated parking solutions, reinforced 24/7 security, and climate-controlled environments for premium vehicle storage. Integrated with the ParkEasy grid for seamless entry and occupancy tracking.'}
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>About Facility</Text>
+            <Text style={[styles.description, { color: colors.textSecondary }]}>
+              {facility.description || 'Modern structural parking with high security, digital access control, and seamless interface integrations.'}
             </Text>
           </View>
-
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Amenities & Services</Text>
-            <View style={styles.amenityContainer}>
-               {(facility?.amenities ?? ['Automated Valet', 'EV Fast Charge', 'CCTV Grid', 'Climate Controlled', 'Underground']).map((item) => (
-                 <View key={item} style={[styles.amenityPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Text style={[styles.amenityText, { color: colors.textPrimary }]}>{item}</Text>
-                 </View>
-               ))}
-            </View>
-          </View>
           
-          <View style={{ height: 160 }} />
-        </Animated.View>
+          <View style={{ height: 140 }} />
+        </View>
       </Animated.ScrollView>
 
-      {/* Floating Price & Book Bar */}
-      <View style={styles.footer}>
-        <BlurView intensity={30} tint={colors.isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
-        <View style={[styles.footerInner, { borderTopColor: colors.border }]}>
+      {/* Sticky Bottom Bar */}
+      <View style={[styles.footer, { borderTopColor: colors.border, backgroundColor: colors.background }]}>
+        <View style={styles.footerInner}>
           <View style={styles.priceBox}>
-             <Text style={[styles.priceLabel, { color: colors.textMuted }]}>RATE / HOUR</Text>
-             <Text style={[styles.priceValue, { color: colors.textPrimary }]}>₹{facility.hourly_rate}<Text style={styles.priceUnit}>.00</Text></Text>
+             <Text style={[styles.priceLabel, { color: colors.textSecondary }]}>RATE / HOUR</Text>
+             <Text style={[styles.priceValue, { color: colors.textPrimary }]}>₹{facility.hourly_rate}<Text style={styles.priceUnit}>/hr</Text></Text>
           </View>
           <ProfessionalButton 
-             label="Book Selection" 
+             label={selectedSlot ? `Book ${selectedSlot.slot_number}` : 'Select a Slot'} 
              onPress={handleBookNow} 
              loading={bookingLoading}
              style={styles.bookButton}
@@ -314,68 +399,48 @@ export default function FacilityDetailsScreen() {
   );
 }
 
-interface InfoItemProps {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string | number;
-  colors: {
-    primary: string;
-    textMuted: string;
-    textPrimary: string;
-  };
-}
-
-function InfoItem({ icon, label, value, colors }: InfoItemProps) {
-  return (
-    <ProfessionalCard style={styles.infoCard} hasVibrancy={true}>
-      <View style={[styles.iconBox, { backgroundColor: colors.primary + '10' }]}>
-        <Ionicons name={icon} size={20} color={colors.primary} />
-      </View>
-      <Text style={[styles.infoLabel, { color: colors.textMuted }]}>{label}</Text>
-      <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{value}</Text>
-    </ProfessionalCard>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   headerImageContainer: { position: 'absolute', top: 0, width: width, height: HEADER_HEIGHT },
   headerImage: { width: '100%', height: '100%' },
   gradient: { ...StyleSheet.absoluteFillObject },
-  topNav: { position: 'absolute', top: 0, left: 0, right: 0, height: 110, paddingTop: 50, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, zIndex: 10, gap: 12 },
-  backButton: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  navTitleContainer: { flex: 1, height: 44, borderRadius: 22, overflow: 'hidden', justifyContent: 'center', paddingHorizontal: 20 },
-  navTitle: { color: '#FFF', fontSize: 16, fontWeight: '900', textAlign: 'center', letterSpacing: -0.2 },
+  topNav: { position: 'absolute', top: 0, left: 0, right: 0, height: 94, paddingTop: Platform.OS === 'ios' ? 44 : 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, zIndex: 10 },
+  circleBtn: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
+  navTitleContainer: { flex: 1, height: 38, borderRadius: 19, overflow: 'hidden', justifyContent: 'center', paddingHorizontal: 16, marginHorizontal: 12 },
+  navTitle: { color: '#FFF', fontSize: 15, fontWeight: '600', textAlign: 'center', letterSpacing: -0.2 },
   scrollContent: { flexGrow: 1 },
-  heroSpacer: { height: HEADER_HEIGHT - 80 },
-  content: { borderTopLeftRadius: 40, borderTopRightRadius: 40, overflow: 'hidden', paddingBottom: 40, marginTop: -20 },
-  indicator: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(128,128,128,0.2)', alignSelf: 'center', marginTop: 12 },
-  titleSection: { padding: 32, paddingBottom: 24 },
-  headerSub: { fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 8 },
-  title: { fontSize: 32, fontWeight: '900', letterSpacing: -1, lineHeight: 40 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 10 },
-  ratingBox: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: 'rgba(255,184,0,0.1)' },
-  ratingText: { fontSize: 14, fontWeight: '900' },
-  reviewCount: { fontSize: 11, fontWeight: '700', opacity: 0.6 },
-  locationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 24, paddingTop: 24, borderTopWidth: 0.5, gap: 10 },
-  addressText: { fontSize: 14, fontWeight: '600', lineHeight: 22, flex: 1 },
-  infoGrid: { flexDirection: 'row', paddingHorizontal: 24, gap: 12, marginBottom: 32 },
-  infoCard: { flex: 1, padding: 20, alignItems: 'center', borderRadius: 28 },
-  iconBox: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  infoLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1.5, textTransform: 'uppercase', opacity: 0.5 },
-  infoValue: { fontSize: 13, fontWeight: '900', marginTop: 4, letterSpacing: -0.2 },
-  section: { paddingHorizontal: 32, marginBottom: 32 },
-  sectionTitle: { fontSize: 20, fontWeight: '900', marginBottom: 14, letterSpacing: -0.5 },
-  description: { fontSize: 15, lineHeight: 26, fontWeight: '500', opacity: 0.8 },
-  amenityContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  amenityPill: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 16, borderWidth: 0.5 },
-  amenityText: { fontSize: 12, fontWeight: '800' },
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 120 },
-  footerInner: { flex: 1, flexDirection: 'row', paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 20, justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 0.5 },
+  heroSpacer: { height: HEADER_HEIGHT - 30 },
+  content: { borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden', paddingBottom: 40 },
+  indicator: { width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(120,120,120,0.3)', alignSelf: 'center', marginTop: 10 },
+  titleSection: { paddingHorizontal: 20, paddingTop: 20, marginBottom: 16 },
+  headerSub: { fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 4 },
+  title: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5, marginBottom: 4 },
+  addressText: { fontSize: 15, fontWeight: '400', lineHeight: 20 },
+  statsGrid: { flexDirection: 'row', marginHorizontal: 20, borderWidth: 1, borderRadius: 10, paddingVertical: 12, marginBottom: 24 },
+  statsColumn: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  statsLabel: { fontSize: 9, fontWeight: '600', letterSpacing: 0.5, marginBottom: 4 },
+  statsValue: { fontSize: 15, fontWeight: '600' },
+  statsDivider: { width: 1, height: '60%', alignSelf: 'center' },
+  section: { paddingHorizontal: 20, marginBottom: 24 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8, letterSpacing: -0.3 },
+  sectionSubtitle: { fontSize: 13, marginBottom: 12 },
+  description: { fontSize: 14, lineHeight: 20, fontWeight: '400' },
+  horizontalScroll: { gap: 8, paddingRight: 20 },
+  amenityCard: { width: 110, height: 80, borderRadius: 10, borderWidth: 1, padding: 10, justifyContent: 'center' },
+  amenityCardText: { fontSize: 11, fontWeight: '500' },
+  legendRow: { flexDirection: 'row', gap: 16, marginBottom: 16 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 12, height: 12, borderRadius: 3, borderWidth: 1.5 },
+  legendText: { fontSize: 12 },
+  slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  slotSquare: { width: (width - 40 - 30) / 4, height: 44, borderRadius: 6, borderWidth: 1.5, justifyContent: 'center', alignItems: 'center' },
+  slotNumberText: { fontSize: 13, fontWeight: '600' },
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, height: Platform.OS === 'ios' ? 98 : 78, borderTopWidth: StyleSheet.hairlineWidth },
+  footerInner: { flexDirection: 'row', paddingHorizontal: 20, paddingTop: 12, justifyContent: 'space-between', alignItems: 'center' },
   priceBox: { flex: 1 },
-  priceLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1.5, marginBottom: 4 },
-  priceValue: { fontSize: 28, fontWeight: '900', letterSpacing: -1 },
-  priceUnit: { fontSize: 16, opacity: 0.5 },
-  bookButton: { width: 220, height: 60 },
+  priceLabel: { fontSize: 9, fontWeight: '600', letterSpacing: 1, marginBottom: 2 },
+  priceValue: { fontSize: 24, fontWeight: '700', letterSpacing: -0.5 },
+  priceUnit: { fontSize: 14, fontWeight: '400' },
+  bookButton: { width: 180 },
 });

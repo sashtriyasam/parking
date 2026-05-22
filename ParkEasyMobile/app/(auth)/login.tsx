@@ -8,13 +8,11 @@ import {
   ScrollView,
   StatusBar,
   TouchableOpacity,
-  Alert,
-  useWindowDimensions,
+  SafeAreaView,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { useAuthStore } from '../../store/authStore';
 import { post } from '../../services/api';
@@ -22,14 +20,10 @@ import { useToast } from '../../components/Toast';
 import { useThemeColors } from '../../hooks/useThemeColors';
 import { useHaptics } from '../../hooks/useHaptics';
 import { User } from '../../types';
-import { ProfessionalCard } from '../../components/ui/ProfessionalCard';
 import { ProfessionalInput } from '../../components/ui/ProfessionalInput';
 import { ProfessionalButton } from '../../components/ui/ProfessionalButton';
 
-
-
 export default function LoginScreen() {
-  const { height } = useWindowDimensions();
   const colors = useThemeColors();
   const haptics = useHaptics();
   const router = useRouter();
@@ -38,23 +32,15 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [secureText, setSecureText] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleForgotPassword = () => {
-    haptics.impactLight();
-    Alert.alert(
-      "Secure Access",
-      "Credential recovery tools are managed by our secondary security layer. Please contact your system administrator.",
-      [{ text: "Acknowledge", style: "default" }]
-    );
-  };
 
   const handleLogin = async () => {
     if (isSubmitting) return;
     haptics.impactMedium();
 
     if (!email || !password) {
-      showToast('CREDENTIALS REQUIRED', 'info');
+      showToast('Credentials required', 'info');
       return;
     }
 
@@ -109,21 +95,21 @@ export default function LoginScreen() {
       }
     } catch (e: any) {
       haptics.notificationError();
-      let msg = 'AUTHENTICATION FAILED';
+      let msg = 'Authentication failed';
       
       if (e.response) {
         const status = e.response.status;
         if (status === 401 || status === 403) {
-          msg = 'INVALID CREDENTIALS';
+          msg = 'Invalid credentials';
         } else if (status === 429) {
-          msg = 'TOO MANY ATTEMPTS. PLEASE TRY AGAIN LATER.';
+          msg = 'Too many attempts. Try again later.';
         } else if (status >= 500) {
-          msg = e.response.data?.message || 'SERVER ERROR - PLEASE RETRY LATER';
+          msg = e.response.data?.message || 'Server error - Try again later';
         } else {
-          msg = e.response.data?.message || 'INVALID AUTHORIZATION';
+          msg = e.response.data?.message || 'Invalid authorization';
         }
       } else if (e.request) {
-        msg = 'NETWORK ERROR - CHECK YOUR CONNECTION';
+        msg = 'Network error - Check your connection';
       }
       
       showToast(msg, 'error');
@@ -133,148 +119,178 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle="light-content" />
       
+      {/* Navigation Bar */}
+      <View style={styles.navBar}>
+        <TouchableOpacity 
+          onPress={() => {
+            haptics.impactLight();
+            router.back();
+          }}
+          activeOpacity={0.7}
+          style={styles.backButton}
+        >
+          <Ionicons name="chevron-back" size={24} color={colors.primary} />
+          <Text style={[styles.backText, { color: colors.primary }]}>Back</Text>
+        </TouchableOpacity>
+      </View>
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingTop: height * 0.1 }]}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Animated.View entering={ZoomIn.delay(200).duration(800)} style={styles.header}>
-            <View style={[styles.logoOutline, { borderColor: colors.border }]}>
-               <ProfessionalCard style={styles.logoCard} hasVibrancy={true}>
-                  <Text style={[styles.logoLetter, { color: colors.primary }]}>P</Text>
-               </ProfessionalCard>
-            </View>
-            <Text style={[styles.title, { color: colors.textPrimary }]}>ParkEasy</Text>
-            <Text style={[styles.subtitle, { color: colors.textMuted }]}>PREMIUM PARKING ECOSYSTEM</Text>
+          {/* Header Title */}
+          <Animated.View 
+            entering={FadeInDown.delay(100).duration(600)} 
+            style={styles.header}
+          >
+            <Text style={[styles.title, { color: colors.textPrimary }]}>Welcome back.</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Sign in to manage your parking spaces or reserves.
+            </Text>
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(400).duration(1000)}>
-            <ProfessionalCard style={styles.card}>
-              <View style={styles.formHeader}>
-                <Ionicons name="lock-closed-outline" size={12} color={colors.primary} />
-                <Text style={[styles.formLabelText, { color: colors.textMuted }]}>SECURE ACCESS</Text>
-              </View>
+          {/* Form Fields */}
+          <Animated.View 
+            entering={FadeInDown.delay(200).duration(600)}
+            style={styles.formContainer}
+          >
+            <ProfessionalInput
+              label="Email Address"
+              placeholder="name@example.com"
+              icon="mail-outline"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoComplete="email"
+            />
 
+            <View style={styles.passwordWrapper}>
               <ProfessionalInput
-                label="Email Address"
-                placeholder="identity@parkeasy.com"
-                icon="mail-outline"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-              />
-
-              <ProfessionalInput
-                label="Security Key"
-                placeholder="••••••••"
-                icon="key-outline"
+                label="Password"
+                placeholder="Required"
+                icon="lock-closed-outline"
                 value={password}
                 onChangeText={setPassword}
-                secureTextEntry
+                secureTextEntry={secureText}
+                autoComplete="password"
               />
-
-              <TouchableOpacity style={styles.forgotPass} onPress={handleForgotPassword} activeOpacity={0.7}>
-                <Text style={[styles.forgotPassText, { color: colors.primary }]}>RECOVER ACCESS</Text>
+              <TouchableOpacity 
+                style={styles.eyeIcon} 
+                onPress={() => setSecureText(!secureText)}
+                activeOpacity={0.7}
+              >
+                <Ionicons 
+                  name={secureText ? "eye-off-outline" : "eye-outline"} 
+                  size={20} 
+                  color={colors.textSecondary} 
+                />
               </TouchableOpacity>
+            </View>
 
-              <ProfessionalButton
-                label={isSubmitting ? "Authenticating..." : "Sign In"}
-                onPress={handleLogin}
-                variant="primary"
-                loading={isSubmitting}
-                style={styles.loginBtn}
-              />
-
-              <View style={styles.divider}>
-                <View style={[styles.line, { backgroundColor: colors.border }]} />
-                <Text style={[styles.dividerText, { color: colors.textMuted }]}>ALTERNATIVE METHODS</Text>
-                <View style={[styles.line, { backgroundColor: colors.border }]} />
-              </View>
-
-              <View style={styles.socialRow}>
-                <SocialButton icon="logo-google" label="Google (Coming soon)" onPress={() => {}} disabled={true} colors={colors} />
-                <SocialButton icon="logo-apple" label="Apple (Coming soon)" onPress={() => {}} disabled={true} colors={colors} />
-              </View>
-            </ProfessionalCard>
+            <ProfessionalButton
+              label={isSubmitting ? "Signing In..." : "Sign In"}
+              onPress={handleLogin}
+              variant="primary"
+              loading={isSubmitting}
+              style={styles.signInButton}
+            />
           </Animated.View>
 
-          <View style={styles.footer}>
-            <Text style={[styles.footerText, { color: colors.textMuted }]}>NEW TO THE ECOSYSTEM? </Text>
+          {/* Footer Link */}
+          <Animated.View 
+            entering={FadeInDown.delay(300).duration(600)}
+            style={styles.footer}
+          >
+            <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+              Don't have an account?{' '}
+            </Text>
             <Link href="/(auth)/signup" asChild>
               <TouchableOpacity activeOpacity={0.7}>
-                <Text style={[styles.signUpLink, { color: colors.primary }]}>GENERATE ACCOUNT</Text>
+                <Text style={[styles.signUpLink, { color: colors.primary }]}>Sign Up</Text>
               </TouchableOpacity>
             </Link>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
-interface SocialButtonProps {
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  label: string;
-  onPress: () => void;
-  colors: {
-    isDark: boolean;
-    border: string;
-    textPrimary: string;
-  };
-  disabled?: boolean;
-}
-
-const SocialButton = ({ icon, label, onPress, colors, disabled }: SocialButtonProps) => (
-  <TouchableOpacity 
-    style={[styles.socialBtn, disabled && { opacity: 0.5 }]} 
-    onPress={onPress} 
-    activeOpacity={disabled ? 0.5 : 0.7}
-    disabled={disabled}
-    accessibilityRole="button"
-    accessibilityState={{ disabled: !!disabled }}
-    accessibilityLabel={label}
-  >
-    <BlurView 
-      intensity={10} 
-      tint={colors.isDark ? 'dark' : 'light'} 
-      style={[styles.socialBlur, { borderColor: colors.border, borderWidth: 1, borderRadius: 20 }]}
-    >
-      <Ionicons name={icon} size={18} color={colors.textPrimary} />
-      <Text style={[styles.socialText, { color: colors.textPrimary }]}>{label}</Text>
-    </BlurView>
-  </TouchableOpacity>
-);
-
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollContent: { flexGrow: 1, paddingHorizontal: 28, paddingBottom: 60 },
-  header: { alignItems: 'center', marginBottom: 48 },
-  logoOutline: { width: 88, height: 88, borderRadius: 28, padding: 1, marginBottom: 24 },
-  logoCard: { flex: 1, borderRadius: 26, justifyContent: 'center', alignItems: 'center', padding: 0 },
-  logoLetter: { fontSize: 44, fontWeight: '900', letterSpacing: -2 },
-  title: { fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
-  subtitle: { fontSize: 10, fontWeight: '900', marginTop: 10, letterSpacing: 2, opacity: 0.6 },
-  card: { padding: 32, borderRadius: 40 },
-  formHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 32 },
-  formLabelText: { fontSize: 10, fontWeight: '900', letterSpacing: 2 },
-  forgotPass: { alignSelf: 'flex-end', marginBottom: 32, paddingVertical: 4 },
-  forgotPassText: { fontWeight: '900', fontSize: 11, letterSpacing: 1 },
-  loginBtn: { height: 60, borderRadius: 20, marginBottom: 32 },
-  divider: { flexDirection: 'row', alignItems: 'center', marginBottom: 28 },
-  line: { flex: 1, height: 1, opacity: 0.1 },
-  dividerText: { paddingHorizontal: 16, fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
-  socialRow: { flexDirection: 'row', gap: 12 },
-  socialBtn: { flex: 1, height: 56 },
-  socialBlur: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  socialText: { fontSize: 12, fontWeight: '700', letterSpacing: -0.2 },
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 48, gap: 4 },
-  footerText: { fontSize: 11, fontWeight: '600', opacity: 0.8 },
-  signUpLink: { fontSize: 11, fontWeight: '900', letterSpacing: 0.5 },
+  container: {
+    flex: 1,
+  },
+  navBar: {
+    height: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  backText: {
+    fontSize: 17,
+    marginLeft: -4,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+  },
+  header: {
+    marginBottom: 36,
+  },
+  title: {
+    fontSize: 34,
+    fontWeight: '700',
+    letterSpacing: -1,
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  formContainer: {
+    width: '100%',
+  },
+  passwordWrapper: {
+    position: 'relative',
+    width: '100%',
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: 16,
+    top: 38,
+    padding: 4,
+    zIndex: 10,
+  },
+  signInButton: {
+    marginTop: 12,
+    width: '100%',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 48,
+    paddingBottom: 24,
+  },
+  footerText: {
+    fontSize: 15,
+  },
+  signUpLink: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
 });

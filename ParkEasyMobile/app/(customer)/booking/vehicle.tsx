@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 
 import { useBookingFlowStore } from '../../../store/bookingFlowStore';
@@ -21,33 +21,22 @@ import { get } from '../../../services/api';
 import { useThemeColors } from '../../../hooks/useThemeColors';
 import { useHaptics } from '../../../hooks/useHaptics';
 import { Vehicle, VehicleType } from '../../../types';
-import { VEHICLE_TYPE_COLORS } from '../../../constants/colors';
 import { ProfessionalCard } from '../../../components/ui/ProfessionalCard';
 import { ProfessionalButton } from '../../../components/ui/ProfessionalButton';
 import { useToast } from '../../../components/Toast';
 
-
-
 const withAlpha = (hex: string, alpha: number): string => {
   if (!hex || !hex.startsWith('#')) return hex;
   let normalized = hex.slice(1);
-  
-  // Expand shorthand formats
   if (normalized.length === 3 || normalized.length === 4) {
     normalized = normalized.split('').map(c => c + c).join('');
   }
-  
-  // 2-digit hex alpha
   const alphaHex = Math.round(Math.max(0, Math.min(1, alpha)) * 255).toString(16).padStart(2, '0').toUpperCase();
-  
   if (normalized.length === 8) {
-    // Replace existing alpha
     return `#${normalized.slice(0, 6).toUpperCase()}${alphaHex}`;
   } else if (normalized.length === 6) {
-    // Append new alpha
     return `#${normalized.toUpperCase()}${alphaHex}`;
   }
-  
   return hex;
 };
 
@@ -55,7 +44,7 @@ export default function SelectVehicleScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const haptics = useHaptics();
-  const { setVehicle, vehicle_number, vehicle_type: storeVehicleType } = useBookingFlowStore();
+  const { setVehicle, selected_vehicle, vehicle_number, vehicle_type: storeVehicleType } = useBookingFlowStore();
   
   const [fetchError, setFetchError] = useState(false);
   const { showToast } = useToast();
@@ -63,13 +52,15 @@ export default function SelectVehicleScreen() {
   const [savedVehicles, setSavedVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   
-  const [manualNumber, setManualNumber] = useState(vehicle_number || '');
-  const [manualType, setManualType] = useState<VehicleType | null>(storeVehicleType || null);
+  // Local selections
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(selected_vehicle || null);
+  const [manualNumber, setManualNumber] = useState(selected_vehicle ? '' : (vehicle_number || ''));
+  const [manualType, setManualType] = useState<VehicleType | null>(selected_vehicle ? null : (storeVehicleType || null));
 
   const vehicleTypes: { label: string; value: VehicleType; icon: ComponentProps<typeof Ionicons>['name'] }[] = [
+    { label: 'Car', value: 'car', icon: 'car-outline' },
     { label: 'Bike', value: 'bike', icon: 'bicycle-outline' },
     { label: 'Scooter', value: 'scooter', icon: 'bicycle' },
-    { label: 'Car', value: 'car', icon: 'car-outline' },
     { label: 'Truck', value: 'truck', icon: 'cube-outline' },
   ];
 
@@ -78,7 +69,13 @@ export default function SelectVehicleScreen() {
     setFetchError(false);
     try {
       const res = await get('/customer/vehicles');
-      setSavedVehicles(res.data.data || []);
+      const list = res.data.data || [];
+      setSavedVehicles(list);
+      // Pre-select store vehicle if it matches
+      if (selected_vehicle) {
+        const found = list.find((v: Vehicle) => v.id === selected_vehicle.id);
+        if (found) setSelectedVehicle(found);
+      }
     } catch (e) {
       console.error('Error fetching vehicles', e);
       showToast('Could not load your vehicles', 'error');
@@ -94,12 +91,24 @@ export default function SelectVehicleScreen() {
 
   const handleSavedSelect = (vehicle: Vehicle) => {
     haptics.impactMedium();
-    setVehicle(vehicle, vehicle.vehicle_number, vehicle.vehicle_type);
-    router.push('/(customer)/booking/payment');
+    setSelectedVehicle(vehicle);
+    // Clear manual inputs
+    setManualNumber('');
+    setManualType(null);
   };
 
-  const handleManualContinue = () => {
-    if (manualNumber.trim() && manualType) {
+  const handleManualInputActive = () => {
+    if (selectedVehicle) {
+      setSelectedVehicle(null);
+    }
+  };
+
+  const handleContinue = () => {
+    if (selectedVehicle) {
+      haptics.impactMedium();
+      setVehicle(selectedVehicle, selectedVehicle.vehicle_number, selectedVehicle.vehicle_type);
+      router.push('/(customer)/booking/payment');
+    } else if (isManualValid) {
       haptics.impactMedium();
       setVehicle(null, manualNumber.trim().toUpperCase(), manualType);
       router.push('/(customer)/booking/payment');
@@ -107,6 +116,7 @@ export default function SelectVehicleScreen() {
   };
 
   const isManualValid = manualNumber.trim().length > 0 && manualType !== null;
+  const isSelectionActive = selectedVehicle !== null || isManualValid;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -116,20 +126,51 @@ export default function SelectVehicleScreen() {
         style={{ flex: 1 }} 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+        {/* Navigation Header */}
         <View style={styles.header}>
           <TouchableOpacity 
-            style={styles.navBtn} 
+            style={[styles.navBtn, { backgroundColor: colors.surface }]} 
             onPress={() => {
               haptics.impactLight();
               router.back();
             }}
           >
-            <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+            <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
           
           <View style={styles.headerTitleBox}>
-             <Text style={[styles.headerLabel, { color: colors.textMuted }]}>RESERVATION • STEP 1</Text>
+             <Text style={[styles.headerLabel, { color: colors.textSecondary }]}>BOOKING PIPELINE</Text>
              <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Identify Vehicle</Text>
+          </View>
+        </View>
+
+        {/* 3-Step Apple Progress Bar */}
+        <View style={[styles.progressBarContainer, { borderBottomColor: colors.border }]}>
+          <View style={styles.progressRow}>
+            <View style={styles.stepContainer}>
+              <View style={[styles.stepCircle, { backgroundColor: colors.primary }]}>
+                <Ionicons name="car-sport" size={14} color="#FFFFFF" />
+              </View>
+              <Text style={[styles.stepText, { color: colors.primary, fontWeight: '700' }]}>Vehicle</Text>
+            </View>
+            
+            <View style={[styles.stepLine, { backgroundColor: colors.border }]} />
+            
+            <View style={styles.stepContainer}>
+              <View style={[styles.stepCircle, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
+                <Text style={[styles.stepNumber, { color: colors.textSecondary }]}>2</Text>
+              </View>
+              <Text style={[styles.stepText, { color: colors.textSecondary }]}>Duration</Text>
+            </View>
+            
+            <View style={[styles.stepLine, { backgroundColor: colors.border }]} />
+            
+            <View style={styles.stepContainer}>
+              <View style={[styles.stepCircle, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
+                <Text style={[styles.stepNumber, { color: colors.textSecondary }]}>3</Text>
+              </View>
+              <Text style={[styles.stepText, { color: colors.textSecondary }]}>Payment</Text>
+            </View>
           </View>
         </View>
 
@@ -138,67 +179,119 @@ export default function SelectVehicleScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Animated.View entering={FadeInDown.duration(600).springify()}>
-             <Text style={[styles.instruction, { color: colors.textMuted }]}>
-               PLEASE SELECT A PRE-AUTHORIZED VEHICLE OR SPECIFY A TEMPORARY IDENTITY FOR THIS SESSION.
-             </Text>
+          {/* Main Info */}
+          <Animated.View entering={FadeInDown.duration(400)}>
+            <Text style={[styles.instruction, { color: colors.textSecondary }]}>
+              Choose a registered vehicle from your fleet or specify temporary credentials below.
+            </Text>
           </Animated.View>
 
+          {/* Section: Saved Fleet */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>AUTHORIZED FLEET</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>AUTHORIZED VEHICLES</Text>
             {loading ? (
               <ActivityIndicator color={colors.primary} style={styles.loader} />
             ) : fetchError ? (
               <TouchableOpacity onPress={fetchVehicles} style={styles.retryContainer}>
-                 <Ionicons name="refresh" size={20} color={colors.primary} />
-                 <Text style={[styles.retryText, { color: colors.primary }]}>RETRY LOADING FLEET</Text>
+                 <Ionicons name="refresh" size={16} color={colors.primary} />
+                 <Text style={[styles.retryText, { color: colors.primary }]}>Retry loading fleet</Text>
               </TouchableOpacity>
             ) : savedVehicles.length > 0 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedScroll}>
-                {savedVehicles.map((vehicle, i) => (
-                  <Animated.View key={vehicle.id} entering={FadeInRight.delay(i * 100)}>
-                    <TouchableOpacity onPress={() => handleSavedSelect(vehicle)} activeOpacity={0.7}>
-                      <ProfessionalCard style={styles.vehicleCard} hasVibrancy={true}>
-                        <View style={[styles.vehicleIcon, { backgroundColor: withAlpha(VEHICLE_TYPE_COLORS[vehicle.vehicle_type], 0.08) }]}>
-                          <Ionicons 
-                            name={vehicleTypes.find(t => t.value === vehicle.vehicle_type)?.icon || 'car-outline'} 
-                            size={24} 
-                            color={VEHICLE_TYPE_COLORS[vehicle.vehicle_type]} 
-                          />
-                        </View>
-                        <Text style={[styles.vehicleNumber, { color: colors.textPrimary }]}>{vehicle.vehicle_number}</Text>
-                        <Text style={[styles.vehicleNick, { color: colors.textMuted }]}>{vehicle.nickname?.toUpperCase() || 'PRIMARY'}</Text>
-                      </ProfessionalCard>
-                    </TouchableOpacity>
-                  </Animated.View>
-                ))}
-              </ScrollView>
+              <View style={styles.savedList}>
+                {savedVehicles.map((vehicle, i) => {
+                  const isSelected = selectedVehicle?.id === vehicle.id;
+                  const iconName = vehicleTypes.find(t => t.value === vehicle.vehicle_type)?.icon || 'car-outline';
+                  return (
+                    <Animated.View key={vehicle.id} entering={FadeInDown.delay(i * 50).duration(400)}>
+                      <TouchableOpacity 
+                        onPress={() => handleSavedSelect(vehicle)} 
+                        activeOpacity={0.8}
+                      >
+                        <ProfessionalCard 
+                          style={[
+                            styles.vehicleCard, 
+                            isSelected && {
+                              borderColor: colors.primary,
+                              backgroundColor: withAlpha(colors.primary, 0.08),
+                            }
+                          ]}
+                          hasVibrancy={true}
+                        >
+                          <View style={styles.cardContentRow}>
+                            <View style={[
+                              styles.vehicleIcon, 
+                              { 
+                                backgroundColor: isSelected ? withAlpha(colors.primary, 0.15) : colors.surface,
+                                borderColor: isSelected ? colors.primary : colors.border
+                              }
+                            ]}>
+                              <Ionicons 
+                                name={iconName} 
+                                size={22} 
+                                color={isSelected ? colors.primary : colors.textSecondary} 
+                              />
+                            </View>
+                            
+                            <View style={styles.vehicleDetails}>
+                              <Text style={[styles.vehicleNumber, { color: colors.textPrimary }]}>
+                                {vehicle.vehicle_number}
+                              </Text>
+                              <Text style={[styles.vehicleNick, { color: colors.textSecondary }]}>
+                                {vehicle.nickname || 'Personal Vehicle'}
+                              </Text>
+                            </View>
+
+                            <View style={[
+                              styles.radioCircle, 
+                              { borderColor: isSelected ? colors.primary : colors.border },
+                              isSelected && { backgroundColor: colors.primary }
+                            ]}>
+                              {isSelected && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
+                            </View>
+                          </View>
+                        </ProfessionalCard>
+                      </TouchableOpacity>
+                    </Animated.View>
+                  );
+                })}
+              </View>
             ) : (
               <ProfessionalCard style={styles.emptyCard}>
-                <Ionicons name="car-outline" size={32} color={colors.textMuted} style={{ opacity: 0.5, marginBottom: 16 }} />
-                <Text style={[styles.emptyText, { color: colors.textMuted }]}>NO AUTHORIZED VEHICLES FOUND</Text>
+                <Ionicons name="car-outline" size={24} color={colors.textSecondary} style={{ opacity: 0.5, marginBottom: 8 }} />
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No saved vehicles in fleet</Text>
               </ProfessionalCard>
             )}
           </View>
 
+          {/* Section: Manual Input */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>MANUAL IDENTIFICATION</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>MANUAL SPECIFICATION</Text>
             <ProfessionalCard style={styles.manualCard}>
-              <Text style={[styles.inputLabel, { color: colors.textMuted }]}>VEHICLE REGISTRATION NUMBER</Text>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>VEHICLE REGISTRATION NUMBER</Text>
               <TextInput
-                style={[styles.input, { color: colors.textPrimary, borderColor: colors.border }]}
+                style={[
+                  styles.input, 
+                  { 
+                    color: colors.textPrimary, 
+                    borderColor: colors.border,
+                    backgroundColor: colors.surface
+                  }
+                ]}
                 placeholder="Ex: MH12AB1234"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={colors.textSecondary}
                 value={manualNumber}
-                onChangeText={(val) => setManualNumber(val.replace(/\s+/g, '').toUpperCase())}
+                onChangeText={(val) => {
+                  handleManualInputActive();
+                  setManualNumber(val.replace(/\s+/g, '').toUpperCase());
+                }}
                 autoCapitalize="characters"
                 maxLength={10}
               />
               
-              <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 32 }]}>VEHICLE CLASSIFICATION</Text>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary, marginTop: 24 }]}>CLASSIFICATION</Text>
               <View style={styles.typeGrid}>
                 {vehicleTypes.map(type => {
-                  const isActive = manualType === type.value;
+                  const isActive = manualType === type.value && !selectedVehicle;
                   return (
                     <TouchableOpacity
                       key={type.value}
@@ -209,15 +302,16 @@ export default function SelectVehicleScreen() {
                       ]}
                       onPress={() => {
                         haptics.impactLight();
+                        handleManualInputActive();
                         setManualType(type.value);
                       }}
                     >
                       <Ionicons 
                         name={type.icon} 
-                        size={20} 
-                        color={isActive ? colors.primary : colors.textMuted} 
+                        size={16} 
+                        color={isActive ? colors.primary : colors.textSecondary} 
                       />
-                      <Text style={[styles.typeText, { color: colors.textMuted }, isActive && { color: colors.textPrimary }]}>
+                      <Text style={[styles.typeText, { color: colors.textSecondary }, isActive && { color: colors.textPrimary }]}>
                         {type.label}
                       </Text>
                     </TouchableOpacity>
@@ -229,13 +323,14 @@ export default function SelectVehicleScreen() {
           <View style={{ height: 160 }} />
         </ScrollView>
 
+        {/* Sticky Bottom Actions */}
         <View style={styles.footer}>
           <BlurView intensity={30} tint={colors.isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
           <View style={[styles.footerInner, { borderTopWidth: 0.5, borderTopColor: colors.border }]}>
             <ProfessionalButton 
-              label="Initialize Session" 
-              onPress={handleManualContinue} 
-              disabled={!isManualValid}
+              label="Proceed to Duration" 
+              onPress={handleContinue} 
+              disabled={!isSelectionActive}
               variant="primary"
             />
           </View>
@@ -247,31 +342,123 @@ export default function SelectVehicleScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingTop: 60, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
-  navBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  header: { 
+    paddingTop: Platform.OS === 'ios' ? 60 : 40, 
+    paddingHorizontal: 20, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 16, 
+    marginBottom: 16 
+  },
+  navBtn: { 
+    width: 38, 
+    height: 38, 
+    borderRadius: 19, 
+    justifyContent: 'center', 
+    alignItems: 'center',
+  },
   headerTitleBox: { flex: 1 },
-  headerLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
-  headerTitle: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
-  scrollContent: { paddingVertical: 12 },
-  instruction: { fontSize: 12, fontWeight: '600', lineHeight: 18, paddingHorizontal: 28, marginBottom: 32, opacity: 0.7 },
-  section: { marginBottom: 40 },
-  sectionTitle: { fontSize: 10, fontWeight: '900', marginHorizontal: 28, marginBottom: 16, letterSpacing: 2 },
-  savedScroll: { paddingLeft: 24, paddingRight: 8, gap: 16 },
-  vehicleCard: { width: 170, padding: 24, alignItems: 'center', borderRadius: 32 },
-  vehicleIcon: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  vehicleNumber: { fontSize: 18, fontWeight: '900', letterSpacing: 0.5 },
-  vehicleNick: { fontSize: 10, fontWeight: '900', marginTop: 6, letterSpacing: 1.5, opacity: 0.6 },
-  loader: { alignSelf: 'flex-start', marginLeft: 40, paddingVertical: 20 },
-  retryContainer: { flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 28, paddingVertical: 12 },
-  retryText: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
-  emptyCard: { marginHorizontal: 24, padding: 40, alignItems: 'center', borderRadius: 32, borderStyle: 'dashed' },
-  emptyText: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, opacity: 0.5 },
-  manualCard: { marginHorizontal: 24, borderRadius: 40, padding: 28 },
-  inputLabel: { fontSize: 10, fontWeight: '900', marginBottom: 14, letterSpacing: 1.5, opacity: 0.7 },
-  input: { borderRadius: 20, padding: 24, fontSize: 24, fontWeight: '900', letterSpacing: 4, textAlign: 'center', borderWidth: 0.5 },
-  typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  typeChip: { flex: 1, minWidth: '45%', flexDirection: 'row', alignItems: 'center', padding: 18, borderRadius: 24, borderWidth: 0.5, gap: 12 },
-  typeText: { fontWeight: '900', fontSize: 12 },
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 120 },
-  footerInner: { flex: 1, paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 20, justifyContent: 'center' },
+  headerLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2 },
+  headerTitle: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
+  progressBarContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 0.5,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  stepContainer: {
+    alignItems: 'center',
+    gap: 4,
+    width: 60,
+  },
+  stepCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepNumber: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  stepText: {
+    fontSize: 10,
+    fontWeight: '500',
+  },
+  stepLine: {
+    flex: 1,
+    height: 1,
+    marginHorizontal: 8,
+    marginTop: -16,
+  },
+  scrollContent: { paddingVertical: 16, paddingHorizontal: 20 },
+  instruction: { fontSize: 14, fontWeight: '400', lineHeight: 20, marginBottom: 24 },
+  section: { marginBottom: 28 },
+  sectionTitle: { fontSize: 11, fontWeight: '700', marginBottom: 12, letterSpacing: 1.2 },
+  savedList: { gap: 12 },
+  vehicleCard: { 
+    borderRadius: 12, 
+    borderWidth: 1,
+    padding: 16,
+  },
+  cardContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  vehicleIcon: { 
+    width: 44, 
+    height: 44, 
+    borderRadius: 8, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    borderWidth: 1,
+  },
+  vehicleDetails: { flex: 1 },
+  vehicleNumber: { fontSize: 16, fontWeight: '700', letterSpacing: 0.2 },
+  vehicleNick: { fontSize: 12, fontWeight: '400', marginTop: 2 },
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loader: { alignSelf: 'flex-start', marginVertical: 12 },
+  retryContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  retryText: { fontSize: 12, fontWeight: '600' },
+  emptyCard: { padding: 24, alignItems: 'center', borderRadius: 12, borderStyle: 'dashed' },
+  emptyText: { fontSize: 13, fontWeight: '500' },
+  manualCard: { borderRadius: 12, padding: 16 },
+  inputLabel: { fontSize: 10, fontWeight: '700', marginBottom: 8, letterSpacing: 1 },
+  input: { 
+    height: 48,
+    borderRadius: 8, 
+    paddingHorizontal: 16, 
+    fontSize: 16, 
+    fontWeight: '700', 
+    letterSpacing: 2, 
+    borderWidth: 1 
+  },
+  typeGrid: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  typeChip: { 
+    flex: 1, 
+    minWidth: '45%', 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    padding: 12, 
+    borderRadius: 8, 
+    borderWidth: 1, 
+    gap: 8 
+  },
+  typeText: { fontWeight: '600', fontSize: 13 },
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 96 },
+  footerInner: { flex: 1, paddingHorizontal: 20, paddingBottom: Platform.OS === 'ios' ? 32 : 16, justifyContent: 'center' },
 });

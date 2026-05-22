@@ -29,7 +29,7 @@ import { useThemeColors } from '../../hooks/useThemeColors';
 import { useHaptics } from '../../hooks/useHaptics';
 import { ErrorHandler } from '../../utils/ErrorHandler';
 
-const TICKET_HEIGHT = 104; // styles.ticketCard height + marginBottom
+const TICKET_HEIGHT = 140; // Estimated height + margin
 
 interface Booking {
   id: string;
@@ -53,6 +53,9 @@ export default function TicketsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Booking | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  // Segmented control state: 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+  const [activeSegment, setActiveSegment] = useState<'ACTIVE' | 'COMPLETED' | 'CANCELLED'>('ACTIVE');
 
   useEffect(() => {
     fetchBookings();
@@ -87,6 +90,8 @@ export default function TicketsScreen() {
     fetchBookings(false);
   };
 
+  const filteredBookings = bookings.filter(b => b.status === activeSegment);
+
   if (loading && !refreshing) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
@@ -116,11 +121,12 @@ export default function TicketsScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
       
-      <Animated.View entering={FadeInDown.duration(600)} style={styles.header}>
-        <BlurView intensity={20} tint={colors.isDark ? 'dark' : 'light'} style={styles.headerContent}>
+      {/* Header & Segments Area */}
+      <View style={styles.header}>
+        <BlurView intensity={20} tint={colors.isDark ? 'dark' : 'light'} style={[styles.headerContent, { borderBottomColor: colors.border }]}>
           <View style={styles.headerTop}>
             <View style={styles.headerInfoSection}>
-               <Text style={[styles.headerLabel, { color: colors.textMuted }]}>MY ACTIVITY • TICKETS</Text>
+               <Text style={[styles.headerLabel, { color: colors.textSecondary }]}>MY ACTIVITY • TICKETS</Text>
                <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Your Bookings</Text>
             </View>
             <View style={[styles.activeBadge, { backgroundColor: colors.success + '15', borderColor: colors.success + '30' }]}>
@@ -129,11 +135,39 @@ export default function TicketsScreen() {
                </Text>
             </View>
           </View>
+
+          {/* Segmented Control */}
+          <View style={[styles.segmentsContainer, { backgroundColor: colors.surface }]}>
+            {(['ACTIVE', 'COMPLETED', 'CANCELLED'] as const).map((segment) => {
+              const isActive = activeSegment === segment;
+              return (
+                <TouchableOpacity
+                  key={segment}
+                  style={[
+                    styles.segmentButton,
+                    isActive && { backgroundColor: colors.surfaceElevated }
+                  ]}
+                  onPress={() => {
+                    haptics.impactLight();
+                    setActiveSegment(segment);
+                  }}
+                >
+                  <Text style={[
+                    styles.segmentText,
+                    { color: colors.textSecondary },
+                    isActive && { color: colors.textPrimary, fontWeight: '700' }
+                  ]}>
+                    {segment.charAt(0) + segment.slice(1).toLowerCase()}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </BlurView>
-      </Animated.View>
+      </View>
 
       <FlatList
-        data={bookings}
+        data={filteredBookings}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -141,7 +175,7 @@ export default function TicketsScreen() {
         refreshing={refreshing}
         renderItem={({ item: booking, index }) => (
           <Animated.View 
-            entering={FadeInRight.delay(Math.min(index * 100, 500)).duration(600)}
+            entering={FadeInRight.delay(Math.min(index * 50, 400)).duration(400)}
             layout={Layout.springify()}
           >
             <TicketItem 
@@ -150,43 +184,55 @@ export default function TicketsScreen() {
                  haptics.impactMedium();
                  setSelectedTicket(booking);
               }}
+              onDownload={() => {
+                 haptics.notificationSuccess();
+                 setSelectedTicket(booking);
+              }}
               colors={colors}
             />
           </Animated.View>
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="ticket-outline" size={64} color={colors.textMuted} />
-            <Text style={[styles.emptyText, { color: colors.textPrimary }]}>No Bookings Found</Text>
-            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>Your digital tickets and parking receipts will appear here once you make a booking.</Text>
+            <Ionicons name="ticket-outline" size={48} color={colors.textSecondary} style={{ opacity: 0.5 }} />
+            <Text style={[styles.emptyText, { color: colors.textPrimary }]}>No Bookings</Text>
+            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
+              There are no {activeSegment.toLowerCase()} tickets associated with your account.
+            </Text>
           </View>
         }
-        getItemLayout={(_, index) => (
-          { length: TICKET_HEIGHT, offset: TICKET_HEIGHT * index, index }
-        )}
       />
 
       {/* Wallet-Style Detailed Ticket View */}
       {selectedTicket && (
-        <Animated.View entering={FadeInDown.duration(400)} style={StyleSheet.absoluteFill}>
+        <Animated.View entering={FadeInDown.duration(300)} style={StyleSheet.absoluteFill}>
            <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
               <TouchableOpacity 
                 style={styles.dismissOverlay} 
                 onPress={() => setSelectedTicket(null)} 
                 accessibilityLabel="Dismiss ticket details"
-                accessibilityHint="Closes the ticket detail view and returns to the list"
                 accessibilityRole="button"
               />
               
               <View style={styles.overlayContent}>
-                 <ProfessionalCard style={[styles.modalTicket, { width: width - 48 }]} hasVibrancy={true}>
+                 <ProfessionalCard style={[styles.modalTicket, { width: width - 40 }]} hasVibrancy={true}>
                     <View style={styles.modalHeader}>
                        <View style={styles.modalHeaderInfo}>
                           <Text style={[styles.modalFacility, { color: colors.textPrimary }]}>{selectedTicket.facility.name}</Text>
-                          <Text style={[styles.modalAddress, { color: colors.textMuted }]} numberOfLines={1}>{selectedTicket.facility.address}</Text>
+                          <Text style={[styles.modalAddress, { color: colors.textSecondary }]} numberOfLines={1}>{selectedTicket.facility.address}</Text>
                        </View>
-                       <View style={[styles.statusTag, { backgroundColor: selectedTicket.status === 'ACTIVE' ? colors.success : colors.surface }]}>
-                          <Text style={[styles.statusTagText, { color: selectedTicket.status === 'ACTIVE' ? '#FFF' : colors.textPrimary }]}>
+                       <View style={[
+                         styles.statusTag, 
+                         { 
+                           backgroundColor: selectedTicket.status === 'ACTIVE' ? colors.success + '15' : colors.surface,
+                           borderColor: selectedTicket.status === 'ACTIVE' ? colors.success + '30' : colors.border,
+                           borderWidth: 1
+                         }
+                       ]}>
+                          <Text style={[
+                            styles.statusTagText, 
+                            { color: selectedTicket.status === 'ACTIVE' ? colors.success : colors.textSecondary }
+                          ]}>
                             {selectedTicket.status}
                           </Text>
                        </View>
@@ -196,24 +242,24 @@ export default function TicketsScreen() {
                        <View style={[styles.qrFrame, { borderColor: colors.primary }]}>
                           <QRCode 
                              value={JSON.stringify({ ticketId: selectedTicket.id, type: 'BOOKING' })}
-                             size={200}
+                             size={180}
                              color={colors.textPrimary}
                              backgroundColor="transparent"
                              quietZone={10}
                           />
                        </View>
-                       <Text style={[styles.qrHint, { color: colors.textMuted }]}>SCAN AT ENTRY OR EXIT POINT</Text>
+                       <Text style={[styles.qrHint, { color: colors.textSecondary }]}>PRESENT ENCRYPTED QR AT GATE</Text>
                     </View>
 
                     <View style={styles.detailsGrid}>
                        <DetailBlock label="VEHICLE" value={selectedTicket.vehicle_number} colors={colors} />
-                       <DetailBlock label="ENTRY TIME" value={new Date(selectedTicket.entry_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} colors={colors} />
-                       <DetailBlock label="BOOKED DATE" value={new Date(selectedTicket.entry_time).toLocaleDateString('en-IN')} colors={colors} />
-                       <DetailBlock label="EST. COST" value={selectedTicket.total_fee ? `₹${selectedTicket.total_fee}` : '--'} colors={colors} />
+                       <DetailBlock label="ENTRY" value={new Date(selectedTicket.entry_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} colors={colors} />
+                       <DetailBlock label="DATE" value={new Date(selectedTicket.entry_time).toLocaleDateString('en-IN')} colors={colors} />
+                       <DetailBlock label="AMOUNT" value={selectedTicket.total_fee ? `₹${selectedTicket.total_fee}` : '--'} colors={colors} />
                     </View>
 
                     <ProfessionalButton 
-                       label="Close Ticket" 
+                       label="Close Pass" 
                        onPress={() => setSelectedTicket(null)}
                        variant="primary"
                     />
@@ -229,38 +275,72 @@ export default function TicketsScreen() {
 interface TicketItemProps {
   booking: Booking;
   onPress: () => void;
+  onDownload: () => void;
   colors: {
     surface: string;
     border: string;
     primary: string;
-    textMuted: string;
-    textPrimary: string;
     textSecondary: string;
+    textPrimary: string;
   };
 }
 
-function TicketItem({ booking, onPress, colors }: TicketItemProps) {
+function TicketItem({ booking, onPress, onDownload, colors }: TicketItemProps) {
   const isActive = booking.status === 'ACTIVE';
   
   return (
     <ProfessionalCard style={styles.ticketCard} onPress={onPress} hasVibrancy={isActive}>
       <View style={styles.ticketMain}>
         <View style={[styles.iconWrapper, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-           <Ionicons name={isActive ? "shield-checkmark" : "checkmark-circle"} size={22} color={isActive ? colors.primary : colors.textMuted} />
+           <Ionicons 
+             name={isActive ? "shield-checkmark" : "checkmark-circle"} 
+             size={20} 
+             color={isActive ? colors.primary : colors.textSecondary} 
+           />
         </View>
+        
         <View style={styles.ticketLabelContent}>
-           <Text style={[styles.facilityLabel, { color: colors.textPrimary }]} numberOfLines={1}>{booking.facility.name}</Text>
-           <Text style={[styles.vehicleLabel, { color: colors.textMuted }]}>{booking.vehicle_number}</Text>
+           <Text style={[styles.facilityLabel, { color: colors.textPrimary }]} numberOfLines={1}>
+             {booking.facility.name}
+           </Text>
+           
+           <View style={styles.metaRow}>
+             <Text style={[styles.vehicleLabel, { color: colors.textSecondary }]}>
+               {booking.vehicle_number}
+             </Text>
+             {booking.total_fee !== undefined && (
+               <>
+                 <Text style={[styles.metaDot, { color: colors.textSecondary }]}>•</Text>
+                 <Text style={[styles.rateLabel, { color: colors.primary, fontWeight: '700' }]}>
+                   ₹{booking.total_fee}
+                 </Text>
+               </>
+             )}
+           </View>
         </View>
       </View>
+      
       <View style={styles.ticketTrailing}>
-         <View style={styles.timeWrapper}>
-            <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>ENTRY</Text>
-            <Text style={[styles.timeValue, { color: colors.textPrimary }]}>
-              {new Date(booking.entry_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-            </Text>
-         </View>
-         <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+         {isActive ? (
+           <TouchableOpacity 
+             style={[styles.quickActionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+             onPress={(e) => {
+               e.stopPropagation();
+               onDownload();
+             }}
+           >
+             <Ionicons name="qr-code-outline" size={16} color={colors.primary} />
+             <Text style={[styles.quickActionText, { color: colors.primary }]}>View Pass</Text>
+           </TouchableOpacity>
+         ) : (
+           <View style={styles.timeWrapper}>
+              <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>ENTRY</Text>
+              <Text style={[styles.timeValue, { color: colors.textPrimary }]}>
+                {new Date(booking.entry_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+           </View>
+         )}
+         <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} style={{ opacity: 0.5 }} />
       </View>
     </ProfessionalCard>
   );
@@ -270,7 +350,7 @@ interface DetailBlockProps {
   label: string;
   value: string | number | React.ReactNode;
   colors: {
-    textMuted: string;
+    textSecondary: string;
     textPrimary: string;
   };
 }
@@ -278,7 +358,7 @@ interface DetailBlockProps {
 function DetailBlock({ label, value, colors }: DetailBlockProps) {
   return (
     <View style={styles.gridItem}>
-       <Text style={[styles.gridLabel, { color: colors.textMuted }]}>{label}</Text>
+       <Text style={[styles.gridLabel, { color: colors.textSecondary }]}>{label}</Text>
        <Text style={[styles.gridValue, { color: colors.textPrimary }]}>{value}</Text>
     </View>
   );
@@ -289,45 +369,85 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { zIndex: 100 },
   headerContent: {
-    paddingTop: Platform.OS === 'ios' ? 70 : 50,
-    paddingBottom: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 16,
     borderBottomWidth: 0.5,
-    borderColor: 'rgba(0,0,0,0.05)',
   },
-  headerTop: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, gap: 12 },
+  headerTop: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 12, marginBottom: 16 },
   headerInfoSection: { flex: 1 },
-  headerLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
-  headerTitle: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
-  activeBadge: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1 },
-  activeBadgeText: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-  scrollContent: { padding: 24, paddingBottom: 100 },
-  ticketCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderRadius: 28, marginBottom: 16, padding: 20 },
-  ticketMain: { flexDirection: 'row', alignItems: 'center', gap: 16, flex: 1 },
-  iconWrapper: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+  headerLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2 },
+  headerTitle: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
+  activeBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
+  activeBadgeText: { fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
+  
+  segmentsContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    padding: 2,
+    borderRadius: 8,
+    gap: 2,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  segmentText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  scrollContent: { padding: 20, paddingBottom: 120 },
+  ticketCard: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    borderRadius: 12, 
+    marginBottom: 12, 
+    padding: 16 
+  },
+  ticketMain: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  iconWrapper: { width: 40, height: 40, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
   ticketLabelContent: { flex: 1 },
-  facilityLabel: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5 },
-  vehicleLabel: { fontSize: 12, fontWeight: '700', marginTop: 2 },
-  ticketTrailing: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  facilityLabel: { fontSize: 16, fontWeight: '700', letterSpacing: -0.3 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  vehicleLabel: { fontSize: 12, fontWeight: '400' },
+  metaDot: { fontSize: 12 },
+  rateLabel: { fontSize: 12 },
+  
+  ticketTrailing: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  quickActionBtn: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 6, 
+    paddingHorizontal: 10, 
+    paddingVertical: 6, 
+    borderRadius: 8, 
+    borderWidth: 1 
+  },
+  quickActionText: { fontSize: 11, fontWeight: '700' },
   timeWrapper: { alignItems: 'flex-end' },
-  timeLabel: { fontSize: 8, fontWeight: '900', letterSpacing: 1, marginBottom: 2 },
-  timeValue: { fontSize: 14, fontWeight: '800' },
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 120 },
-  emptyText: { fontSize: 24, fontWeight: '900', marginTop: 24, letterSpacing: -0.5 },
-  emptySubtext: { fontSize: 15, fontWeight: '600', textAlign: 'center', marginTop: 12, paddingHorizontal: 48, lineHeight: 22 },
+  timeLabel: { fontSize: 8, fontWeight: '700', letterSpacing: 0.5, marginBottom: 2 },
+  timeValue: { fontSize: 13, fontWeight: '700' },
+  
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100, paddingHorizontal: 40 },
+  emptyText: { fontSize: 18, fontWeight: '800', marginTop: 16, letterSpacing: -0.3 },
+  emptySubtext: { fontSize: 13, fontWeight: '400', textAlign: 'center', marginTop: 8, lineHeight: 18, opacity: 0.8 },
   dismissOverlay: { ...StyleSheet.absoluteFillObject },
-  overlayContent: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  modalTicket: { borderRadius: 40, padding: 32 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 40 },
-  modalHeaderInfo: { flex: 1, marginRight: 16 },
-  modalFacility: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5, marginBottom: 4 },
-  modalAddress: { fontSize: 13, fontWeight: '600' },
-  statusTag: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14 },
-  statusTagText: { fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-  qrSection: { alignItems: 'center', marginBottom: 40 },
-  qrFrame: { padding: 20, borderWidth: 2, borderRadius: 32, marginBottom: 20 },
-  qrHint: { fontSize: 10, fontWeight: '900', letterSpacing: 2, textAlign: 'center' },
-  detailsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 24, marginBottom: 40, justifyContent: 'space-between' },
+  overlayContent: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalTicket: { borderRadius: 16, padding: 24 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
+  modalHeaderInfo: { flex: 1, marginRight: 12 },
+  modalFacility: { fontSize: 20, fontWeight: '800', letterSpacing: -0.5, marginBottom: 4 },
+  modalAddress: { fontSize: 13, fontWeight: '400' },
+  statusTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
+  statusTagText: { fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
+  qrSection: { alignItems: 'center', marginBottom: 24 },
+  qrFrame: { padding: 12, borderWidth: 1, borderRadius: 16, marginBottom: 12, backgroundColor: '#FFFFFF' },
+  qrHint: { fontSize: 10, fontWeight: '700', letterSpacing: 1.5, textAlign: 'center' },
+  detailsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 24, justifyContent: 'space-between' },
   gridItem: { width: '45%' },
-  gridLabel: { fontSize: 9, fontWeight: '900', letterSpacing: 1.5, marginBottom: 6, textTransform: 'uppercase' },
-  gridValue: { fontSize: 16, fontWeight: '800' },
+  gridLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' },
+  gridValue: { fontSize: 14, fontWeight: '700' },
 });

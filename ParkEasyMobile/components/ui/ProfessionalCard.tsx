@@ -46,19 +46,16 @@ export const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
   const cardStyle = [
     styles.outerContainer,
     { 
-      backgroundColor: hasVibrancy 
-        ? (colors.isDark ? 'rgba(30, 41, 59, 0.5)' : 'rgba(255, 255, 255, 0.7)')
-        : colors.surface,
-      borderColor: colors.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-      // True Apple-style soft shadow
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
       ...Platform.select({
         ios: {
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: colors.isDark ? 0.4 : 0.08,
-          shadowRadius: 20,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.15,
+          shadowRadius: 12,
         },
-        android: { elevation: 6 }
+        android: { elevation: 2 }
       })
     },
     style
@@ -66,13 +63,6 @@ export const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
 
   const content = (
     <View style={styles.childContainer}>
-      {hasVibrancy && (
-        <BlurView 
-          intensity={intensity} 
-          tint={colors.isDark ? 'dark' : 'light'} 
-          style={StyleSheet.absoluteFill} 
-        />
-      )}
       <View style={styles.contentContainer}>
         {children}
       </View>
@@ -102,8 +92,8 @@ export const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
 
 const styles = StyleSheet.create({
   outerContainer: {
-    borderRadius: 28,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    borderWidth: 1,
     overflow: 'hidden',
   },
   childContainer: {

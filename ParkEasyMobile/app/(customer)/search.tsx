@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
-  ActivityIndicator
+  ActivityIndicator,
+  ScrollView
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,10 +27,8 @@ import { useHaptics } from '../../hooks/useHaptics';
 import { useToast } from '../../components/Toast';
 import { ParkingFacility, VehicleType } from '../../types';
 import { EmptyState } from '../../components/EmptyState';
-import { BlurView } from 'expo-blur';
 
 type SearchMode = 'NAME' | 'COORD';
-
 const INVALID_COORDINATES_ERROR = 'Invalid coordinates received from suggestion';
 
 const VEHICLE_FILTERS: { label: string; value: VehicleType; icon: any }[] = [
@@ -48,6 +47,9 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<SearchMode>('COORD');
   const [vehicleType, setVehicleType] = useState<VehicleType | null>(null);
+  const [onlyAvailable, setOnlyAvailable] = useState(false);
+  const [maxPrice, setMaxPrice] = useState<number | null>(null);
+  
   const [results, setResults] = useState<ParkingFacility[]>([]);
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -117,7 +119,7 @@ export default function SearchScreen() {
       console.error('Suggestion fetch error', e);
       haptics.notificationError();
       const errorMsg = e.message === INVALID_COORDINATES_ERROR 
-        ? "Unable to find location — please try again"
+        ? "Unable to find location"
         : "Failed to fetch parking data";
       showToast(errorMsg, 'error');
     } finally {
@@ -125,89 +127,136 @@ export default function SearchScreen() {
     }
   };
 
+  const filteredResults = useMemo(() => {
+    return results.filter(f => {
+      if (onlyAvailable && f.available_slots <= 0) return false;
+      if (maxPrice !== null && (f.price_per_hour || 0) > maxPrice) return false;
+      return true;
+    });
+  }, [results, onlyAvailable, maxPrice]);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle={colors.isDark ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle="light-content" />
       
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Animated.View entering={SlideInUp.duration(600)} style={styles.header}>
-          <BlurView intensity={20} tint={colors.isDark ? 'dark' : 'light'} style={[styles.headerBlur, { borderBottomColor: colors.border }]}>
-            <View style={styles.headerTop}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                 <Ionicons name="chevron-back" size={28} color={colors.textPrimary} />
-              </TouchableOpacity>
-              <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Find Parking</Text>
-            </View>
+        <Animated.View entering={SlideInUp.duration(400)} style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+          <View style={styles.headerTop}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+               <Ionicons name="chevron-back" size={24} color={colors.primary} />
+            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Find Parking</Text>
+          </View>
 
-            <View style={[styles.segmentedControl, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-               <TouchableOpacity 
-                  onPress={() => toggleMode('COORD')}
-                  style={[styles.segment, mode === 'COORD' && { backgroundColor: colors.background }]}
-               >
-                  <Text style={[styles.segmentText, { color: mode === 'COORD' ? colors.primary : colors.textMuted }]}>By Location</Text>
-               </TouchableOpacity>
-               <TouchableOpacity 
-                  onPress={() => toggleMode('NAME')}
-                  style={[styles.segment, mode === 'NAME' && { backgroundColor: colors.background }]}
-               >
-                  <Text style={[styles.segmentText, { color: mode === 'NAME' ? colors.primary : colors.textMuted }]}>By Name</Text>
-               </TouchableOpacity>
-            </View>
+          {/* Segmented Mode Selector */}
+          <View style={[styles.segmentedControl, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+             <TouchableOpacity 
+                onPress={() => toggleMode('COORD')}
+                style={[styles.segment, mode === 'COORD' && { backgroundColor: colors.background }]}
+             >
+                <Text style={[styles.segmentText, { color: mode === 'COORD' ? colors.primary : colors.textSecondary }]}>By Location</Text>
+             </TouchableOpacity>
+             <TouchableOpacity 
+                onPress={() => toggleMode('NAME')}
+                style={[styles.segment, mode === 'NAME' && { backgroundColor: colors.background }]}
+             >
+                <Text style={[styles.segmentText, { color: mode === 'NAME' ? colors.primary : colors.textSecondary }]}>By Name</Text>
+             </TouchableOpacity>
+          </View>
 
-            <View style={styles.searchContainer}>
-               <View style={[styles.searchField, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <Ionicons name={mode === 'COORD' ? "location-outline" : "search-outline"} size={20} color={colors.primary} />
-                  <TextInput
-                     ref={searchInputRef}
-                     style={[styles.input, { color: colors.textPrimary }]}
-                     placeholder={mode === 'COORD' ? "Destination..." : "Parking name..."}
-                     placeholderTextColor={colors.textMuted}
-                     value={query}
-                     onChangeText={setQuery}
-                     selectionColor={colors.primary}
-                  />
-                  {loading ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : query.length > 0 ? (
-                    <TouchableOpacity onPress={() => setQuery('')}>
-                       <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-                    </TouchableOpacity>
-                  ) : null}
-               </View>
-            </View>
+          {/* Search Field */}
+          <View style={styles.searchContainer}>
+             <View style={[styles.searchField, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Ionicons name={mode === 'COORD' ? "location-outline" : "search-outline"} size={18} color={colors.textSecondary} />
+                <TextInput
+                   ref={searchInputRef}
+                   style={[styles.input, { color: colors.textPrimary }]}
+                   placeholder={mode === 'COORD' ? "Enter destination..." : "Enter parking name..."}
+                   placeholderTextColor={colors.textMuted}
+                   value={query}
+                   onChangeText={setQuery}
+                   selectionColor={colors.primary}
+                />
+                {loading ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : query.length > 0 ? (
+                  <TouchableOpacity onPress={() => setQuery('')}>
+                     <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                  </TouchableOpacity>
+                ) : null}
+             </View>
+          </View>
 
-            <View style={styles.filterBar}>
-               <FlatList
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  data={VEHICLE_FILTERS}
-                  keyExtractor={(item) => item.value}
-                  contentContainerStyle={styles.filterContent}
-                  renderItem={({ item }) => {
-                     const active = vehicleType === item.value;
-                     return (
-                        <TouchableOpacity 
-                           onPress={() => {
-                              haptics.impactLight();
-                              setVehicleType(active ? null : item.value);
-                           }}
-                           style={[
-                             styles.filterChip, 
-                             { backgroundColor: colors.surface, borderColor: colors.border },
-                             active && { backgroundColor: colors.primary, borderColor: colors.primary }
-                           ]}
-                        >
-                           <Ionicons name={item.icon} size={14} color={active ? '#FFF' : colors.textSecondary} />
-                           <Text style={[styles.filterText, { color: active ? '#FFF' : colors.textSecondary }]}>{item.label}</Text>
-                        </TouchableOpacity>
-                     );
-                  }}
-               />
-            </View>
-          </BlurView>
+          {/* Combined Filters Row */}
+          <View style={styles.filtersWrapper}>
+             <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterContent}
+             >
+                {/* Available Only Toggle */}
+                <TouchableOpacity 
+                   onPress={() => {
+                      haptics.impactLight();
+                      setOnlyAvailable(!onlyAvailable);
+                   }}
+                   style={[
+                     styles.filterChip, 
+                     { backgroundColor: colors.surface, borderColor: colors.border },
+                     onlyAvailable && { backgroundColor: colors.primary, borderColor: colors.primary }
+                   ]}
+                >
+                   <Ionicons name={onlyAvailable ? "checkmark-circle" : "ellipse-outline"} size={14} color={onlyAvailable ? '#FFF' : colors.textSecondary} />
+                   <Text style={[styles.filterText, { color: onlyAvailable ? '#FFF' : colors.textSecondary }]}>Available Only</Text>
+                </TouchableOpacity>
+
+                {/* Price Limit Toggle */}
+                <TouchableOpacity 
+                   onPress={() => {
+                      haptics.impactLight();
+                      setMaxPrice(maxPrice === null ? 100 : maxPrice === 100 ? 200 : null);
+                   }}
+                   style={[
+                     styles.filterChip, 
+                     { backgroundColor: colors.surface, borderColor: colors.border },
+                     maxPrice !== null && { backgroundColor: colors.primary, borderColor: colors.primary }
+                   ]}
+                >
+                   <Ionicons name="pricetag-outline" size={14} color={maxPrice !== null ? '#FFF' : colors.textSecondary} />
+                   <Text style={[styles.filterText, { color: maxPrice !== null ? '#FFF' : colors.textSecondary }]}>
+                     {maxPrice === null ? 'Any Price' : `< ₹${maxPrice}`}
+                   </Text>
+                </TouchableOpacity>
+
+                {/* Divider in scroll */}
+                <View style={{ width: 1, backgroundColor: colors.border, height: 20, alignSelf: 'center' }} />
+
+                {/* Vehicle Types */}
+                {VEHICLE_FILTERS.map((item) => {
+                   const active = vehicleType === item.value;
+                   return (
+                      <TouchableOpacity 
+                         key={item.value}
+                         onPress={() => {
+                            haptics.impactLight();
+                            setVehicleType(active ? null : item.value);
+                         }}
+                         style={[
+                           styles.filterChip, 
+                           { backgroundColor: colors.surface, borderColor: colors.border },
+                           active && { backgroundColor: colors.primary, borderColor: colors.primary }
+                         ]}
+                      >
+                         <Ionicons name={item.icon} size={14} color={active ? '#FFF' : colors.textSecondary} />
+                         <Text style={[styles.filterText, { color: active ? '#FFF' : colors.textSecondary }]}>{item.label}</Text>
+                      </TouchableOpacity>
+                   );
+                })}
+             </ScrollView>
+          </View>
         </Animated.View>
 
         {mode === 'COORD' && suggestions.length > 0 ? (
@@ -216,7 +265,7 @@ export default function SearchScreen() {
             keyExtractor={(item) => item.place_id.toString()}
             contentContainerStyle={styles.suggestionList}
             renderItem={({ item, index }) => (
-              <Animated.View entering={FadeInDown.delay(index * 50)}>
+              <Animated.View entering={FadeInDown.delay(index * 40)}>
                 <TouchableOpacity 
                    style={[styles.suggestionRow, { borderBottomColor: colors.border }]}
                    onPress={() => handleSuggestionPress(item)}
@@ -228,7 +277,7 @@ export default function SearchScreen() {
                       <Text style={[styles.suggestionPrimary, { color: colors.textPrimary }]} numberOfLines={1}>
                          {item.display_name.split(',')[0]}
                       </Text>
-                      <Text style={[styles.suggestionSecondary, { color: colors.textMuted }]} numberOfLines={1}>
+                      <Text style={[styles.suggestionSecondary, { color: colors.textSecondary }]} numberOfLines={1}>
                          {item.display_name.split(',').slice(1).join(',')}
                       </Text>
                    </View>
@@ -237,15 +286,15 @@ export default function SearchScreen() {
               </Animated.View>
             )}
           />
-        ) : results.length > 0 ? (
+        ) : filteredResults.length > 0 ? (
           <FlatList
-            data={results}
+            data={filteredResults}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.resultsContent}
             renderItem={({ item, index }) => (
               <Animated.View
                 layout={LinearTransition.springify()}
-                entering={FadeInDown.delay(index * 100)}
+                entering={FadeInDown.delay(index * 60)}
                 style={styles.resultCard}
               >
                 <ParkingFacilityCard
@@ -256,17 +305,17 @@ export default function SearchScreen() {
               </Animated.View>
             )}
             ListHeaderComponent={
-              <Text style={[styles.metaTitle, { color: colors.textMuted }]}>{results.length} PLACES FOUND</Text>
+              <Text style={[styles.metaTitle, { color: colors.textSecondary }]}>{filteredResults.length} PLACES MATCHING</Text>
             }
           />
         ) : (
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <EmptyState
               icon={query.length > 0 ? "search-outline" : "map-outline"}
-              title={query.length > 0 ? "No results found" : "Ready to explore?"}
+              title={query.length > 0 ? "No matches found" : "Ready to explore?"}
               subtitle={query.length > 0
-                ? "Check your filters or try a different search term."
-                : "Enter a destination to discover nearby parking opportunities."}
+                ? "Try clearing some of your filters or changing search terms."
+                : "Search a destination or facility name to see options."}
             />
           </View>
         )}
@@ -277,32 +326,27 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { zIndex: 100 },
-  headerBlur: {
-     paddingTop: Platform.OS === 'ios' ? 60 : 40,
-     paddingBottom: 20,
-     borderBottomWidth: 0.5,
-  },
-  headerTop: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, marginBottom: 16 },
-  backBtn: { width: 40, height: 40, justifyContent: 'center', marginLeft: -10 },
-  headerTitle: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
-  segmentedControl: { flexDirection: 'row', marginHorizontal: 24, borderRadius: 12, padding: 3, height: 42, marginBottom: 16, borderWidth: 1 },
-  segment: { flex: 1, justifyContent: 'center', alignItems: 'center', borderRadius: 9 },
-  segmentText: { fontSize: 13, fontWeight: '800' },
-  searchContainer: { paddingHorizontal: 24, marginBottom: 16 },
-  searchField: { flexDirection: 'row', alignItems: 'center', height: 56, borderRadius: 16, paddingHorizontal: 16, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
-  input: { flex: 1, marginLeft: 12, fontSize: 16, fontWeight: '700' },
-  filterBar: { marginBottom: 8 },
-  filterContent: { paddingHorizontal: 24, gap: 10 },
-  filterChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, borderWidth: 1, gap: 8 },
-  filterText: { fontSize: 13, fontWeight: '800' },
-  suggestionList: { padding: 24 },
-  suggestionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 0.5 },
-  suggestionIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 16, borderWidth: 1 },
+  header: { zIndex: 100, borderBottomWidth: StyleSheet.hairlineWidth },
+  headerTop: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginTop: Platform.OS === 'ios' ? 50 : 20, marginBottom: 12 },
+  backBtn: { width: 36, height: 36, justifyContent: 'center' },
+  headerTitle: { fontSize: 28, fontWeight: '700', letterSpacing: -0.5 },
+  segmentedControl: { flexDirection: 'row', marginHorizontal: 20, borderRadius: 10, padding: 2, height: 38, marginBottom: 12, borderWidth: 1 },
+  segment: { flex: 1, justifyContent: 'center', alignItems: 'center', borderRadius: 8 },
+  segmentText: { fontSize: 13, fontWeight: '500' },
+  searchContainer: { paddingHorizontal: 20, marginBottom: 12 },
+  searchField: { flexDirection: 'row', alignItems: 'center', height: 46, borderRadius: 10, paddingHorizontal: 12, borderWidth: 1 },
+  input: { flex: 1, marginLeft: 8, fontSize: 16, fontWeight: '400' },
+  filtersWrapper: { marginBottom: 12 },
+  filterContent: { paddingHorizontal: 20, gap: 8 },
+  filterChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: 32, borderRadius: 8, borderWidth: 1, gap: 6 },
+  filterText: { fontSize: 12, fontWeight: '500' },
+  suggestionList: { paddingHorizontal: 20 },
+  suggestionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
+  suggestionIcon: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginRight: 12, borderWidth: 1 },
   suggestionInfo: { flex: 1 },
-  suggestionPrimary: { fontSize: 16, fontWeight: '700' },
-  suggestionSecondary: { fontSize: 12, fontWeight: '600', marginTop: 2, opacity: 0.7 },
-  resultsContent: { padding: 24, paddingBottom: 60 },
-  metaTitle: { fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 20 },
-  resultCard: { marginBottom: 16 },
+  suggestionPrimary: { fontSize: 15, fontWeight: '600' },
+  suggestionSecondary: { fontSize: 12, marginTop: 2 },
+  resultsContent: { padding: 20, paddingBottom: 60 },
+  metaTitle: { fontSize: 11, fontWeight: '600', letterSpacing: 1, marginBottom: 16 },
+  resultCard: { marginBottom: 12 },
 });

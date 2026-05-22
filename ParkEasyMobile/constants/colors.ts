@@ -1,77 +1,79 @@
-const PRIMARY_GRADIENT = ['#4F46E5', '#6366F1'] as const; // Indigo Professional
+const PRIMARY_GRADIENT = ['#007AFF', '#0055D3'] as const; // Apple System Blue gradient
 
 export const darkTheme = {
-  primary: '#6366F1',         // Indigo-500
-  primaryGlow: 'rgba(99, 102, 241, 0.15)',
-  secondary: '#94A3B8',       // Slate-400
-  background: '#0F172A',      // Slate-900 (Professional Dark)
-  surface: '#1E293B',         // Slate-800
-  glass: 'rgba(30, 41, 59, 0.7)', 
-  glassBorder: 'rgba(255, 255, 255, 0.08)',
-  textPrimary: '#F8FAFC',
-  textSecondary: '#94A3B8', 
-  textMuted: '#64748B',
-  border: '#334155',          // Slate-700
-  tertiary: '#4F46E5',
-  overlay: 'rgba(0, 0, 0, 0.8)',
-  tabBarBackground: '#0F172A',
+  primary: '#007AFF',         // System Blue
+  primaryGlow: 'rgba(0, 122, 255, 0.15)',
+  secondary: 'rgba(235, 235, 245, 0.60)', // Label Secondary
+  background: '#000000',      // Pure Black
+  surface: '#1C1C1E',         // Dark Surface
+  surfaceElevated: '#2C2C2E', // Elevated Surface
+  glass: 'rgba(28, 28, 30, 0.85)', 
+  glassBorder: '#38383A',     // Separator
+  textPrimary: '#FFFFFF',
+  textSecondary: 'rgba(235, 235, 245, 0.60)', 
+  textMuted: 'rgba(235, 235, 245, 0.30)',
+  border: '#38383A',          // Separator
+  tertiary: '#007AFF',
+  overlay: 'rgba(0, 0, 0, 0.7)',
+  tabBarBackground: 'rgba(28, 28, 30, 0.85)',
 };
 
 export const lightTheme = {
-  primary: '#4F46E5',         // Indigo-600
-  primaryGlow: 'rgba(79, 70, 229, 0.1)',
-  secondary: '#64748B',       // Slate-500
+  primary: '#007AFF',         // System Blue
+  primaryGlow: 'rgba(0, 122, 255, 0.1)',
+  secondary: 'rgba(60, 60, 67, 0.60)',   // Label Secondary
   background: '#FFFFFF',      // Pure White
-  surface: '#F8FAFC',         // Slate-50
-  glass: 'rgba(255, 255, 255, 0.8)',
-  glassBorder: 'rgba(0, 0, 0, 0.05)',
-  textPrimary: '#0F172A',     // Slate-900
-  textSecondary: '#475569',   // Slate-600
-  textMuted: '#94A3B8',       // Slate-400
-  border: '#E2E8F0',          // Slate-200
-  tertiary: '#4338CA',
-  overlay: 'rgba(15, 21, 42, 0.4)',
-  tabBarBackground: '#FFFFFF',
+  surface: '#F2F2F7',         // Light Surface
+  surfaceElevated: '#FFFFFF', // Elevated Surface
+  glass: 'rgba(242, 242, 247, 0.85)',
+  glassBorder: '#C6C6C8',     // Separator
+  textPrimary: '#000000',     // Pure Black text
+  textSecondary: 'rgba(60, 60, 67, 0.60)',
+  textMuted: 'rgba(60, 60, 67, 0.30)',
+  border: '#C6C6C8',          // Separator
+  tertiary: '#007AFF',
+  overlay: 'rgba(0, 0, 0, 0.4)',
+  tabBarBackground: 'rgba(255, 255, 255, 0.85)',
 };
 
 export const colors = {
   ...darkTheme, // Default to dark for static usages
   premium: {
-    primary: '#F59E0B',       // Amber-500
-    secondary: '#D97706',     // Amber-600
+    primary: '#FF9F0A',       // System Orange
+    secondary: '#FF9F0A',
   },
-  success: '#10B981',         // Emerald-500
-  warning: '#F59E0B',
-  error: '#EF4444',           // Red-500
-  danger: '#EF4444',
-  dangerSurface: 'rgba(239, 68, 68, 0.1)',
-  dangerBorder: 'rgba(239, 68, 68, 0.2)',
-  primaryLight: 'rgba(99, 102, 241, 0.12)',
-  info: '#3B82F6',            // Blue-500
+  success: '#34C759',         // System Green
+  warning: '#FF9F0A',         // System Orange
+  error: '#FF3B30',           // System Red
+  danger: '#FF3B30',
+  dangerSurface: 'rgba(255, 59, 48, 0.1)',
+  dangerBorder: 'rgba(255, 59, 48, 0.2)',
+  primaryLight: 'rgba(0, 122, 255, 0.12)',
+  info: '#007AFF',
   
   gradients: {
     primary: PRIMARY_GRADIENT,
     glass: ['rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.01)'],
-    navy: ['#0F172A', '#1E293B'],
-    success: ['#10B981', '#059669'],
-    warning: ['#F59E0B', '#D97706'],
-    danger: ['#EF4444', '#DC2626'],
+    navy: ['#000000', '#1C1C1E'],
+    success: ['#34C759', '#30B34F'],
+    warning: ['#FF9F0A', '#E08A00'],
+    danger: ['#FF3B30', '#D32F2F'],
   },
   
   shadows: {
     glass: {
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.4,
-      shadowRadius: 24,
-      elevation: 10,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 2,
     },
     primary: {
-      shadowColor: '#1A73E8',
+      shadowColor: '#007AFF',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.5,
-      shadowRadius: 12,
-      elevation: 8,
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 4,
     },
   }
 } as const;
@@ -87,7 +89,8 @@ export const SLOT_STATUS_COLORS = {
   free: colors.success,
   occupied: colors.error,
   reserved: colors.warning,
-  maintenance: '#6B7280',
+  maintenance: '#8E8E93', // System Gray
 } as const;
+
 
 

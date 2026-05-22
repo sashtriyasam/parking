@@ -7,28 +7,7 @@ import { useThemeColors } from '../../../hooks/useThemeColors';
 
 const TAB_BAR_RADIUS = 32;
 
-interface TabIconProps {
-  name: any;
-  outlineName: any;
-  size: number;
-  color: string;
-  focused: boolean;
-}
 
-const TabIcon = ({ name, outlineName, size, color, focused }: TabIconProps) => {
-  const colors = useThemeColors();
-  return (
-    <View style={styles.iconContainer}>
-      <Ionicons name={focused ? name : outlineName} size={size} color={color} />
-      {focused && (
-        <Animated.View 
-          entering={ZoomIn.duration(300)}
-          style={[styles.activeGlow, { backgroundColor: colors.primary + '30' }]} 
-        />
-      )}
-    </View>
-  );
-};
 
 export default function ProviderTabLayout() {
   const colors = useThemeColors();
@@ -39,29 +18,30 @@ export default function ProviderTabLayout() {
         headerShown: false,
         tabBarStyle: {
           position: 'absolute',
-          bottom: Platform.OS === 'ios' ? 34 : 24,
-          left: 20,
-          right: 20,
-          height: 68,
-          borderRadius: TAB_BAR_RADIUS,
-          backgroundColor: 'transparent',
-          borderTopWidth: 0,
-          elevation: 0,
-          paddingBottom: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: Platform.OS === 'ios' ? 88 : 64,
+          backgroundColor: Platform.OS === 'ios' ? 'transparent' : colors.surface,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: colors.border,
+          elevation: 8,
         },
-        tabBarBackground: () => (
-          <View style={[styles.tabBarBackgroundContainer, { backgroundColor: colors.isDark ? 'rgba(15, 18, 25, 0.8)' : 'rgba(255, 255, 255, 0.8)' }]}>
-            <BlurView 
-              intensity={40} 
-              tint={colors.isDark ? 'dark' : 'light'} 
-              style={[StyleSheet.absoluteFill, styles.tabBarBlur]} 
-            />
-            <View style={[styles.tabBarBorder, { borderColor: colors.border }]} />
-          </View>
-        ),
+        tabBarBackground: Platform.OS === 'ios' ? () => (
+          <BlurView 
+            intensity={85} 
+            tint={colors.isDark ? 'dark' : 'light'} 
+            style={StyleSheet.absoluteFill} 
+          />
+        ) : undefined,
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarShowLabel: false,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '500',
+          letterSpacing: -0.1,
+          marginBottom: Platform.OS === 'ios' ? 0 : 8,
+        },
       }}
     >
       <Tabs.Screen
@@ -69,7 +49,7 @@ export default function ProviderTabLayout() {
         options={{
           title: 'Dashboard',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="stats-chart" outlineName="stats-chart-outline" size={22} color={color} focused={focused} />
+            <Ionicons name={focused ? "stats-chart" : "stats-chart-outline"} size={22} color={color} />
           ),
         }}
       />
@@ -78,17 +58,20 @@ export default function ProviderTabLayout() {
         options={{
           title: 'Facilities',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="business" outlineName="business-outline" size={22} color={color} focused={focused} />
+            <Ionicons name={focused ? "business" : "business-outline"} size={22} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="scan"
         options={{
-          title: 'Scanner',
-          tabBarIcon: ({ focused }) => (
-            <View style={[styles.scanIconWrapper, { backgroundColor: focused ? colors.primary : colors.primary + 'CC' }]}>
-              <Ionicons name={focused ? "qr-code" : "qr-code-outline"} size={24} color="white" />
+          title: 'Scan',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[
+              styles.scanIconWrapper, 
+              { backgroundColor: focused ? colors.primary : colors.surfaceElevated, borderColor: colors.border }
+            ]}>
+              <Ionicons name="qr-code-outline" size={20} color={focused ? "#FFFFFF" : colors.primary} />
             </View>
           ),
         }}
@@ -98,7 +81,7 @@ export default function ProviderTabLayout() {
         options={{
           title: 'Activity',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="journal" outlineName="journal-outline" size={22} color={color} focused={focused} />
+            <Ionicons name={focused ? "journal" : "journal-outline"} size={22} color={color} />
           ),
         }}
       />
@@ -107,7 +90,7 @@ export default function ProviderTabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="person-circle" outlineName="person-circle-outline" size={24} color={color} focused={focused} />
+            <Ionicons name={focused ? "person-circle" : "person-circle-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -116,48 +99,13 @@ export default function ProviderTabLayout() {
 }
 
 const styles = StyleSheet.create({
-  tabBarBackgroundContainer: {
-    flex: 1,
-    borderRadius: TAB_BAR_RADIUS,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  tabBarBlur: {
-    borderRadius: TAB_BAR_RADIUS,
-  },
-  tabBarBorder: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: TAB_BAR_RADIUS,
-    borderWidth: 1.5,
-  },
-  iconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 48,
-    height: 48,
-  },
-  activeGlow: {
-    position: 'absolute',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    zIndex: -1,
-  },
   scanIconWrapper: {
-    width: 50,
-    height: 50,
-    borderRadius: 18,
+    width: 44,
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
-    marginBottom: 4,
+    marginTop: 4,
   }
 });

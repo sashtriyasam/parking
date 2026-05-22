@@ -58,9 +58,9 @@ export const ProfessionalInput: React.FC<ProfessionalInputProps> = ({
     borderColor: interpolateColor(
       focusProgress.value,
       [0, 1],
-      [colors.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)', colors.primary]
+      [colors.border, colors.primary]
     ),
-    borderWidth: 1, // Ultra-clean
+    borderWidth: focusProgress.value > 0 ? 1.5 : 1,
   }));
 
   return (
@@ -70,16 +70,12 @@ export const ProfessionalInput: React.FC<ProfessionalInputProps> = ({
       <Animated.View 
         style={[
           styles.container, 
-          { backgroundColor: colors.isDark ? 'rgba(30, 41, 59, 0.5)' : 'rgba(255, 255, 255, 0.7)' },
+          { 
+            backgroundColor: colors.surface,
+          },
           animatedContainerStyle
         ]}
       >
-        <BlurView 
-            intensity={20} 
-            tint={colors.isDark ? 'dark' : 'light'} 
-            style={StyleSheet.absoluteFill} 
-        />
-        
         {icon && (
           <Ionicons 
             name={icon} 
@@ -112,36 +108,34 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontWeight: '800',
-    marginBottom: 8,
-    marginLeft: 4,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase', // Apple style info label
-    opacity: 0.7,
+    fontWeight: '600',
+    marginBottom: 6,
+    marginLeft: 2,
+    letterSpacing: -0.1,
   },
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 56,
-    borderRadius: 18,
+    height: 50,
+    borderRadius: 10,
     overflow: 'hidden',
   },
   icon: {
-    marginLeft: 16,
+    marginLeft: 14,
   },
   input: {
     flex: 1,
     height: '100%',
-    paddingHorizontal: 16,
-    fontSize: 17,
-    fontWeight: '600',
-    letterSpacing: -0.3,
+    paddingHorizontal: 12,
+    fontSize: 16,
+    fontWeight: '400',
+    letterSpacing: -0.2,
   },
   errorText: {
     fontSize: 12,
     marginTop: 4,
-    marginLeft: 4,
-    fontWeight: '600',
+    marginLeft: 2,
+    fontWeight: '500',
   }
 });
 
