@@ -3,9 +3,7 @@ const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
-async function main() {
-    console.log('🌱 Starting database seed...');
-
+async function seedUsers(prisma) {
     // 1. Create a provider user
     const hashedProviderPassword = await bcrypt.hash('provider123', 10);
     const provider = await prisma.user.upsert({
@@ -36,10 +34,64 @@ async function main() {
     });
     console.log('✅ Created customer user:', customer.email);
 
-    // 3. Create parking facilities
+    return provider;
+}
+
+async function seedFloorsAndSlots(prisma, facility) {
+    for (let floorNum = 1; floorNum <= facility.total_floors; floorNum++) {
+        const floor = await prisma.floor.create({
+            data: {
+                facility_id: facility.id,
+                floor_number: floorNum,
+                floor_name: `Level ${floorNum}`,
+            },
+        });
+        console.log(`  ✅ Created floor ${floorNum} for ${facility.name}`);
+
+        const vehicleTypes = ['BIKE', 'SCOOTER', 'CAR', 'TRUCK'];
+        let slotCount = 0;
+
+        for (const vehicleType of vehicleTypes) {
+            const numSlots = vehicleType === 'CAR' ? 5 : 2;
+            for (let i = 1; i <= numSlots; i++) {
+                await prisma.parkingSlot.create({
+                    data: {
+                        floor_id: floor.id,
+                        slot_number: `${floorNum}-${vehicleType.charAt(0)}${i}`,
+                        vehicle_type: vehicleType,
+                        status: 'FREE',
+                        is_active: true
+                    },
+                });
+                slotCount++;
+            }
+        }
+        console.log(`  ✅ Created ${slotCount} slots on floor ${floorNum}`);
+    }
+}
+
+async function seedPricingRules(prisma, facility) {
+    const vehicleTypes = ['BIKE', 'SCOOTER', 'CAR', 'TRUCK'];
+    const rates = { 'BIKE': 20, 'SCOOTER': 20, 'CAR': 50, 'TRUCK': 100 };
+    const maxRates = { 'BIKE': 150, 'SCOOTER': 150, 'CAR': 500, 'TRUCK': 800 };
+
+    for (const vType of vehicleTypes) {
+        await prisma.pricingRule.create({
+            data: {
+                facility_id: facility.id,
+                vehicle_type: vType,
+                hourly_rate: rates[vType],
+                daily_max: maxRates[vType],
+            },
+        });
+    }
+    console.log(`  ✅ Created pricing rules for ${facility.name}`);
+}
+
+async function seedFacilities(prisma, providerId) {
     const facilitiesData = [
         {
-            provider_id: provider.id,
+            provider_id: providerId,
             name: 'City Center Parking',
             address: '123 Main Street',
             city: 'Mumbai',
@@ -50,7 +102,7 @@ async function main() {
             image_url: 'https://images.unsplash.com/photo-1590674899484-d5640e854abe',
         },
         {
-            provider_id: provider.id,
+            provider_id: providerId,
             name: 'Urban Square Garage',
             address: '456 Park Avenue',
             city: 'Mumbai',
@@ -63,7 +115,6 @@ async function main() {
     ];
 
     for (const fData of facilitiesData) {
-        // Since we don't have a unique constraint on name, we'll check manually or just skip if exists
         const existing = await prisma.parkingFacility.findFirst({
             where: { name: fData.name, provider_id: fData.provider_id }
         });
@@ -78,56 +129,16 @@ async function main() {
         });
         console.log(`✅ Created facility: ${facility.name}`);
 
-        // Create floors for each facility
-        for (let floorNum = 1; floorNum <= facility.total_floors; floorNum++) {
-            const floor = await prisma.floor.create({
-                data: {
-                    facility_id: facility.id,
-                    floor_number: floorNum,
-                    floor_name: `Level ${floorNum}`,
-                },
-            });
-            console.log(`  ✅ Created floor ${floorNum} for ${facility.name}`);
-
-            // Create slots for each floor
-            const vehicleTypes = ['BIKE', 'SCOOTER', 'CAR', 'TRUCK'];
-            let slotCount = 0;
-
-            for (const vehicleType of vehicleTypes) {
-                const numSlots = vehicleType === 'CAR' ? 5 : 2;
-                for (let i = 1; i <= numSlots; i++) {
-                    await prisma.parkingSlot.create({
-                        data: {
-                            floor_id: floor.id,
-                            slot_number: `${floorNum}-${vehicleType.charAt(0)}${i}`,
-                            vehicle_type: vehicleType,
-                            status: 'FREE',
-                            is_active: true
-                        },
-                    });
-                    slotCount++;
-                }
-            }
-            console.log(`  ✅ Created ${slotCount} slots on floor ${floorNum}`);
-        }
-
-        // Create pricing rules
-        const vehicleTypes = ['BIKE', 'SCOOTER', 'CAR', 'TRUCK'];
-        const rates = { 'BIKE': 20, 'SCOOTER': 20, 'CAR': 50, 'TRUCK': 100 };
-        const maxRates = { 'BIKE': 150, 'SCOOTER': 150, 'CAR': 500, 'TRUCK': 800 };
-
-        for (const vType of vehicleTypes) {
-            await prisma.pricingRule.create({
-                data: {
-                    facility_id: facility.id,
-                    vehicle_type: vType,
-                    hourly_rate: rates[vType],
-                    daily_max: maxRates[vType],
-                },
-            });
-        }
-        console.log(`  ✅ Created pricing rules for ${facility.name}`);
+        await seedFloorsAndSlots(prisma, facility);
+        await seedPricingRules(prisma, facility);
     }
+}
+
+async function main() {
+    console.log('🌱 Starting database seed...');
+
+    const provider = await seedUsers(prisma);
+    await seedFacilities(prisma, provider.id);
 
     console.log('\n🎉 Database seeded successfully!');
     console.log('\n📝 Test Credentials:');

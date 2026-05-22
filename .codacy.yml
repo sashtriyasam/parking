@@ -1,0 +1,37 @@
+---
+exclude_paths:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/coverage/**"
+  - "**/.npm-cache/**"
+  - "**/android/**"
+  - "**/ios/**"
+  - "all_comments.txt"
+  - "all_comments_utf8.txt"
+
+engines:
+  eslint:
+    exclude_paths:
+      - "backend/**"
+      - "ParkEasyMobile/**"
+  pmd:
+    exclude_paths:
+      - "backend/**"
+      - "frontend/**"
+      - "ParkEasyMobile/**"
+  pmd-legacy:
+    exclude_paths:
+      - "backend/**"
+      - "frontend/**"
+      - "ParkEasyMobile/**"
+  duplication:
+    exclude_paths:
+      - "**/node_modules/**"
+      - "**/dist/**"
+      - "**/build/**"
+      - "**/coverage/**"
+      - "**/android/**"
+      - "**/ios/**"
+      - "all_comments.txt"
+      - "all_comments_utf8.txt"

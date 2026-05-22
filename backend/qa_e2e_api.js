@@ -4,28 +4,7 @@ const api = axios.create({ timeout: 10000 });
 
 const BASE_URL = process.env.API_URL || 'https://parkeasy-backend-uy3x.onrender.com/api/v1';
 
-async function runTests() {
-  const results = {
-    passing: [],
-    failing: [],
-    warnings: []
-  };
-
-  const baseEmailPrefix = process.env.TEST_USER_EMAIL_PREFIX || 'qatest';
-  const testPassword = process.env.TEST_USER_PASSWORD || 'QATest@1234';
-  const timestamp = Date.now();
-  const customerEmail = `${baseEmailPrefix}_cust_${timestamp}@parkeasy.in`;
-  const providerEmail = `${baseEmailPrefix}_prov_${timestamp}@parkeasy.in`;
-
-  let CUSTOMER_TOKEN;
-  let PROVIDER_TOKEN;
-  let FACILITY_ID;
-
-  console.log('--- STARTING ParkEasy E2E API TESTS ---');
-
-  // PHASE 2 - AUTH
-  
-  // 2A - Register Customer
+async function registerCustomer(customerEmail, testPassword, results) {
   try {
     const res = await api.post(`${BASE_URL}/auth/register`, {
       email: customerEmail,
@@ -34,15 +13,17 @@ async function runTests() {
       phone_number: `+91${Math.floor(1000000000 + Math.random() * 9000000000)}`,
       role: "CUSTOMER"
     });
-    CUSTOMER_TOKEN = res.data.data.accessToken;
     console.log('TEST 2A PASSED: Customer Registered');
     results.passing.push('TEST 2A');
+    return res.data.data.accessToken;
   } catch (err) {
     console.error('TEST 2A FAILED:', err.response?.data?.message || err.message);
     results.failing.push({ id: 'TEST 2A', actual: err.response?.status, error: err.response?.data?.message });
+    return null;
   }
+}
 
-  // 2B - Register Provider
+async function registerProvider(providerEmail, testPassword, results) {
   try {
     const res = await api.post(`${BASE_URL}/auth/register`, {
       email: providerEmail,
@@ -51,45 +32,28 @@ async function runTests() {
       phone_number: `+91${Math.floor(1000000000 + Math.random() * 9000000000)}`,
       role: "PROVIDER"
     });
-    PROVIDER_TOKEN = res.data.data.accessToken;
     console.log('TEST 2B PASSED: Provider Registered');
     results.passing.push('TEST 2B');
+    return res.data.data.accessToken;
   } catch (err) {
     console.error('TEST 2B FAILED:', err.response?.data?.message || err.message);
     results.failing.push({ id: 'TEST 2B', actual: err.response?.status, error: err.response?.data?.message });
+    return null;
   }
+}
 
-  // 2C - Login Customer (Verify account works)
-  if (CUSTOMER_TOKEN) {
-    try {
-      const res = await api.post(`${BASE_URL}/auth/login`, {
-        email: customerEmail,
-        password: testPassword
-      });
-      console.log('TEST 2C PASSED: Customer Login Verified');
-      results.passing.push('TEST 2C');
-    } catch (err) {
-      console.error('TEST 2C FAILED');
-      results.failing.push({ id: 'TEST 2C', error: err.message });
-    }
+async function loginUser(email, password, testId, testLabel, results) {
+  try {
+    await api.post(`${BASE_URL}/auth/login`, { email, password });
+    console.log(`TEST ${testId} PASSED: ${testLabel} Login Verified`);
+    results.passing.push(`TEST ${testId}`);
+  } catch (err) {
+    console.error(`TEST ${testId} FAILED: ${testLabel} login failed`, err.response?.data?.message || err.message);
+    results.failing.push({ id: `TEST ${testId}`, actual: err.response?.status, error: err.response?.data?.message });
   }
+}
 
-  // 2F - Login Provider (Verify account works)
-  if (PROVIDER_TOKEN) {
-    try {
-      const res = await api.post(`${BASE_URL}/auth/login`, {
-        email: providerEmail,
-        password: testPassword
-      });
-      console.log('TEST 2F PASSED: Provider Login Verified');
-      results.passing.push('TEST 2F');
-    } catch (err) {
-      console.error('TEST 2F FAILED: Provider login failed', err.response?.data?.message || err.message);
-      results.failing.push({ id: 'TEST 2F', actual: err.response?.status, error: err.response?.data?.message });
-    }
-  }
-
-  // 2D - Validation Guard
+async function runValidationGuard(results) {
   try {
     await api.post(`${BASE_URL}/auth/register`, { email: "bademail", password: "short", role: "ADMIN" });
     results.failing.push({ id: 'TEST 2D', actual: '201', error: 'Validation broken - accepted invalid data' });
@@ -107,11 +71,12 @@ async function runTests() {
       });
     }
   }
+}
 
-  // 2E - Get Me
-  if (CUSTOMER_TOKEN) {
+async function verifyGetMe(token, results) {
+  if (token) {
     try {
-      const res = await api.get(`${BASE_URL}/auth/me`, { headers: { Authorization: `Bearer ${CUSTOMER_TOKEN}` } });
+      const res = await api.get(`${BASE_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.data.user.role === 'CUSTOMER') {
         console.log('TEST 2E PASSED: Get Me returns correct user info');
         results.passing.push('TEST 2E');
@@ -126,27 +91,53 @@ async function runTests() {
     console.warn('SKIPPING TEST 2E: Missing CUSTOMER_TOKEN - prerequisite test failed');
     results.failing.push({ id: 'TEST 2E', error: 'Missing CUSTOMER_TOKEN - prerequisite test failed' });
   }
+}
 
-  // --- TEARDOWN ---
+async function cleanup(customerToken, providerToken) {
   console.log('--- STARTING TEARDOWN (Cleanup) ---');
-  
-  if (CUSTOMER_TOKEN) {
+  if (customerToken) {
     try {
-      await api.delete(`${BASE_URL}/auth/me`, { headers: { Authorization: `Bearer ${CUSTOMER_TOKEN}` } });
+      await api.delete(`${BASE_URL}/auth/me`, { headers: { Authorization: `Bearer ${customerToken}` } });
       console.log('TEARDOWN: Test Customer Deleted');
     } catch (err) {
       console.error('TEARDOWN FAILED: Could not delete customers', err.message);
     }
   }
-
-  if (PROVIDER_TOKEN) {
+  if (providerToken) {
     try {
-      await api.delete(`${BASE_URL}/auth/me`, { headers: { Authorization: `Bearer ${PROVIDER_TOKEN}` } });
+      await api.delete(`${BASE_URL}/auth/me`, { headers: { Authorization: `Bearer ${providerToken}` } });
       console.log('TEARDOWN: Test Provider Deleted');
     } catch (err) {
       console.error('TEARDOWN FAILED: Could not delete provider', err.message);
     }
   }
+}
+
+async function runTests() {
+  const results = { passing: [], failing: [], warnings: [] };
+
+  const baseEmailPrefix = process.env.TEST_USER_EMAIL_PREFIX || 'qatest';
+  const testPassword = process.env.TEST_USER_PASSWORD || 'QATest@1234';
+  const timestamp = Date.now();
+  const customerEmail = `${baseEmailPrefix}_cust_${timestamp}@parkeasy.in`;
+  const providerEmail = `${baseEmailPrefix}_prov_${timestamp}@parkeasy.in`;
+
+  console.log('--- STARTING ParkEasy E2E API TESTS ---');
+
+  const customerToken = await registerCustomer(customerEmail, testPassword, results);
+  const providerToken = await registerProvider(providerEmail, testPassword, results);
+
+  if (customerToken) {
+    await loginUser(customerEmail, testPassword, '2C', 'Customer', results);
+  }
+  if (providerToken) {
+    await loginUser(providerEmail, testPassword, '2F', 'Provider', results);
+  }
+
+  await runValidationGuard(results);
+  await verifyGetMe(customerToken, results);
+
+  await cleanup(customerToken, providerToken);
   
   console.log('--- API E2E SUMMARY ---');
   console.log(JSON.stringify(results, null, 2));

@@ -4,6 +4,11 @@ const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || 'http
 
 let socket: Socket | null = null;
 
+/**
+ * Retrieves the current WebSocket socket instance.
+ * Initializes and connects the socket if not already created.
+ * @returns {Socket} The socket client instance.
+ */
 export const getSocket = () => {
     if (!socket) {
         socket = io(SOCKET_URL, {

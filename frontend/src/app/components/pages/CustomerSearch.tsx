@@ -23,7 +23,6 @@ import { Card } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import { useApp } from '@/context/AppContext';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from '@/app/components/ui/sheet';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import L from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -85,28 +84,6 @@ const INACTIVE_MARKER_ICON = L.divIcon({
 
 const getMarkerIcon = (isActive: boolean) => isActive ? ACTIVE_MARKER_ICON : INACTIVE_MARKER_ICON;
 
-// Map Controller with FlyTo animation
-function MapController({ center }: { center: [number, number] }) {
-  const map = useMap();
-  useEffect(() => {
-    map.flyTo(center, 15, {
-      duration: 1.5,
-      easeLinearity: 0.25
-    });
-  }, [center, map]);
-  return null;
-}
-
-// Map Reference Helper to expose Leaflet instance
-function MapRef({ setMap }: { setMap: (map: L.Map | null) => void }) {
-  const map = useMap();
-  useEffect(() => {
-    if (map) setMap(map);
-    return () => setMap(null);
-  }, [map, setMap]);
-  return null;
-}
-
 const getAmenityFeatures = (amenities?: string[]) => {
   const amenityMap: Record<string, { icon: any, label: string }> = {
     'CCTV': { icon: Shield, label: 'Secure' },
@@ -138,6 +115,7 @@ export function CustomerSearch() {
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
 
   const [selectedFacility, setSelectedFacility] = useState<Facility | null>(null);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -215,6 +193,129 @@ export function CustomerSearch() {
   const tileUrl = theme === 'dark'
     ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
     : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const userMarkerRef = useRef<L.Marker | null>(null);
+  const facilityMarkersRef = useRef<Record<string, L.Marker>>({});
+
+  // Initialize Leaflet Map
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    const map = L.map(mapContainerRef.current, {
+      center: mapCenter,
+      zoom: 14,
+      zoomControl: false,
+      attributionControl: false
+    });
+    mapInstanceRef.current = map;
+    setMapInstance(map);
+
+    const tileLayer = L.tileLayer(tileUrl, {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+    }).addTo(map);
+    tileLayerRef.current = tileLayer;
+
+    return () => {
+      map.remove();
+      mapInstanceRef.current = null;
+      setMapInstance(null);
+      tileLayerRef.current = null;
+      userMarkerRef.current = null;
+      facilityMarkersRef.current = {};
+    };
+  }, []);
+
+  // Update tile layer URL dynamically if theme/tileUrl changes
+  useEffect(() => {
+    if (tileLayerRef.current) {
+      tileLayerRef.current.setUrl(tileUrl);
+    }
+  }, [tileUrl]);
+
+  // Handle map flight to center
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (map) {
+      map.flyTo(mapCenter, 15, {
+        duration: 1.5,
+        easeLinearity: 0.25
+      });
+    }
+  }, [mapCenter]);
+
+  // Update User Location Marker
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (userLocation) {
+      if (userMarkerRef.current) {
+        userMarkerRef.current.setLatLng(userLocation);
+      } else {
+        userMarkerRef.current = L.marker(userLocation, {
+          icon: USER_LOCATION_ICON
+        }).addTo(map);
+      }
+    } else {
+      if (userMarkerRef.current) {
+        userMarkerRef.current.remove();
+        userMarkerRef.current = null;
+      }
+    }
+  }, [userLocation]);
+
+  // Update Facility Markers
+  // Stable ref to avoid closure issues with setSelectedFacility
+  const setSelectedFacilityRef = useRef(setSelectedFacility);
+  useEffect(() => {
+    setSelectedFacilityRef.current = setSelectedFacility;
+  }, [setSelectedFacility]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const currentMarkers = facilityMarkersRef.current;
+    const newMarkers: Record<string, L.Marker> = {};
+
+    filteredFacilities.forEach(facility => {
+      if (!facility.latitude || !facility.longitude) return;
+      const id = facility.id.toString();
+      const pos: [number, number] = [facility.latitude, facility.longitude];
+      const isSelected = selectedFacility?.id === facility.id;
+      const markerIcon = getMarkerIcon(isSelected);
+
+      if (currentMarkers[id]) {
+        const marker = currentMarkers[id];
+        marker.setLatLng(pos);
+        marker.setIcon(markerIcon);
+        newMarkers[id] = marker;
+
+        marker.off('click');
+        marker.on('click', () => {
+          setSelectedFacilityRef.current(facility);
+        });
+      } else {
+        const marker = L.marker(pos, { icon: markerIcon }).addTo(map);
+        marker.on('click', () => {
+          setSelectedFacilityRef.current(facility);
+        });
+        newMarkers[id] = marker;
+      }
+    });
+
+    // Clean up markers that are no longer present
+    Object.keys(currentMarkers).forEach(id => {
+      if (!newMarkers[id]) {
+        currentMarkers[id].remove();
+      }
+    });
+
+    facilityMarkersRef.current = newMarkers;
+  }, [filteredFacilities, selectedFacility]);
 
   return (
     <div className="relative h-screen w-full bg-background text-foreground flex overflow-hidden pt-16 md:pt-0 transition-colors duration-300">
@@ -455,43 +556,11 @@ export function CustomerSearch() {
               </motion.div>
             )}
           </AnimatePresence>
-          <MapContainer
-            center={mapCenter}
-            zoom={14}
-            zoomControl={false}
+          <div
+            ref={mapContainerRef}
             style={{ height: '100%', width: '100%' }}
             className="z-0"
-          >
-            <TileLayer
-              url={tileUrl}
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            />
-            <MapRef setMap={setMapInstance} />
-            <MapController center={mapCenter} />
-
-            {/* User Location Marker */}
-            {userLocation && (
-              <Marker
-                position={userLocation}
-                icon={USER_LOCATION_ICON}
-              />
-            )}
-
-            {filteredFacilities.map(facility => (
-              facility.latitude && facility.longitude && (
-                <Marker
-                  key={facility.id}
-                  position={[facility.latitude, facility.longitude]}
-                  icon={getMarkerIcon(selectedFacility?.id === facility.id)}
-                  eventHandlers={{
-                    click: () => {
-                      setSelectedFacility(facility);
-                    },
-                  }}
-                />
-              )
-            ))}
-          </MapContainer>
+          />
         </div>
 
         {/* FLOATING ACTION OVERLAYS */}

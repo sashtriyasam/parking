@@ -21,6 +21,10 @@ import {
 } from '@/app/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 
+/**
+ * CustomerProfile component that allows customer users to update their profile,
+ * add/delete vehicles, and verify vehicle RC documents.
+ */
 export function CustomerProfile() {
   const { user, logout, switchRole } = useApp();
   const navigate = useNavigate();
@@ -62,6 +66,9 @@ export function CustomerProfile() {
     }
   };
 
+  /**
+   * Submits the new vehicle form data to associate a vehicle with the customer profile.
+   */
   const handleAddVehicle = async () => {
     try {
       await customerService.addVehicle({
@@ -94,6 +101,11 @@ export function CustomerProfile() {
     navigate('/');
   };
 
+  /**
+   * Triggers the registration certificate (RC) verification flow for a specific vehicle.
+   * @param {string} id - The ID of the vehicle to verify.
+   * @param {string} regNo - The registration number of the vehicle.
+   */
   const handleVerifyRC = async (id: string, regNo: string) => {
     setIsVerifying(id);
     try {
