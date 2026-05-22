@@ -1,10 +1,18 @@
 const { Server } = require('socket.io');
 let io;
 
-const initSocket = (server) => {
+const initSocket = (server, allowedOrigins = []) => {
     io = new Server(server, {
         cors: {
-            origin: true, // Allow all origins for the socket to handle RN apps properly
+            origin: allowedOrigins.length > 0 
+                ? (origin, callback) => {
+                    if (!origin || allowedOrigins.some(o => origin === o || origin.endsWith('.onrender.com'))) {
+                        callback(null, true);
+                    } else {
+                        callback(new Error('Socket CORS: origin not allowed'));
+                    }
+                }
+                : true, // Fallback to true only if no origins provided (dev mode)
             methods: ['GET', 'POST'],
             credentials: true
         },

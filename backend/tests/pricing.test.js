@@ -62,4 +62,39 @@ describe('Pricing Service', () => {
         await expect(calculateParkingFee(entryTime, entryTime, 'CAR', 'bad-id'))
             .rejects.toThrow('Facility not found');
     });
+
+    test('should fallback to first rule if specific vehicle type rule is missing', async () => {
+        const mockFacility = {
+            id: 'fac-1',
+            pricing_rules: [
+                { vehicle_type: 'CAR', hourly_rate: 20, daily_max: 100 },
+            ],
+        };
+
+        prisma.parkingFacility.findUnique.mockResolvedValue(mockFacility);
+
+        const entryTime = new Date('2023-10-10T10:00:00Z');
+        const exitTime = new Date('2023-10-10T12:00:00Z');
+
+        // Request 'BIKE' but only 'CAR' rule exists
+        const result = await calculateParkingFee(entryTime, exitTime, 'BIKE', 'fac-1');
+
+        expect(result.base_fee).toBe(40); // uses CAR fallback: 2 * 20
+        expect(result.hours_billed).toBe(2);
+    });
+
+    test('should throw AppError if no pricing rules configured for facility', async () => {
+        const mockFacility = {
+            id: 'fac-1',
+            pricing_rules: [],
+        };
+
+        prisma.parkingFacility.findUnique.mockResolvedValue(mockFacility);
+
+        const entryTime = new Date('2023-10-10T10:00:00Z');
+        const exitTime = new Date('2023-10-10T12:00:00Z');
+
+        await expect(calculateParkingFee(entryTime, exitTime, 'CAR', 'fac-1'))
+            .rejects.toThrow(/No pricing rules configured for facility/);
+    });
 });

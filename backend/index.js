@@ -33,9 +33,17 @@ async function startServer() {
         await prisma.$connect();
         Logger.info('Database connected successfully');
 
-        // Initialize Socket.io
-        initSocket(server);
-        Logger.info('Socket.io initialized');
+        // Initialize Socket.io with shared CORS origins
+        const allowedOrigins = [
+            'http://localhost:5173',
+            'http://localhost:3000',
+            process.env.FRONTEND_URL,
+            process.env.MOBILE_APP_URL,
+            process.env.RENDER_APP_URL,
+            'https://parkeasy-backend-uy3x.onrender.com',
+        ].filter(Boolean);
+        initSocket(server, allowedOrigins);
+        Logger.info('Socket.io initialized with CORS origins');
 
         server.listen(PORT, () => {
             Logger.info(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
@@ -73,5 +81,13 @@ const gracefulShutdown = async (signal) => {
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('uncaughtException', (err) => {
+    Logger.error('Uncaught Exception:', err);
+    gracefulShutdown('uncaughtException').catch(() => process.exit(1));
+});
+process.on('unhandledRejection', (reason) => {
+    Logger.error('Unhandled Rejection:', reason);
+    gracefulShutdown('unhandledRejection').catch(() => process.exit(1));
+});
 
 startServer();

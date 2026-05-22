@@ -11,9 +11,10 @@ const rateLimit = require('express-rate-limit');
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 1000, // increased for E2E testing
-    message: 'Too many requests from this IP, please try again after 15 minutes',
+    message: { status: 'error', message: 'Too many requests. Please try again in 15 minutes.' },
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    skip: (req) => req.path === '/health' || req.path === '/api/status',
 });
 
 const parkingRoutes = require('./routes/parking.routes');
@@ -115,9 +116,9 @@ app.get('/health', async (req, res) => {
     });
 });
 
-app.use(limiter); // Apply rate limiter globally to all subsequent routes
 app.use(express.json());
 app.use(cookieParser());
+app.use(limiter); // Apply rate limiter globally to all subsequent routes
 
 if (process.env.NODE_ENV === 'development') {
     app.use(morgan('dev'));
@@ -178,6 +179,7 @@ module.exports = app;
 // ✅ paymentRoutes imported and mounted at /api/v1/payments
 // ✅ verificationRoutes imported and mounted at /api/v1/verification
 // ✅ passRoutes imported and mounted at /api/v1/passes
-// ✅ limiter applied globally before all routes
+// ✅ express.json() and cookieParser() applied BEFORE rate limiter
+// ✅ limiter applied globally with skip for /health and /api/status
 // ✅ setupSwagger(app) called to enable /api-docs
 // ✅ No ReferenceError on startup

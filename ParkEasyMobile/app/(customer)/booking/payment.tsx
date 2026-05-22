@@ -48,9 +48,17 @@ export default function PaymentScreen() {
   const costPerHour = selected_slot.price_per_hour || 0;
   const totalCost = costPerHour * duration;
 
-  const handleProceedToPayment = async () => {
-    setLoading(true);
+  const handleProceedToPayment = () => {
     haptics.impactMedium();
+    if (!facility_id || !selected_slot || !vehicle_number) {
+      showToast('Missing booking details.', 'error');
+      return;
+    }
+    setShowPaymentSheet(true);
+  };
+
+  const handlePaymentSuccess = async () => {
+    setLoading(true);
     try {
       const payload = {
         facility_id,
@@ -58,27 +66,21 @@ export default function PaymentScreen() {
         vehicle_number,
         vehicle_type: vehicle_type || 'car',
         payment_method: selected_payment_method || 'upi',
-        duration_hours: duration,
-        status: 'PENDING'
+        duration,
+        start_time: new Date().toISOString()
       };
 
       const res = await post('/bookings', payload);
       const booking = res.data.data;
 
       setCreatedTicket(booking.id);
-      setShowPaymentSheet(true);
-
+      haptics.notificationSuccess();
+      router.replace('/(customer)/booking/success');
     } catch (e: any) {
       console.error('Booking Creation Error', e);
-      showToast(e.response?.data?.message || 'Booking failed. Please try again.', 'error');
-    } finally {
+      showToast(e.response?.data?.message || 'Booking failed. Please contact support.', 'error');
       setLoading(false);
     }
-  };
-
-  const handlePaymentSuccess = () => {
-    haptics.notificationSuccess();
-    router.replace('/(customer)/booking/success');
   };
 
   const durations = [1, 2, 4, 8, 12, 24];

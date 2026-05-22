@@ -20,6 +20,18 @@ const cleanupReservations = cron.schedule('* * * * *', async () => {
         if (result.count > 0) {
             Logger.info(`Cleaned up ${result.count} expired reservations`);
         }
+
+        const cancelledTickets = await prisma.ticket.updateMany({
+            where: {
+                status: 'PENDING_PAYMENT',
+                created_at: { lt: new Date(Date.now() - 15 * 60 * 1000) }
+            },
+            data: { status: 'CANCELLED' }
+        });
+
+        if (cancelledTickets.count > 0) {
+            Logger.info(`Cancelled ${cancelledTickets.count} expired PENDING_PAYMENT tickets`);
+        }
     } catch (error) {
         Logger.error('Error in reservation cleanup job', error);
     }

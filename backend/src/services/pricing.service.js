@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const AppError = require('../utils/AppError');
 
 const calculateParkingFee = async (entryTime, exitTime, vehicleType, facilityId) => {
     // 1. Fetch Pricing Rules
@@ -11,15 +12,16 @@ const calculateParkingFee = async (entryTime, exitTime, vehicleType, facilityId)
         throw new Error('Facility not found');
     }
 
-    const rule = facility.pricing_rules.find((r) => r.vehicle_type === vehicleType);
+    let rule = facility.pricing_rules.find((r) => r.vehicle_type === vehicleType);
     if (!rule) {
-        // Default fallback if no specific rule
-        return {
-            base_fee: 0,
-            extra_charges: 0,
-            total_fee: 0,
-            breakdown: 'No pricing rule found',
-        };
+        // Fallback to first available rule or system default
+        const fallbackRule = facility.pricing_rules[0];
+        if (!fallbackRule) {
+            throw new AppError(`No pricing rules configured for facility ${facilityId}. Please contact the facility provider.`, 422);
+        }
+        // Use fallback rule but log warning
+        console.warn(`[Pricing] No rule for vehicle type ${vehicleType} at facility ${facilityId}. Using fallback rule for ${fallbackRule.vehicle_type}.`);
+        rule = fallbackRule;
     }
 
     const hourlyRate = Number(rule.hourly_rate);

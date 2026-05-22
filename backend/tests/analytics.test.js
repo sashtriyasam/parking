@@ -9,6 +9,7 @@ jest.mock('../src/config/db', () => ({
     ticket: {
         aggregate: jest.fn(),
         count: jest.fn(),
+        groupBy: jest.fn(),
     },
     parkingSlot: {
         count: jest.fn(),
@@ -40,8 +41,11 @@ describe('Analytics Service', () => {
             .mockResolvedValueOnce({ _sum: { total_fee: 500 } }) // Week
             .mockResolvedValueOnce({ _sum: { total_fee: 2000 } }); // Month
 
-        // Active Bookings
-        prisma.ticket.count.mockResolvedValue(5);
+        // Active Bookings (online/offline breakdown)
+        prisma.ticket.groupBy.mockResolvedValue([
+            { booking_type: 'ONLINE', _count: { _all: 3 } },
+            { booking_type: 'OFFLINE', _count: { _all: 2 } }
+        ]);
 
         // Occupancy (Total, Occupied)
         prisma.parkingSlot.count

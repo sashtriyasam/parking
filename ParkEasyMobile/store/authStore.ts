@@ -1,10 +1,15 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import { jwtDecode } from 'jwt-decode';
 import { User } from '../types';
 import { disconnectSocket } from '../hooks/useSocket';
 
 interface AuthState {
   user: User | null;
+  // NOTE: accessToken is stored here in-memory, but the api.ts request interceptor 
+  // reads the token fresh from SecureStore.getItemAsync('accessToken') on every request.
+  // Exposing this here is technically redundant/misleading, but DO NOT remove or modify 
+  // how it is retrieved/stored here to avoid breaking unexpected dependencies.
   accessToken: string | null;
   isLoading: boolean;
   isInitialized: boolean;
@@ -36,7 +41,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ user, accessToken, isLoading: false, isInitialized: true });
     } catch (e) {
       console.error('Error storing auth info', e);
-      set({ isLoading: false });
+      set({ isLoading: false, isInitialized: true });
     }
   },
 
@@ -50,7 +55,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ user: null, accessToken: null, isLoading: false, isInitialized: true });
     } catch (e) {
       console.error('Error during logout', e);
-      set({ isLoading: false });
+      set({ isLoading: false, isInitialized: true });
     }
   },
 
@@ -60,12 +65,28 @@ export const useAuthStore = create<AuthState>((set) => ({
       const storedUser = await SecureStore.getItemAsync('user');
       const token = await SecureStore.getItemAsync('accessToken');
       if (storedUser && token) {
-        set({ user: JSON.parse(storedUser), accessToken: token });
+        try {
+          const decoded: { exp: number } = jwtDecode(token);
+          const isExpired = decoded.exp * 1000 < Date.now();
+          if (!isExpired) {
+            set({ user: JSON.parse(storedUser), accessToken: token });
+          } else {
+            // Token expired — check if refresh token exists to allow silent refresh
+            const refreshToken = await SecureStore.getItemAsync('refreshToken');
+            if (refreshToken) {
+              // Set stale token; api.ts interceptor will handle refresh on first request
+              set({ user: JSON.parse(storedUser), accessToken: token });
+            }
+            // If no refresh token, don't set user — forces clean login
+          }
+        } catch {
+          // Can't decode token — treat as expired, don't restore session
+        }
       }
     } catch (e) {
       console.error('Error loading auth from storage', e);
     } finally {
-      set({ isInitialized: true });
+      set({ isInitialized: true, isLoading: false });
     }
   },
 }));

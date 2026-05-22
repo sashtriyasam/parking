@@ -237,11 +237,7 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
         return next(new AppError('Slot not found', 404));
     }
 
-    // Check time-based availability (allows same slot at different times)
-    const available = await bookingService.isSlotAvailable(slot_id, bookingStart, bookingEnd);
-    if (!available) {
-        return next(new AppError('This slot is already booked for the selected time window. Please choose a different time or slot.', 409));
-    }
+
 
     // Calculate fees
     let pricingRule = slot.floor.facility.pricing_rules.find(
@@ -302,6 +298,12 @@ const createBookingWithPayment = asyncHandler(async (req, res, next) => {
     let ticket;
     try {
         ticket = await prisma.$transaction(async (tx) => {
+            // Check time-based availability atomically inside transaction (with client tx)
+            const available = await bookingService.isSlotAvailable(slot_id, bookingStart, bookingEnd, tx);
+            if (!available) {
+                throw new AppError('Slot is no longer available for this time window', 409);
+            }
+
             // Double check availability inside transaction
             const overlapping = await tx.ticket.findFirst({
                 where: {

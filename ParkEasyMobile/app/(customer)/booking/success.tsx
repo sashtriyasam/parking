@@ -53,6 +53,13 @@ export default function BookingSuccessScreen() {
     haptics.notificationSuccess();
   }, []);
 
+  // Reset booking flow state when leaving the success screen
+  // Uses cleanup function so data is still available while on this screen
+  useEffect(() => {
+    return () => resetBookingFlow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const animatedIconStyle = useAnimatedStyle(() => ({
     transform: [{ scale: iconScale.value }],
   }));

@@ -13,6 +13,7 @@ const API_URL = (() => {
 
 const apiClient = axios.create({
   baseURL: API_URL,
+  timeout: 15000, // 15 second timeout — accounts for Render cold starts
 });
 
 apiClient.interceptors.request.use(
@@ -59,16 +60,27 @@ apiClient.interceptors.response.use(
       console.warn(`API 404: Not found at ${originalRequest?.url}`);
     }
 
+    // Specific handling for timeout errors (Render cold starts)
+    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      const timeoutError = new Error('REQUEST_TIMEOUT');
+      (timeoutError as any).isTimeout = true;
+      return Promise.reject(timeoutError);
+    }
+
     if (error.response?.status === 401 && !originalRequest?._retry) {
       originalRequest._retry = true;
       try {
         const refreshToken = await SecureStore.getItemAsync('refreshToken');
         if (refreshToken) {
           const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
-          await SecureStore.setItemAsync('accessToken', res.data.accessToken);
-          await SecureStore.setItemAsync('refreshToken', res.data.refreshToken);
+          const { accessToken, refreshToken: newRefresh } = res.data.data;
+          if (!accessToken) {
+            throw new Error('Invalid refresh response');
+          }
+          await SecureStore.setItemAsync('accessToken', accessToken);
+          await SecureStore.setItemAsync('refreshToken', newRefresh);
           if (originalRequest?.headers) {
-            originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           }
           return apiClient(originalRequest);
         } else {
