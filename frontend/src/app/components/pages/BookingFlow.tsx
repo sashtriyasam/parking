@@ -141,31 +141,31 @@ export function BookingVehicle() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-32 pt-16">
+    <div className="min-h-screen bg-background pb-32 pt-16 text-foreground">
       {/* Header */}
-      <div className="bg-white px-4 py-4 fixed top-0 left-0 right-0 z-10 border-b flex items-center">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="mr-2">
+      <div className="bg-background/90 backdrop-blur-md px-4 py-4 fixed top-0 left-0 right-0 z-10 border-b border-border flex items-center text-foreground">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="mr-2 text-foreground">
           <ChevronLeft className="w-6 h-6" />
         </Button>
-        <h1 className="text-lg font-bold">Confirm Booking</h1>
+        <h1 className="text-lg font-bold font-display">Confirm Booking</h1>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 mt-6 space-y-6">
 
         {/* Facility Summary */}
-        <Card className="p-4 flex gap-4 items-center">
-          <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden shrink-0">
+        <Card className="p-4 flex gap-4 items-center bg-card border border-border text-card-foreground">
+          <div className="w-16 h-16 bg-secondary rounded-lg overflow-hidden shrink-0">
             <img src={facility?.images?.[0] || facility?.image_url || '/placeholder-parking.jpg'} alt="" className="w-full h-full object-cover" />
           </div>
           <div className="flex-1">
-            <h3 className="font-bold text-gray-900">{facility?.name}</h3>
-            <p className="text-sm text-gray-500">{facility?.address}</p>
+            <h3 className="font-bold text-foreground font-display">{facility?.name}</h3>
+            <p className="text-sm text-muted-foreground">{facility?.address}</p>
           </div>
           {facility?.latitude && facility?.longitude && (
             <Button
               variant="outline"
               size="sm"
-              className="shrink-0 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+              className="shrink-0 text-primary border-primary/20 hover:bg-primary/10 rounded-md"
               onClick={() => openGoogleMapsNavigation(facility.latitude, facility.longitude)}
             >
               <Navigation className="w-4 h-4 mr-1" />
@@ -176,29 +176,29 @@ export function BookingVehicle() {
 
         {/* Vehicle Details */}
         <div className="space-y-4">
-          <h3 className="font-bold text-lg">Vehicle Details</h3>
-          <Card className="p-4 space-y-4">
+          <h3 className="font-bold text-lg font-display text-foreground">Vehicle Details</h3>
+          <Card className="p-4 space-y-4 bg-card border border-border text-card-foreground">
             <div>
-              <Label className="text-xs text-gray-500 uppercase tracking-wide">Vehicle Number</Label>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Vehicle Number</Label>
               <Input
                 id="vehicle-input"
                 placeholder="Ex: MH 02 AB 1234"
                 value={vehicleNumber}
                 onChange={(e) => setVehicleNumber(e.target.value)}
-                className="mt-1 h-12 text-lg font-bold uppercase placeholder:font-normal placeholder:capitalize"
+                className="mt-1 h-12 text-lg font-bold uppercase placeholder:font-normal placeholder:capitalize bg-secondary border-border text-foreground rounded-md"
               />
             </div>
 
             <div>
-              <Label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">Vehicle Type</Label>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide mb-2 block">Vehicle Type</Label>
               <div className="grid grid-cols-4 gap-2">
                 {(['bike', 'scooter', 'car', 'truck'] as VehicleType[]).map((type) => (
                   <button
                     key={type}
                     onClick={() => setVehicleType(type)}
-                    className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all ${vehicleType === type
-                      ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                      : 'border-transparent bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    className={`flex flex-col items-center justify-center p-2 rounded-md border transition-all duration-200 ${vehicleType === type
+                      ? 'border-primary bg-primary/10 text-primary font-bold'
+                      : 'border-border bg-secondary text-muted-foreground hover:bg-secondary/80'
                       }`}
                   >
                     {type === 'bike' && <Bike className="w-6 h-6 mb-1" />}
@@ -215,14 +215,14 @@ export function BookingVehicle() {
 
         {/* Time-Based Booking */}
         <div className="space-y-4">
-          <h3 className="font-bold text-lg flex items-center gap-2">
-            <CalendarClock className="w-5 h-5 text-indigo-600" />
+          <h3 className="font-bold text-lg flex items-center gap-2 font-display text-foreground">
+            <CalendarClock className="w-5 h-5 text-primary" />
             Booking Time
           </h3>
-          <Card className="p-6 space-y-5">
+          <Card className="p-6 space-y-5 bg-card border border-border text-card-foreground">
             {/* Start Time */}
             <div>
-              <Label className="text-xs text-gray-500 uppercase tracking-wide font-bold mb-2 block">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide font-bold mb-2 block">
                 Start Time
               </Label>
               <Input
@@ -239,15 +239,15 @@ export function BookingVehicle() {
                   }
                 }}
                 min={toDateTimeLocal(new Date())}
-                className="h-12 text-base font-semibold"
+                className="h-12 text-base font-semibold bg-secondary border-border text-foreground rounded-md"
               />
             </div>
 
             {/* Arrow separator */}
             <div className="flex items-center justify-center">
-              <div className="flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-full">
-                <ArrowRight className="w-4 h-4 text-indigo-600" />
-                <span className={`text-sm font-black ${isValidTime ? 'text-indigo-700' : 'text-red-500'}`}>
+              <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full">
+                <ArrowRight className="w-4 h-4 text-primary" />
+                <span className={`text-sm font-black ${isValidTime ? 'text-primary' : 'text-destructive'}`}>
                   {durationDisplay}
                 </span>
               </div>
@@ -255,7 +255,7 @@ export function BookingVehicle() {
 
             {/* End Time */}
             <div>
-              <Label className="text-xs text-gray-500 uppercase tracking-wide font-bold mb-2 block">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide font-bold mb-2 block">
                 End Time
               </Label>
               <Input
@@ -264,28 +264,28 @@ export function BookingVehicle() {
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
                 min={startTime}
-                className="h-12 text-base font-semibold"
+                className="h-12 text-base font-semibold bg-secondary border-border text-foreground rounded-md"
               />
             </div>
 
             {/* Time validation message */}
             {!isValidTime && startTime && endTime && (
-              <p className="text-sm text-red-500 font-medium text-center">
+              <p className="text-sm text-destructive font-medium text-center">
                 ⚠ Please select a valid time window (min 30 min, max 24 hours)
               </p>
             )}
 
             {/* Summary */}
             {isValidTime && (
-              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 flex justify-between items-center">
+              <div className="bg-secondary/40 border border-border/50 rounded-lg p-4 flex justify-between items-center">
                 <div>
-                  <p className="text-xs text-gray-500 uppercase font-bold">Duration</p>
-                  <p className="text-xl font-black text-indigo-700">{durationDisplay}</p>
+                  <p className="text-xs text-muted-foreground uppercase font-bold">Duration</p>
+                  <p className="text-xl font-black text-primary">{durationDisplay}</p>
                 </div>
                 <Separator orientation="vertical" className="h-10" />
                 <div className="text-right">
-                  <p className="text-xs text-gray-500 uppercase font-bold">Estimated Cost</p>
-                  <p className="text-2xl font-black text-gray-900">₹{totalAmount}</p>
+                  <p className="text-xs text-muted-foreground uppercase font-bold">Estimated Cost</p>
+                  <p className="text-2xl font-bold text-foreground">₹{totalAmount}</p>
                 </div>
               </div>
             )}
@@ -294,7 +294,7 @@ export function BookingVehicle() {
 
         {/* Payment Method */}
         <div className="space-y-4">
-          <h3 className="font-bold text-lg">Payment Method</h3>
+          <h3 className="font-bold text-lg font-display text-foreground">Payment Method</h3>
           <div className="space-y-2">
             <PaymentOption
               id="upi"
@@ -322,16 +322,16 @@ export function BookingVehicle() {
       </div>
 
       {/* Fixed Bottom Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t z-20 pb-safe">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-md border-t border-border z-20 pb-safe shadow-lg">
         <div className="max-w-2xl mx-auto flex gap-4 items-center">
           <div className="flex-1">
-            <p className="text-xs text-gray-500 font-bold uppercase">Total to pay</p>
-            <p className="text-2xl font-black">₹{totalAmount}</p>
+            <p className="text-xs text-muted-foreground font-bold uppercase">Total to pay</p>
+            <p className="text-2xl font-bold text-foreground">₹{totalAmount}</p>
           </div>
           <Button
             onClick={handleConfirmBooking}
             disabled={isProcessing || !isValidTime}
-            className="h-14 px-8 rounded-xl text-lg font-bold bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 min-w-[200px] disabled:opacity-50"
+            className="h-12 px-8 rounded-md text-md font-bold bg-primary hover:bg-primary/95 text-primary-foreground min-w-[200px] disabled:opacity-50"
           >
             {isProcessing ? 'Processing...' : 'Pay & Book'}
           </Button>
@@ -353,14 +353,14 @@ function PaymentOption({ id, title, icon: Icon, selected, onSelect }: PaymentOpt
   return (
     <div
       onClick={() => onSelect(id)}
-      className={`flex items-center p-4 rounded-xl border-2 cursor-pointer transition-all ${selected ? 'border-indigo-600 bg-indigo-50' : 'border-gray-100 bg-white hover:border-gray-200'
+      className={`flex items-center p-4 rounded-lg border cursor-pointer transition-all duration-200 ${selected ? 'border-primary bg-primary/10' : 'border-border bg-card hover:bg-secondary/50'
         }`}
     >
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${selected ? 'bg-indigo-200 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${selected ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>
         <Icon className="w-5 h-5" />
       </div>
-      <span className={`font-bold ${selected ? 'text-indigo-900' : 'text-gray-700'}`}>{title}</span>
-      {selected && <Check className="w-5 h-5 text-indigo-600 ml-auto" />}
+      <span className={`font-bold ${selected ? 'text-foreground' : 'text-muted-foreground'}`}>{title}</span>
+      {selected && <Check className="w-5 h-5 text-primary ml-auto" />}
     </div>
   );
 }
@@ -394,28 +394,28 @@ export function BookingSuccess() {
   const exitTime = booking.exit_time || booking.exitTime || booking.endTime;
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-16 flex flex-col items-center justify-center p-4">
-      <Card className="w-full max-w-md overflow-hidden shadow-xl rounded-3xl relative">
-        <div className="bg-emerald-500 p-6 text-center text-white pb-12">
+    <div className="min-h-screen bg-background pt-16 flex flex-col items-center justify-center p-4 text-foreground">
+      <Card className="w-full max-w-md overflow-hidden border border-border shadow-sm rounded-lg relative bg-card text-card-foreground">
+        <div className="bg-[#34C759] p-6 text-center text-white pb-12">
           <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
             <Check className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-black">Booking Confirmed!</h1>
-          <p className="text-emerald-50">Your space is reserved</p>
+          <h1 className="text-2xl font-bold font-display">Booking Confirmed!</h1>
+          <p className="text-white/80">Your space is reserved</p>
         </div>
 
         <div className="px-6 -mt-8">
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <div className="flex justify-center py-4">
+          <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
+            <div className="flex justify-center py-4 bg-white p-2 rounded-md">
               {(booking.qr_code || booking.qrCode) && (booking.qr_code || booking.qrCode).startsWith('data:') ? (
                 <img src={booking.qr_code || booking.qrCode} alt="QR Code" width={150} height={150} className="rounded-lg" />
               ) : (
                 <QRCode value={booking.qr_code || booking.qrCode || booking.id || 'PARKEASY'} size={150} />
               )}
             </div>
-            <div className="text-center border-t border-dashed border-gray-200 pt-4 mt-2">
-              <p className="text-xs text-gray-400 uppercase tracking-widest font-bold mb-1">Pass Code</p>
-              <p className="text-xl font-mono font-black text-gray-800 tracking-wider">#{booking.id.slice(-6).toUpperCase()}</p>
+            <div className="text-center border-t border-dashed border-border pt-4 mt-2">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold mb-1">Pass Code</p>
+              <p className="text-xl font-mono font-black text-foreground tracking-wider">#{booking.id.slice(-6).toUpperCase()}</p>
             </div>
           </div>
         </div>
@@ -423,32 +423,32 @@ export function BookingSuccess() {
         <div className="p-6 space-y-4">
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Location</span>
-              <span className="font-bold text-gray-900">{facility?.name}</span>
+              <span className="text-muted-foreground">Location</span>
+              <span className="font-bold text-foreground">{facility?.name}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Vehicle</span>
-              <span className="font-bold text-gray-900">{booking.vehicle_number || booking.vehicleNumber}</span>
+              <span className="text-muted-foreground">Vehicle</span>
+              <span className="font-bold text-foreground">{booking.vehicle_number || booking.vehicleNumber}</span>
             </div>
             {/* Time Window Display */}
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Time Window</span>
-              <span className="font-bold text-gray-900">
+              <span className="text-muted-foreground">Time Window</span>
+              <span className="font-bold text-foreground">
                 {entryTime ? formatTime(entryTime) : '--'}
                 {' → '}
                 {exitTime ? formatTime(exitTime) : '--'}
               </span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Date</span>
-              <span className="font-bold text-gray-900">
+              <span className="text-muted-foreground">Date</span>
+              <span className="font-bold text-foreground">
                 {entryTime ? formatDate(entryTime) : '--'}
               </span>
             </div>
             {booking.duration && (
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Duration</span>
-                <span className="font-bold text-gray-900">{booking.duration}h</span>
+                <span className="text-muted-foreground">Duration</span>
+                <span className="font-bold text-foreground">{booking.duration}h</span>
               </div>
             )}
           </div>
@@ -456,7 +456,7 @@ export function BookingSuccess() {
           {/* Navigate to Parking Button */}
           {lat && lng && (
             <Button
-              className="w-full h-14 rounded-xl text-md font-bold bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 flex items-center justify-center gap-2"
+              className="w-full h-12 rounded-md text-md font-bold bg-[#007AFF] hover:bg-[#007AFF]/95 text-white flex items-center justify-center gap-2 shadow-sm"
               onClick={() => openGoogleMapsNavigation(Number(lat), Number(lng))}
             >
               <Navigation className="w-5 h-5" />
@@ -465,10 +465,10 @@ export function BookingSuccess() {
           )}
 
           <div className="flex gap-3 pt-2">
-            <Button variant="outline" className="flex-1" onClick={() => navigate('/customer/search')}>
+            <Button variant="outline" className="flex-1 rounded-md border-border text-foreground hover:bg-secondary" onClick={() => navigate('/customer/search')}>
               Home
             </Button>
-            <Button className="flex-1 bg-indigo-600 hover:bg-indigo-700" onClick={() => navigate('/customer/tickets')}>
+            <Button className="flex-1 rounded-md bg-primary text-primary-foreground hover:bg-primary/95" onClick={() => navigate('/customer/tickets')}>
               My Ticket
             </Button>
           </div>
@@ -478,7 +478,7 @@ export function BookingSuccess() {
         <div className="absolute top-0 left-0 w-full h-2 bg-emerald-600/20" />
       </Card>
 
-      <p className="text-xs text-gray-400 mt-6 text-center max-w-xs">
+      <p className="text-xs text-muted-foreground mt-6 text-center max-w-xs">
         Show this QR code at the entrance scanner to access your parking spot.
       </p>
     </div>
