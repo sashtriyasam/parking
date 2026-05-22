@@ -12,6 +12,8 @@ on:
       - 'store/**'
       - 'types/**'
       - 'utils/**'
+permissions:
+  contents: read
 
 jobs:
   update:
